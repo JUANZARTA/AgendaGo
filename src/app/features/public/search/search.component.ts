@@ -124,7 +124,7 @@ const CATEGORIES = [
               </div>
 
               <div style="display:flex;gap:8px">
-                <a [routerLink]="['/empresa', company.id]" class="btn btn-primary btn-sm" style="flex:1">
+                <a [routerLink]="['/negocio', company.id]" class="btn btn-primary btn-sm" style="flex:1">
                   Ver y agendar
                 </a>
                 @if (company.whatsapp) {
