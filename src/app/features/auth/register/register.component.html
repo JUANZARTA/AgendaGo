@@ -18,7 +18,7 @@
 
       @if (success()) {
         <div style="text-align:center;padding:24px 0">
-          <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 20px">✓</div>
+          <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:#065f46"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
           <h2 style="font-weight:800;font-size:1.4rem;margin-bottom:8px">¡Cuenta creada!</h2>
           <p style="color:#a0a0b8;font-size:14px">Revisá tu email para verificarla. Redirigiendo...</p>
         </div>
@@ -41,7 +41,7 @@
                    [style.borderColor]="selectedRole==='client' ? '#7c3aed' : '#ede9fe'"
                    [style.background]="selectedRole==='client' ? 'linear-gradient(135deg,#f5f0ff,#fdf2ff)' : 'white'"
                    [style.boxShadow]="selectedRole==='client' ? '0 4px 18px rgba(124,58,237,.2)' : 'none'">
-                <div style="font-size:2.2rem;margin-bottom:10px">👤</div>
+                <div style="display:flex;justify-content:center;margin-bottom:10px"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
                 <div style="font-weight:800;font-size:15px" [style.color]="selectedRole==='client' ? '#7c3aed' : '#1a1a2e'">
                   Soy cliente
                 </div>
@@ -54,7 +54,7 @@
                    [style.borderColor]="selectedRole==='company' ? '#6d28d9' : '#ede9fe'"
                    [style.background]="selectedRole==='company' ? 'linear-gradient(135deg,#f0ebff,#f5f0ff)' : 'white'"
                    [style.boxShadow]="selectedRole==='company' ? '0 4px 18px rgba(109,40,217,.2)' : 'none'">
-                <div style="font-size:2.2rem;margin-bottom:10px">🏪</div>
+                <div style="display:flex;justify-content:center;margin-bottom:10px"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <div style="font-weight:800;font-size:15px" [style.color]="selectedRole==='company' ? '#6d28d9' : '#1a1a2e'">
                   Tengo negocio
                 </div>
@@ -66,7 +66,7 @@
           <!-- Banner trial -->
           @if (selectedRole === 'company') {
             <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
-              <span style="font-size:1.5rem">🎁</span>
+              <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></span>
               <div>
                 <div style="font-weight:800;font-size:14px;color:#92400e">30 días gratis</div>
                 <div style="font-size:12px;color:#b45309;margin-top:1px">Sin tarjeta de crédito. Luego $29.000/mes.</div>
@@ -127,7 +127,7 @@
           <!-- Error -->
           @if (error()) {
             <div style="background:#ede9fe;border:1.5px solid #c4b5fd;border-radius:10px;padding:10px 14px;color:#5b21b6;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:4px;display:flex;gap:8px;align-items:center">
-              ⚠ {{ error() }}
+              <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span> {{ error() }}
             </div>
           }
 
@@ -135,7 +135,7 @@
           <button type="submit" class="btn btn-primary btn-shimmer"
             style="width:100%;padding:14px;font-size:15px;border-radius:14px;margin-top:20px;letter-spacing:.02em"
             [disabled]="loading() || form.invalid">
-            {{ loading() ? 'Creando cuenta...' : (selectedRole === 'company' ? '🚀 Empezar prueba gratis' : 'Crear cuenta') }}
+            {{ loading() ? 'Creando cuenta...' : (selectedRole === 'company' ? 'Empezar prueba gratis' : 'Crear cuenta') }}
           </button>
         </form>
 
@@ -155,26 +155,26 @@
     <div class="auth-blob auth-blob-4"></div>
 
     <div class="auth-brand-content">
-      <div class="auth-brand-icon">✂️</div>
+      <div class="auth-brand-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg></div>
 
       <h1 class="auth-brand-title">Agenda Co</h1>
-      <p class="auth-brand-tagline">Creá tu cuenta — es gratis ✨</p>
+      <p class="auth-brand-tagline">Creá tu cuenta — es gratis</p>
 
       <div class="auth-feature-list">
         <div class="auth-feature-item">
-          <span style="font-size:1.4rem">🎁</span>
+          <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></span>
           <span>30 días gratis para negocios</span>
         </div>
         <div class="auth-feature-item">
-          <span style="font-size:1.4rem">📅</span>
+          <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
           <span>Agenda en tiempo real</span>
         </div>
         <div class="auth-feature-item">
-          <span style="font-size:1.4rem">🔔</span>
+          <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
           <span>Recordatorios automáticos</span>
         </div>
         <div class="auth-feature-item">
-          <span style="font-size:1.4rem">🛡️</span>
+          <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
           <span>Sin tarjeta de crédito</span>
         </div>
       </div>
@@ -182,13 +182,13 @@
       <!-- Testimonial -->
       <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.25);border-radius:16px;padding:16px 20px;text-align:left;max-width:320px">
         <div style="display:flex;gap:4px;margin-bottom:8px">
-          <span style="color:#FFD700;font-size:16px">★★★★★</span>
+          <span style="color:#FFD700;display:inline-flex;gap:2px;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
         </div>
         <p style="color:white;font-size:13px;line-height:1.6;font-style:italic;margin-bottom:10px">
           "Agenda Co transformó mi barbería. Cero llamadas, lleno todos los días."
         </p>
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:16px">✂️</div>
+          <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg></div>
           <div>
             <div style="color:white;font-weight:700;font-size:13px">Carlos Mendoza</div>
             <div style="color:rgba(255,255,255,0.7);font-size:12px">Barbería El Padrino, Bogotá</div>

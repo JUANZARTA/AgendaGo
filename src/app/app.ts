@@ -12,5 +12,5 @@ import { environment } from '../environments/environment';
   styleUrl: './app.scss',
 })
 export class App {
-  devMode = !environment.production && environment.bypassAuth;
+  devMode = !environment.production;
 }

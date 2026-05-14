@@ -16,7 +16,7 @@ import { RouterLink } from '@angular/router';
 
       @if (saved()) {
         <div style="background:#d4edda;color:#155724;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:14px">
-          ✓ Perfil guardado correctamente
+          <span style="display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Perfil guardado correctamente</span>
         </div>
       }
 

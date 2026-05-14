@@ -8,21 +8,21 @@
     <div class="auth-blob auth-blob-4"></div>
 
     <div class="auth-brand-content">
-      <div class="auth-brand-icon">✂️</div>
+      <div class="auth-brand-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg></div>
       <h1 class="auth-brand-title">Agenda Co</h1>
-      <p class="auth-brand-tagline">Bienvenido de vuelta 👋</p>
+      <p class="auth-brand-tagline">Bienvenido de vuelta</p>
 
       <div class="auth-feature-list">
         <div class="auth-feature-item">
-          <span style="font-size:1.4rem">⚡</span>
+          <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
           <span>Agendá tu cita en segundos</span>
         </div>
         <div class="auth-feature-item">
-          <span style="font-size:1.4rem">📲</span>
+          <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
           <span>Notificaciones automáticas</span>
         </div>
         <div class="auth-feature-item">
-          <span style="font-size:1.4rem">💳</span>
+          <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
           <span>Sin tarjeta requerida</span>
         </div>
       </div>
@@ -37,7 +37,7 @@
           <span>citas agendadas</span>
         </div>
         <div class="auth-stat">
-          <strong>4.9★</strong>
+          <strong>4.9</strong>
           <span>calificación</span>
         </div>
       </div>
@@ -109,7 +109,7 @@
 
         @if (error()) {
           <div style="background:#ffe4e8;border:1.5px solid #fda4af;border-radius:10px;padding:10px 14px;color:#be123c;font-size:13px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-            ⚠ {{ error() }}
+            <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span> {{ error() }}
           </div>
         }
 

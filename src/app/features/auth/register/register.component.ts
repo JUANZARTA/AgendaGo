@@ -41,9 +41,20 @@ export class RegisterComponent {
       return;
     }
 
-    const { email, password, role } = this.form.value;
+    const { email, password, role, displayName } = this.form.value;
     this.auth.register(email!, password!).subscribe({
-      next: () => {
+      next: async (credential) => {
+        try {
+          await this.auth.saveProfile(credential.user.uid, {
+            uid: credential.user.uid,
+            email: email!,
+            displayName: displayName!,
+            role: role as 'client' | 'company',
+            createdAt: Date.now(),
+          });
+        } catch {
+          // Si Firestore falla, continuamos igual — el perfil se puede crear después
+        }
         this.success.set(true);
         setTimeout(() => {
           this.router.navigate(role === 'company' ? ['/empresa'] : ['/']);

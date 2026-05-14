@@ -31,7 +31,7 @@ export class LoginComponent {
     const { email, password } = this.form.value;
     this.auth.loginWithEmail(email!, password!).subscribe({
       next: () => this.redirectByRole(),
-      error: (e) => { this.error.set('Credenciales incorrectas.'); this.loading.set(false); },
+      error: () => { this.error.set('Credenciales incorrectas.'); this.loading.set(false); },
     });
   }
 
@@ -43,7 +43,8 @@ export class LoginComponent {
     });
   }
 
-  private redirectByRole() {
+  private async redirectByRole() {
+    await this.auth.waitForProfile();
     const role = this.auth.role();
     if (role === 'company') this.router.navigate(['/empresa']);
     else if (role === 'superadmin') this.router.navigate(['/admin']);

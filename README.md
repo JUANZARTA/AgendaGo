@@ -1,59 +1,83 @@
-# AgendaCo
+# Agenda Co
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.2.
+PWA de agendamiento de turnos para negocios de belleza en Colombia. Clientes reservan citas en segundos; negocios gestionan su agenda en tiempo real.
 
-## Development server
+## Stack
 
-To start a local development server, run:
+| Capa | Tecnología |
+|------|-----------|
+| Framework | Angular 21 (Standalone, Signals) |
+| Backend | Firebase (Auth, Firestore, Functions, FCM) |
+| Estilos | SCSS global + inline styles (sin framework CSS) |
+| Iconos | SVG inline (estilo Feather) |
+| PWA | Angular Service Worker |
+| Deploy | Firebase Hosting (pendiente) |
+
+## Roles
+
+| Rol | Ruta | Acceso |
+|-----|------|--------|
+| Público | `/` `/buscar` `/empresa/:id` | Sin login |
+| Cliente | `/cliente/*` | Auth + role `client` |
+| Empresa | `/empresa/*` | Auth + role `company` |
+| Superadmin | `/admin/*` | Auth + role `superadmin` |
+
+## Levantar en desarrollo
 
 ```bash
+npm install --legacy-peer-deps
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+> La app corre en `http://localhost:4200`
 
-## Code scaffolding
+## Modo dev (bypassAuth)
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+`environment.ts` tiene el flag `bypassAuth: true` durante desarrollo. Esto desactiva todos los guards y muestra la barra de navegación DEV arriba con acceso directo a cada vista.
 
-```bash
-ng generate component component-name
+**Antes de producción:** cambiar a `bypassAuth: false`.
+
+## Variables de entorno
+
+`src/environments/environment.ts` — desarrollo  
+`src/environments/environment.prod.ts` — producción
+
+Ambos usan el proyecto Firebase `agendago-b8ea6`. Completar `vapidKey` en Firebase Console → Cloud Messaging → Web Push certificates.
+
+## Firestore — reglas mínimas
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Estructura de carpetas
 
-```bash
-ng generate --help
+```
+src/app/
+├── core/
+│   ├── guards/          auth.guard, role.guard
+│   └── services/        auth.service
+├── shared/
+│   └── components/      public-nav, dev-nav
+└── features/
+    ├── public/          landing, search, company-profile
+    ├── auth/            login, register, forgot-password
+    ├── client/          appointments
+    ├── company/         dashboard, profile, services, schedule
+    └── admin/           companies, users, metrics
 ```
 
-## Building
+## Documentación
 
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+| Archivo | Contenido |
+|---------|-----------|
+| `docs/PRD.md` | Product Requirements Document |
+| `docs/ARCHITECTURE.md` | Decisiones técnicas y arquitectura |
+| `docs/FIREBASE.md` | Setup y configuración Firebase |

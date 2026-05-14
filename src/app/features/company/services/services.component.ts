@@ -42,14 +42,14 @@ const EMPTY: Omit<Service, 'id'> = { name: '', description: '', duration: 30, pr
       <div style="display:flex;flex-direction:column;gap:10px">
         @for (svc of services(); track svc.id) {
           <div class="card" style="display:flex;align-items:center;gap:16px" [style.opacity]="svc.active?'1':'0.6'">
-            <div style="width:44px;height:44px;border-radius:10px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">
-              ✂️
+            <div style="width:44px;height:44px;border-radius:10px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#555">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>
             </div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:600;font-size:15px">{{ svc.name }}</div>
               <div style="color:#888;font-size:12px;margin-top:2px">{{ svc.description }}</div>
               <div style="display:flex;gap:16px;margin-top:6px">
-                <span style="font-size:12px;color:#555">⏱ {{ svc.duration }} min</span>
+                <span style="font-size:12px;color:#555;display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {{ svc.duration }} min</span>
                 <span style="font-size:13px;font-weight:600;color:#e94560">$ {{ svc.price | number }}</span>
               </div>
             </div>

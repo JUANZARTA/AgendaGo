@@ -12,19 +12,25 @@ const MOCK_COMPANIES = [
   { id: '5', name: 'Estética Lumina', category: 'salon', description: 'Uñas, cejas y maquillaje profesional para toda ocasión.', whatsapp: '573007778888', rating: 4.5, slots: 2 },
 ];
 
-const CATEGORY_META: Record<string, { label: string; emoji: string; color: string }> = {
-  salon:     { label: 'Salón de belleza', emoji: '💇', color: '#f43f5e' },
-  barberia:  { label: 'Barbería',         emoji: '✂️', color: '#7c3aed' },
-  spa:       { label: 'Spa',              emoji: '🧖', color: '#10b981' },
-  peluqueria:{ label: 'Peluquería',       emoji: '💈', color: '#f59e0b' },
+const SVG_SCISSORS = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>`;
+const SVG_SCISSORS_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>`;
+const SVG_SEARCH_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+const SVG_SEARCH_LG = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+
+const CATEGORY_META: Record<string, { label: string; svg: string; color: string }> = {
+  salon:     { label: 'Salón de belleza', svg: SVG_SCISSORS, color: '#f43f5e' },
+  barberia:  { label: 'Barbería',         svg: SVG_SCISSORS, color: '#7c3aed' },
+  spa:       { label: 'Spa',              svg: SVG_SCISSORS, color: '#10b981' },
+  peluqueria:{ label: 'Peluquería',       svg: SVG_SCISSORS, color: '#f59e0b' },
 };
 
 const CATEGORIES = [
-  { value: '',          label: 'Todas',         emoji: '✨' },
-  { value: 'salon',     label: 'Salones',        emoji: '💇' },
-  { value: 'barberia',  label: 'Barberías',      emoji: '✂️' },
-  { value: 'spa',       label: 'Spas',           emoji: '🧖' },
-  { value: 'peluqueria',label: 'Peluquerías',    emoji: '💈' },
+  { value: '',          label: 'Todas',         svg: SVG_SCISSORS_SM },
+  { value: 'salon',     label: 'Salones',        svg: SVG_SCISSORS_SM },
+  { value: 'barberia',  label: 'Barberías',      svg: SVG_SCISSORS_SM },
+  { value: 'spa',       label: 'Spas',           svg: SVG_SCISSORS_SM },
+  { value: 'peluqueria',label: 'Peluquerías',    svg: SVG_SCISSORS_SM },
 ];
 
 @Component({
@@ -62,8 +68,8 @@ const CATEGORIES = [
             [style.background]="category === cat.value ? 'var(--gradient)' : 'white'"
             [style.color]="category === cat.value ? 'white' : '#7c3aed'"
             [style.boxShadow]="category === cat.value ? '0 4px 14px rgba(124,58,237,.35)' : '0 2px 8px rgba(0,0,0,.06)'"
-            style="border:1.5px solid #ede9fe;font-weight:700">
-            {{ cat.emoji }} {{ cat.label }}
+            style="border:1.5px solid #ede9fe;font-weight:700;display:inline-flex;align-items:center;gap:6px">
+            <span style="display:inline-flex;align-items:center;flex-shrink:0" [innerHTML]="cat.svg"></span> {{ cat.label }}
           </button>
         }
       </div>
@@ -87,9 +93,10 @@ const CATEGORIES = [
             <!-- Header de la card -->
             <div [style.background]="meta(company.category).color + '15'" style="padding:18px 20px 14px">
               <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                <div style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px"
-                     [style.background]="meta(company.category).color + '22'">
-                  {{ meta(company.category).emoji }}
+                <div style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center"
+                     [style.background]="meta(company.category).color + '22'"
+                     [style.color]="meta(company.category).color"
+                     [innerHTML]="meta(company.category).svg">
                 </div>
                 <span class="badge" [class]="company.slots > 0 ? 'badge-green' : 'badge-red'">
                   {{ company.slots > 0 ? company.slots + ' turnos' : 'Sin turnos' }}
@@ -106,7 +113,13 @@ const CATEGORIES = [
               <p style="color:#666;font-size:13px;line-height:1.55;margin-bottom:14px">{{ company.description }}</p>
 
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
-                <span style="color:#f59e0b;font-size:14px">★★★★★</span>
+                <span style="color:#f59e0b;display:inline-flex;gap:2px;align-items:center">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </span>
                 <span style="font-weight:700;font-size:13px">{{ company.rating }}</span>
               </div>
 
@@ -116,8 +129,8 @@ const CATEGORIES = [
                 </a>
                 @if (company.whatsapp) {
                   <a [href]="'https://wa.me/' + company.whatsapp" target="_blank"
-                     class="btn btn-sm" style="background:#25d366;color:white;box-shadow:0 4px 12px rgba(37,211,102,.3)">
-                    💬
+                     class="btn btn-sm" style="background:#25d366;color:white;box-shadow:0 4px 12px rgba(37,211,102,.3);display:inline-flex;align-items:center;justify-content:center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   </a>
                 }
               </div>
@@ -127,7 +140,7 @@ const CATEGORIES = [
 
         @if (filtered().length === 0) {
           <div style="grid-column:1/-1;text-align:center;padding:56px;color:#aaa">
-            <div style="font-size:3rem;margin-bottom:14px">🔍</div>
+            <div style="display:flex;justify-content:center;margin-bottom:14px"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
             <p style="font-size:1.1rem;color:#888">No encontramos negocios con esos filtros.</p>
             <button class="btn btn-outline btn-sm" style="margin-top:16px" (click)="search='';category=''">Limpiar filtros</button>
           </div>
@@ -152,5 +165,5 @@ export class SearchComponent {
 
   totalSlots = computed(() => this.filtered().reduce((sum, c) => sum + c.slots, 0));
 
-  meta(cat: string) { return CATEGORY_META[cat] ?? { label: 'Negocio', emoji: '🏪', color: '#7c3aed' }; }
+  meta(cat: string) { return CATEGORY_META[cat] ?? { label: 'Negocio', svg: SVG_SCISSORS, color: '#7c3aed' }; }
 }
