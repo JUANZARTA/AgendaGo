@@ -22,6 +22,7 @@ export class LoginComponent {
 
   loading = signal(false);
   error = signal('');
+  showPassword = signal(false);
 
   async onSubmit() {
     if (this.form.invalid) return;

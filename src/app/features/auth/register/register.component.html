@@ -1,106 +1,201 @@
-<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
-  <div style="width:100%;max-width:440px">
+<div class="auth-split">
 
-    <!-- Logo -->
-    <div style="text-align:center;margin-bottom:28px">
-      <div style="width:64px;height:64px;border-radius:20px;background:var(--gradient);display:inline-flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 24px rgba(124,58,237,.35);margin-bottom:14px">
-        ✂️
-      </div>
-      <h1 style="font-size:1.8rem;font-weight:800;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
-        Agenda Co
-      </h1>
-      <p style="color:#888;margin-top:6px;font-size:14px">Creá tu cuenta — es gratis ✨</p>
-    </div>
+  <!-- ═══ PANEL IZQUIERDO — formulario ═══ -->
+  <div class="auth-form-panel">
 
-    <div class="card">
+    <!-- Botón volver -->
+    <a routerLink="/"
+       style="position:absolute;top:24px;left:24px;display:flex;align-items:center;gap:8px;color:#7c3aed;font-size:14px;font-weight:700;text-decoration:none;background:#f5f0ff;padding:8px 14px;border-radius:20px;transition:all .15s;border:1.5px solid #ede9fe"
+       onmouseover="this.style.background='#ede9fe'"
+       onmouseout="this.style.background='#f5f0ff'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Volver
+    </a>
+
+    <div class="auth-card" style="max-width:460px">
+
       @if (success()) {
-        <div style="text-align:center;padding:32px 16px">
-          <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 18px">✓</div>
-          <h2 style="font-weight:800;margin-bottom:8px">¡Cuenta creada!</h2>
-          <p style="color:#888;font-size:14px">Revisá tu email para verificarla. Redirigiendo...</p>
+        <div style="text-align:center;padding:24px 0">
+          <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 20px">✓</div>
+          <h2 style="font-weight:800;font-size:1.4rem;margin-bottom:8px">¡Cuenta creada!</h2>
+          <p style="color:#a0a0b8;font-size:14px">Revisá tu email para verificarla. Redirigiendo...</p>
         </div>
       } @else {
+
+        <!-- Header -->
+        <div style="text-align:center;margin-bottom:24px">
+          <h2 style="font-size:1.6rem;font-weight:900;color:#1a1a2e;margin-bottom:6px">Crear cuenta</h2>
+          <p style="color:#a0a0b8;font-size:14px">Elegí cómo vas a usar Agenda Co</p>
+        </div>
+
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
           <!-- Selector de rol -->
-          <p style="font-weight:700;font-size:13px;color:#555;margin-bottom:12px;letter-spacing:.02em">SOY...</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+          <p style="font-weight:800;font-size:12px;color:#a0a0b8;letter-spacing:.08em;margin-bottom:12px">SOY...</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
             <label style="cursor:pointer">
               <input type="radio" formControlName="role" value="client" style="display:none" />
-              <div style="border:2px solid;border-radius:14px;padding:16px;text-align:center;transition:all .15s"
-                   [style.borderColor]="selectedRole==='client' ? 'var(--purple)' : '#ede9fe'"
-                   [style.background]="selectedRole==='client' ? 'var(--gradient-soft)' : 'white'"
-                   [style.boxShadow]="selectedRole==='client' ? '0 4px 14px rgba(124,58,237,.2)' : 'none'">
-                <div style="font-size:2rem;margin-bottom:8px">👤</div>
-                <div style="font-weight:800;font-size:14px" [style.color]="selectedRole==='client' ? 'var(--purple)' : '#444'">Soy cliente</div>
-                <div style="color:#aaa;font-size:12px;margin-top:4px">Agendá citas</div>
+              <div style="border:2.5px solid;border-radius:16px;padding:18px 12px;text-align:center;transition:all .18s;user-select:none"
+                   [style.borderColor]="selectedRole==='client' ? '#7c3aed' : '#ede9fe'"
+                   [style.background]="selectedRole==='client' ? 'linear-gradient(135deg,#f5f0ff,#fdf2ff)' : 'white'"
+                   [style.boxShadow]="selectedRole==='client' ? '0 4px 18px rgba(124,58,237,.2)' : 'none'">
+                <div style="font-size:2.2rem;margin-bottom:10px">👤</div>
+                <div style="font-weight:800;font-size:15px" [style.color]="selectedRole==='client' ? '#7c3aed' : '#1a1a2e'">
+                  Soy cliente
+                </div>
+                <div style="color:#a0a0b8;font-size:12px;margin-top:4px">Agendá citas</div>
               </div>
             </label>
             <label style="cursor:pointer">
               <input type="radio" formControlName="role" value="company" style="display:none" />
-              <div style="border:2px solid;border-radius:14px;padding:16px;text-align:center;transition:all .15s"
-                   [style.borderColor]="selectedRole==='company' ? 'var(--pink)' : '#ede9fe'"
-                   [style.background]="selectedRole==='company' ? '#fff5f7' : 'white'"
-                   [style.boxShadow]="selectedRole==='company' ? '0 4px 14px rgba(244,63,94,.2)' : 'none'">
-                <div style="font-size:2rem;margin-bottom:8px">🏪</div>
-                <div style="font-weight:800;font-size:14px" [style.color]="selectedRole==='company' ? 'var(--pink)' : '#444'">Tengo negocio</div>
-                <div style="color:#aaa;font-size:12px;margin-top:4px">Gestioná tu agenda</div>
+              <div style="border:2.5px solid;border-radius:16px;padding:18px 12px;text-align:center;transition:all .18s;user-select:none"
+                   [style.borderColor]="selectedRole==='company' ? '#6d28d9' : '#ede9fe'"
+                   [style.background]="selectedRole==='company' ? 'linear-gradient(135deg,#f0ebff,#f5f0ff)' : 'white'"
+                   [style.boxShadow]="selectedRole==='company' ? '0 4px 18px rgba(109,40,217,.2)' : 'none'">
+                <div style="font-size:2.2rem;margin-bottom:10px">🏪</div>
+                <div style="font-weight:800;font-size:15px" [style.color]="selectedRole==='company' ? '#6d28d9' : '#1a1a2e'">
+                  Tengo negocio
+                </div>
+                <div style="color:#a0a0b8;font-size:12px;margin-top:4px">Gestioná tu agenda</div>
               </div>
             </label>
           </div>
 
+          <!-- Banner trial -->
           @if (selectedRole === 'company') {
-            <div style="background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1.5px solid #ffe082;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
-              <span style="font-size:1.4rem">🎁</span>
+            <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px">
+              <span style="font-size:1.5rem">🎁</span>
               <div>
-                <div style="font-weight:800;font-size:14px;color:#7a5800">30 días gratis</div>
-                <div style="font-size:12px;color:#a67c00;margin-top:1px">Sin tarjeta. Luego $29.000/mes.</div>
+                <div style="font-weight:800;font-size:14px;color:#92400e">30 días gratis</div>
+                <div style="font-size:12px;color:#b45309;margin-top:1px">Sin tarjeta de crédito. Luego $29.000/mes.</div>
               </div>
             </div>
           }
 
-          <div class="form-group">
-            <label>{{ selectedRole === 'company' ? 'Nombre del negocio' : 'Tu nombre completo' }}</label>
-            <input formControlName="displayName"
+          <!-- Nombre -->
+          <div style="margin-bottom:16px">
+            <label style="display:block;font-weight:700;font-size:13px;color:#444;margin-bottom:6px">
+              {{ selectedRole === 'company' ? 'Nombre del negocio' : 'Tu nombre completo' }}
+            </label>
+            <input class="auth-input" formControlName="displayName"
               [placeholder]="selectedRole === 'company' ? 'Barbería El Padrino' : 'Juan García'" />
             @if (form.get('displayName')?.touched && form.get('displayName')?.invalid) {
-              <span style="color:var(--pink);font-size:12px;font-weight:600">Mínimo 2 caracteres</span>
+              <span style="color:#7c3aed;font-size:12px;font-weight:600;margin-top:4px;display:block">Mínimo 2 caracteres</span>
             }
           </div>
 
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" formControlName="email" placeholder="tu@email.com" />
+          <!-- Email -->
+          <div style="margin-bottom:16px">
+            <label style="display:block;font-weight:700;font-size:13px;color:#444;margin-bottom:6px">Email</label>
+            <input class="auth-input" type="email" formControlName="email" placeholder="tu@email.com" />
             @if (form.get('email')?.touched && form.get('email')?.hasError('email')) {
-              <span style="color:var(--pink);font-size:12px;font-weight:600">Email inválido</span>
+              <span style="color:#7c3aed;font-size:12px;font-weight:600;margin-top:4px;display:block">Email inválido</span>
             }
           </div>
 
-          <div class="form-group" style="margin-bottom:8px">
-            <label>Contraseña</label>
-            <input type="password" formControlName="password" placeholder="Mínimo 8 caracteres" />
+          <!-- Password con toggle -->
+          <div style="margin-bottom:6px">
+            <label style="display:block;font-weight:700;font-size:13px;color:#444;margin-bottom:6px">Contraseña</label>
+            <div style="position:relative">
+              <input class="auth-input" [type]="showPassword() ? 'text' : 'password'"
+                formControlName="password" placeholder="Mínimo 8 caracteres"
+                style="padding-right:46px" />
+              <button type="button" (click)="showPassword.set(!showPassword())"
+                style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#a0a0b8;padding:0;display:flex;align-items:center"
+                [title]="showPassword() ? 'Ocultar contraseña' : 'Ver contraseña'">
+                @if (showPassword()) {
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                } @else {
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                }
+              </button>
+            </div>
             @if (form.get('password')?.touched && form.get('password')?.hasError('minlength')) {
-              <span style="color:var(--pink);font-size:12px;font-weight:600">Mínimo 8 caracteres</span>
+              <span style="color:#7c3aed;font-size:12px;font-weight:600;margin-top:4px;display:block">Mínimo 8 caracteres</span>
             }
           </div>
 
+          <!-- Error -->
           @if (error()) {
-            <div style="background:#ffe4e8;border:1.5px solid #fda4af;border-radius:10px;padding:10px 14px;color:#be123c;font-size:13px;font-weight:600;margin-bottom:14px">
+            <div style="background:#ede9fe;border:1.5px solid #c4b5fd;border-radius:10px;padding:10px 14px;color:#5b21b6;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:4px;display:flex;gap:8px;align-items:center">
               ⚠ {{ error() }}
             </div>
           }
 
-          <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:14px"
+          <!-- Submit -->
+          <button type="submit" class="btn btn-primary btn-shimmer"
+            style="width:100%;padding:14px;font-size:15px;border-radius:14px;margin-top:20px;letter-spacing:.02em"
             [disabled]="loading() || form.invalid">
             {{ loading() ? 'Creando cuenta...' : (selectedRole === 'company' ? '🚀 Empezar prueba gratis' : 'Crear cuenta') }}
           </button>
         </form>
 
-        <p style="text-align:center;margin-top:20px;font-size:14px;color:#888">
+        <p style="text-align:center;margin-top:20px;font-size:14px;color:#a0a0b8">
           ¿Ya tenés cuenta?
-          <a routerLink="/auth/login" style="color:var(--purple);font-weight:700;margin-left:4px">Iniciá sesión</a>
+          <a routerLink="/auth/login" style="color:#7c3aed;font-weight:800;margin-left:4px">Iniciá sesión</a>
         </p>
       }
     </div>
   </div>
+
+  <!-- ═══ PANEL DERECHO — marca animada ═══ -->
+  <div class="auth-brand">
+    <div class="auth-blob auth-blob-1"></div>
+    <div class="auth-blob auth-blob-2"></div>
+    <div class="auth-blob auth-blob-3"></div>
+    <div class="auth-blob auth-blob-4"></div>
+
+    <div class="auth-brand-content">
+      <div class="auth-brand-icon">✂️</div>
+
+      <h1 class="auth-brand-title">Agenda Co</h1>
+      <p class="auth-brand-tagline">Creá tu cuenta — es gratis ✨</p>
+
+      <div class="auth-feature-list">
+        <div class="auth-feature-item">
+          <span style="font-size:1.4rem">🎁</span>
+          <span>30 días gratis para negocios</span>
+        </div>
+        <div class="auth-feature-item">
+          <span style="font-size:1.4rem">📅</span>
+          <span>Agenda en tiempo real</span>
+        </div>
+        <div class="auth-feature-item">
+          <span style="font-size:1.4rem">🔔</span>
+          <span>Recordatorios automáticos</span>
+        </div>
+        <div class="auth-feature-item">
+          <span style="font-size:1.4rem">🛡️</span>
+          <span>Sin tarjeta de crédito</span>
+        </div>
+      </div>
+
+      <!-- Testimonial -->
+      <div style="background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.25);border-radius:16px;padding:16px 20px;text-align:left;max-width:320px">
+        <div style="display:flex;gap:4px;margin-bottom:8px">
+          <span style="color:#FFD700;font-size:16px">★★★★★</span>
+        </div>
+        <p style="color:white;font-size:13px;line-height:1.6;font-style:italic;margin-bottom:10px">
+          "Agenda Co transformó mi barbería. Cero llamadas, lleno todos los días."
+        </p>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:16px">✂️</div>
+          <div>
+            <div style="color:white;font-weight:700;font-size:13px">Carlos Mendoza</div>
+            <div style="color:rgba(255,255,255,0.7);font-size:12px">Barbería El Padrino, Bogotá</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>

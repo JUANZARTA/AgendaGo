@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 
 const MOCK = {
   name: 'Barbería El Padrino',
@@ -23,8 +24,10 @@ const MOCK = {
 @Component({
   selector: 'app-company-profile',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent],
   template: `
+    <app-public-nav />
+
     <div class="page" style="max-width:680px;margin:0 auto">
       <a routerLink="/" style="color:var(--purple);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px;margin-bottom:16px">
         ← Volver al inicio

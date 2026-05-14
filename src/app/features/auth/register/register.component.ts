@@ -26,6 +26,7 @@ export class RegisterComponent {
   loading = signal(false);
   error = signal('');
   success = signal(false);
+  showPassword = signal(false);
 
   get selectedRole() { return this.form.get('role')?.value; }
 

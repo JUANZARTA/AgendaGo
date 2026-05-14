@@ -2,6 +2,7 @@ import { Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 
 const MOCK_COMPANIES = [
   { id: '1', name: 'Salón Valentina', category: 'salon', description: 'Cortes, tintes y tratamientos capilares para lucir increíble.', whatsapp: '573001234567', rating: 4.8, slots: 3 },
@@ -29,20 +30,22 @@ const CATEGORIES = [
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent],
   template: `
+    <app-public-nav />
+
     <!-- Hero -->
     <div class="hero" style="margin-bottom:28px">
-      <div style="position:relative;z-index:1">
-        <h1 style="font-size:2.2rem;font-weight:800;margin-bottom:10px;line-height:1.2">
-          Tu cita en segundos 💜
+      <div style="position:relative;z-index:1;text-align:center;display:flex;flex-direction:column;align-items:center">
+        <h1 style="font-size:2.4rem;font-weight:800;margin-bottom:10px;line-height:1.2">
+          Tu cita en segundos
         </h1>
-        <p style="font-size:1rem;opacity:.88;margin-bottom:24px;max-width:480px">
+        <p style="font-size:1rem;opacity:.88;margin-bottom:28px;max-width:480px">
           Salones, barberías, spas y más. Sin llamadas, sin esperas.
         </p>
 
         <!-- Buscador en hero -->
-        <div style="background:white;border-radius:14px;padding:6px;display:flex;gap:8px;max-width:520px;box-shadow:0 4px 24px rgba(0,0,0,.15)">
+        <div style="background:white;border-radius:14px;padding:6px;display:flex;gap:8px;width:100%;max-width:540px;box-shadow:0 4px 24px rgba(0,0,0,.15)">
           <input [(ngModel)]="search" placeholder="¿Qué negocio buscás?"
             style="flex:1;padding:10px 14px;border:none;outline:none;font-size:15px;border-radius:10px;color:#222;min-width:0" />
           <button class="btn btn-primary btn-sm" style="white-space:nowrap">Buscar</button>

@@ -2,12 +2,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_PROJECT.firebaseapp.com',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_PROJECT.appspot.com',
-  messagingSenderId: 'YOUR_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: 'AIzaSyDk_So7bgA7t-BfZcZqtR503OSWLYcUZcY',
+  authDomain: 'agendago-b8ea6.firebaseapp.com',
+  projectId: 'agendago-b8ea6',
+  storageBucket: 'agendago-b8ea6.firebasestorage.app',
+  messagingSenderId: '72485695160',
+  appId: '1:72485695160:web:429fc6fb80cc0ff88f8e4d',
 });
 
 const messaging = firebase.messaging();
