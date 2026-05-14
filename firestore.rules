@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() { return request.auth != null; }
+    function isSuperAdmin() { return isAuth() && request.auth.token.role == 'superadmin'; }
+    function isCompany() { return isAuth() && request.auth.token.role == 'company'; }
+    function isOwner(uid) { return isAuth() && request.auth.uid == uid; }
+
+    function isCompanyOwner(companyId) {
+      return isAuth() && get(/databases/$(database)/documents/companies/$(companyId)).data.ownerId == request.auth.uid;
+    }
+
+    // USERS
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // COMPANIES — lectura pública si isPublic; escritura solo owner o superadmin
+    match /companies/{companyId} {
+      allow read: if resource.data.isPublic == true || isCompanyOwner(companyId) || isSuperAdmin();
+      allow create: if isCompany() || isSuperAdmin();
+      allow update: if isCompanyOwner(companyId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+
+      match /services/{serviceId} {
+        allow read: if true;
+        allow write: if isCompanyOwner(companyId) || isSuperAdmin();
+      }
+
+      match /blockedSlots/{slotId} {
+        allow read: if true;
+        allow write: if isCompanyOwner(companyId) || isSuperAdmin();
+      }
+    }
+
+    // APPOINTMENTS
+    match /appointments/{appointmentId} {
+      allow read: if isAuth() && (
+        resource.data.clientId == request.auth.uid ||
+        isCompanyOwner(resource.data.companyId) ||
+        isSuperAdmin()
+      );
+      allow read: if !isAuth(); // invitados pueden leer para chequear disponibilidad
+      allow create: if true;   // cualquiera puede agendar (invitado incluido)
+      allow update: if isAuth() && (
+        resource.data.clientId == request.auth.uid ||
+        isCompanyOwner(resource.data.companyId) ||
+        isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // SUBSCRIPTIONS — solo empresa owner y superadmin
+    match /subscriptions/{companyId} {
+      allow read: if isCompanyOwner(companyId) || isSuperAdmin();
+      allow write: if isSuperAdmin(); // solo backend/superadmin escribe
+    }
+
+    // NOTIFICATIONS — solo el destinatario y superadmin
+    match /notifications/{notifId} {
+      allow read: if isAuth() && (
+        resource.data.recipientId == request.auth.uid || isSuperAdmin()
+      );
+      allow write: if isSuperAdmin();
+    }
+
+    // MESSAGES (chat interno)
+    match /messages/{messageId} {
+      allow read: if isAuth() && (
+        resource.data.clientId == request.auth.uid ||
+        isCompanyOwner(resource.data.companyId)
+      );
+      allow create: if isAuth();
+    }
+  }
+}
