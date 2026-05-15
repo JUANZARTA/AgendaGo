@@ -1,46 +1,28 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
+import { Company, CompanyService } from '../../../core/services/company.service';
+import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
+import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
 
-const MOCK = {
-  name: 'Barbería El Padrino',
-  category: 'Barbería',
-  color: '#7c3aed',
-  description: 'Cortes clásicos y arreglo de barba. Más de 10 años de experiencia en el arte del barbero.',
-  whatsapp: '573009876543',
-  rating: 4.9,
-  reviews: 142,
-  services: [
-    { id: '1', name: 'Corte clásico',   duration: 30, price: 20000, desc: 'Corte masculino tradicional' },
-    { id: '2', name: 'Corte + barba',   duration: 45, price: 35000, desc: 'Corte y arreglo completo de barba' },
-    { id: '3', name: 'Afeitado navaja', duration: 30, price: 25000, desc: 'Afeitado con navaja y espuma caliente' },
-  ],
-  paymentMethods: ['Efectivo', 'Nequi', 'Daviplata', 'Transferencia bancaria', 'Tarjeta débito/crédito'],
-  allSlots: ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'],
-  // Por día de la semana (0=Dom) qué slots están tomados (simulado)
-  takenByDay: [
-    ['09:00','11:00','15:00'],          // Dom
-    ['09:30','10:30','14:00','16:00'],  // Lun
-    ['08:30','11:30','15:30'],          // Mar
-    ['09:00','10:00','14:30','17:00'],  // Mié
-    ['08:00','09:30','11:00','16:30'],  // Jue
-    ['09:00','10:30','11:30','15:00','16:00'], // Vie
-    ['08:30','09:00','09:30','10:00','14:00'], // Sáb — más ocupado
-  ],
-};
+const PAYMENT_METHODS = ['Efectivo', 'Nequi', 'Daviplata', 'Transferencia bancaria', 'Tarjeta débito/crédito'];
+
+const DAY_KEYS = ['dom','lun','mar','mie','jue','vie','sab'];
 
 function buildDays(n: number) {
   const days = [];
-  const NAMES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const NAMES  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  const today = new Date();
+  const today  = new Date();
   for (let i = 0; i < n; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     days.push({
-      date: d,
+      date: iso,
+      dateObj: d,
       label: i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : NAMES[d.getDay()],
       sub: `${d.getDate()} ${MONTHS[d.getMonth()]}`,
       dayOfWeek: d.getDay(),
@@ -53,15 +35,33 @@ function buildDays(n: number) {
   selector: 'app-company-profile',
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent],
+  styles: [`
+    :host { display: block; }
+
+    @media (max-width: 640px) {
+      input, select, textarea { font-size: 16px !important; }
+      .step-dot { width: 22px !important; height: 22px !important; font-size: 11px !important; }
+    }
+
+    @media (max-width: 480px) {
+      .step4-actions { flex-direction: column !important; align-items: stretch !important; }
+      .step4-actions .btn { width: 100% !important; justify-content: center !important; }
+    }
+
+    @media (max-width: 360px) {
+      .service-btn { padding: 12px 10px !important; }
+    }
+  `],
   template: `
     <app-public-nav />
 
-    <!-- Toast de slot no disponible -->
+    <!-- Toast: slot no disponible -->
     @if (showUnavailable()) {
       <div style="position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:999;
                   background:#1a1a2e;color:white;padding:12px 22px;border-radius:12px;
                   font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;
-                  box-shadow:0 8px 32px rgba(0,0,0,.25);animation:toast-in .25s ease">
+                  box-shadow:0 8px 32px rgba(0,0,0,.25);animation:toast-in .25s ease;
+                  max-width:calc(100vw - 32px);white-space:normal;text-align:center">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
@@ -69,295 +69,306 @@ function buildDays(n: number) {
       </div>
     }
 
+    <!-- Toast: error al reservar -->
+    @if (bookingError()) {
+      <div style="position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:999;
+                  background:#dc2626;color:white;padding:12px 22px;border-radius:12px;
+                  font-size:14px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,.25);
+                  max-width:calc(100vw - 32px);text-align:center">
+        {{ bookingError() }}
+      </div>
+    }
+
     <div class="page" style="max-width:680px;margin:0 auto">
 
-      <!-- Volver -->
       <a routerLink="/" style="color:var(--purple);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;text-decoration:none">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Volver
       </a>
 
-      <!-- Header empresa -->
-      <div class="card" style="border-top:4px solid {{ company.color }};padding:0;overflow:hidden;margin-bottom:20px">
-        <div [style.background]="company.color + '12'" style="padding:24px">
-          <div style="display:flex;gap:16px;align-items:center">
-            <div style="width:72px;height:72px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0"
-                 [style.background]="company.color + '22'" [style.color]="company.color">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
-                <line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/>
-              </svg>
-            </div>
-            <div style="flex:1">
-              <h1 style="font-size:1.5rem;font-weight:800">{{ company.name }}</h1>
-              <p style="font-weight:600;font-size:13px;margin-top:2px" [style.color]="company.color">{{ company.category }}</p>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-                <div style="display:flex;gap:2px;color:#f59e0b">
-                  @for (s of [1,2,3,4,5]; track s) {
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                  }
-                </div>
-                <span style="font-weight:700;font-size:13px">{{ company.rating }}</span>
-                <span style="color:#aaa;font-size:12px">({{ company.reviews }} reseñas)</span>
+      @if (loading()) {
+        <div class="card" style="text-align:center;padding:48px;color:#aaa">Cargando negocio...</div>
+      } @else if (!company()) {
+        <div class="card" style="text-align:center;padding:48px;color:#aaa">Negocio no encontrado.</div>
+      } @else {
+
+        <!-- Header empresa -->
+        <div class="card" [style.borderTop]="'4px solid ' + companyColor()" style="padding:0;overflow:hidden;margin-bottom:20px">
+          <div [style.background]="companyColor() + '12'" style="padding:24px">
+            <div style="display:flex;gap:16px;align-items:center">
+              <div style="width:72px;height:72px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0"
+                   [style.background]="companyColor() + '22'" [style.color]="companyColor()">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
+                  <line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/>
+                </svg>
+              </div>
+              <div style="flex:1">
+                <h1 style="font-size:1.5rem;font-weight:800">{{ company()!.name }}</h1>
+                <p style="font-weight:600;font-size:13px;margin-top:2px" [style.color]="companyColor()">{{ companyCategory() }}</p>
               </div>
             </div>
+            <p style="color:#555;line-height:1.6;margin-top:14px;font-size:14px">{{ company()!.description }}</p>
           </div>
-          <p style="color:#555;line-height:1.6;margin-top:14px;font-size:14px">{{ company.description }}</p>
-        </div>
 
-        <!-- Stepper -->
-        <div style="padding:14px 24px;border-top:1.5px solid #f0e8ff;display:flex;align-items:center;background:white">
-          @for (step of steps; track step.n; let i = $index) {
-            <div style="display:flex;align-items:center;flex:1;min-width:0">
-              <div class="step-dot" [class]="stepClass(step.n)">
-                @if (currentStep() > step.n) {
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                } @else { {{ step.n }} }
+          <!-- Stepper -->
+          <div style="padding:14px 24px;border-top:1.5px solid #f0e8ff;display:flex;align-items:center;background:white">
+            @for (step of steps; track step.n; let i = $index) {
+              <div style="display:flex;align-items:center;flex:1;min-width:0">
+                <div class="step-dot" [class]="stepClass(step.n)">
+                  @if (currentStep() > step.n) {
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  } @else { {{ step.n }} }
+                </div>
+                <span style="font-size:11px;font-weight:600;margin-left:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                      [style.color]="currentStep() >= step.n ? 'var(--purple)' : '#c4b5fd'">
+                  {{ step.label }}
+                </span>
+                @if (i < steps.length - 1) {
+                  <div style="flex:1;height:2px;margin:0 8px;min-width:8px;border-radius:2px"
+                       [style.background]="currentStep() > step.n ? 'var(--gradient)' : '#f0e8ff'"></div>
+                }
               </div>
-              <span style="font-size:11px;font-weight:600;margin-left:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
-                    [style.color]="currentStep() >= step.n ? 'var(--purple)' : '#c4b5fd'">
-                {{ step.label }}
-              </span>
-              @if (i < steps.length - 1) {
-                <div style="flex:1;height:2px;margin:0 8px;min-width:8px;border-radius:2px"
-                     [style.background]="currentStep() > step.n ? 'var(--gradient)' : '#f0e8ff'"></div>
-              }
-            </div>
-          }
-        </div>
-      </div>
-
-      <!-- ══ PASO 1: Servicio ══ -->
-      @if (currentStep() === 1) {
-        <div class="card" style="animation:fadeInUp .3s ease">
-          <h2 style="font-size:1.05rem;font-weight:800;margin-bottom:4px">¿Qué servicio necesitás?</h2>
-          <p class="text-muted" style="margin-bottom:16px">Seleccioná uno para ver disponibilidad</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            @for (s of company.services; track s.id) {
-              <button (click)="selectService(s)"
-                style="display:flex;align-items:center;justify-content:space-between;padding:16px;border-radius:12px;border:2px solid #ede9fe;background:white;cursor:pointer;text-align:left;width:100%;transition:all .18s"
-                [style.borderColor]="selectedService()?.id === s.id ? 'var(--purple)' : '#ede9fe'"
-                [style.background]="selectedService()?.id === s.id ? '#faf8ff' : 'white'"
-                onmouseover="this.style.borderColor='#7c3aed';this.style.background='#faf8ff'"
-                onmouseout="this.style.borderColor=this.style.borderColor">
-                <div>
-                  <div style="font-weight:700;font-size:15px;color:#1a1a2e">{{ s.name }}</div>
-                  <div style="color:#888;font-size:13px;margin-top:3px">{{ s.desc }}</div>
-                  <div style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;color:#a0a0b8;font-size:12px">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    {{ s.duration }} min
-                  </div>
-                </div>
-                <div style="text-align:right;flex-shrink:0;margin-left:16px">
-                  <div style="font-weight:800;font-size:17px;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
-                    $ {{ s.price | number }}
-                  </div>
-                </div>
-              </button>
             }
           </div>
-
-          @if (selectedService()) {
-            <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="currentStep.set(2)">
-              Elegir fecha y hora
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          }
         </div>
-      }
 
-      <!-- ══ PASO 2: Fecha y hora ══ -->
-      @if (currentStep() === 2) {
-        <div class="card" style="animation:fadeInUp .3s ease">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-            <button (click)="goBack()" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <div>
-              <h2 style="font-size:1.05rem;font-weight:800">Elegí fecha y hora</h2>
-              <p style="font-size:13px;font-weight:600;color:var(--purple);margin-top:1px">{{ selectedService()!.name }}</p>
-            </div>
-          </div>
+        <!-- ══ PASO 1: Servicio ══ -->
+        @if (currentStep() === 1) {
+          <div class="card" style="animation:fadeInUp .3s ease">
+            <h2 style="font-size:1.05rem;font-weight:800;margin-bottom:4px">¿Qué servicio necesitás?</h2>
+            <p class="text-muted" style="margin-bottom:16px">Seleccioná uno para ver disponibilidad</p>
 
-          <!-- Selector de días -->
-          <p style="font-size:12px;font-weight:700;color:#a0a0b8;letter-spacing:.06em;margin-bottom:10px">DÍA</p>
-          <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:20px">
-            @for (day of days; track day.sub) {
-              <button (click)="selectDay(day)"
-                style="flex-shrink:0;min-width:68px;padding:10px 8px;border-radius:12px;border:2px solid;cursor:pointer;text-align:center;transition:all .18s;font-family:inherit"
-                [style.borderColor]="selectedDay()?.sub === day.sub ? 'var(--purple)' : '#ede9fe'"
-                [style.background]="selectedDay()?.sub === day.sub ? 'var(--gradient)' : 'white'"
-                [style.color]="selectedDay()?.sub === day.sub ? 'white' : '#1a1a2e'"
-                [style.boxShadow]="selectedDay()?.sub === day.sub ? '0 4px 14px rgba(124,58,237,.3)' : 'none'">
-                <div style="font-weight:800;font-size:13px">{{ day.label }}</div>
-                <div style="font-size:11px;margin-top:3px;opacity:.75">{{ day.sub }}</div>
-              </button>
-            }
-          </div>
-
-          <!-- Slots de hora -->
-          @if (selectedDay()) {
-            <p style="font-size:12px;font-weight:700;color:#a0a0b8;letter-spacing:.06em;margin-bottom:10px">HORA DISPONIBLE</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:8px">
-              @for (slot of company.allSlots; track slot) {
-                @if (isTaken(slot)) {
-                  <!-- Sin cupo -->
-                  <button (click)="alertUnavailable()"
-                    style="padding:10px;border-radius:10px;border:2px solid #fee2e2;background:#fff5f5;color:#fca5a5;font-weight:600;font-size:13px;cursor:not-allowed;position:relative;font-family:inherit">
-                    {{ slot }}
-                    <div style="font-size:10px;font-weight:700;color:#f87171;margin-top:2px">Sin cupo</div>
-                  </button>
-                } @else {
-                  <!-- Disponible -->
-                  <button (click)="selectSlot(slot)"
-                    style="padding:10px;border-radius:10px;border:2px solid;cursor:pointer;font-weight:700;font-size:13px;transition:all .18s;font-family:inherit"
-                    [style.borderColor]="selectedSlot()===slot ? 'transparent' : '#ede9fe'"
-                    [style.background]="selectedSlot()===slot ? 'var(--gradient)' : '#f5f0ff'"
-                    [style.color]="selectedSlot()===slot ? 'white' : 'var(--purple)'"
-                    [style.boxShadow]="selectedSlot()===slot ? '0 4px 14px rgba(124,58,237,.35)' : 'none'"
-                    [style.transform]="selectedSlot()===slot ? 'scale(1.05)' : 'scale(1)'">
-                    {{ slot }}
+            @if (services().length === 0) {
+              <div style="text-align:center;padding:24px;color:#aaa">Este negocio aún no publicó servicios.</div>
+            } @else {
+              <div style="display:flex;flex-direction:column;gap:10px">
+                @for (s of services(); track s.id) {
+                  <button class="service-btn" (click)="selectService(s)"
+                    style="display:flex;align-items:center;justify-content:space-between;padding:16px;border-radius:12px;border:2px solid var(--form-border);background:white;cursor:pointer;text-align:left;width:100%;transition:all .18s"
+                    [style.borderColor]="selectedService()?.id === s.id ? 'var(--purple)' : 'var(--form-border)'"
+                    [style.background]="selectedService()?.id === s.id ? 'var(--form-bg)' : 'white'"
+                    onmouseover="this.style.borderColor='var(--purple)';this.style.background='var(--form-bg)'"
+                    onmouseout="if(!this.getAttribute('data-selected')){this.style.borderColor='var(--form-border)';this.style.background='white'}">
+                    <div>
+                      <div style="font-weight:700;font-size:15px;color:#1a1a2e">{{ s.name }}</div>
+                      <div style="color:#888;font-size:13px;margin-top:3px">{{ s.description }}</div>
+                      <div style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;color:#a0a0b8;font-size:12px">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        {{ s.duration }} min
+                      </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;margin-left:16px">
+                      <div style="font-weight:800;font-size:17px;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+                        $ {{ (s.price ?? 0) | number }}
+                      </div>
+                    </div>
                   </button>
                 }
+              </div>
+
+              @if (selectedService()) {
+                <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="currentStep.set(2)">
+                  Elegir fecha y hora
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              }
+            }
+          </div>
+        }
+
+        <!-- ══ PASO 2: Fecha y hora ══ -->
+        @if (currentStep() === 2) {
+          <div class="card" style="animation:fadeInUp .3s ease">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+              <button (click)="goBack()" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;gap:4px;flex-shrink:0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div>
+                <h2 style="font-size:1.05rem;font-weight:800">Elegí fecha y hora</h2>
+                <p style="font-size:13px;font-weight:600;color:var(--purple);margin-top:1px">{{ selectedService()!.name }}</p>
+              </div>
+            </div>
+
+            <p style="font-size:12px;font-weight:700;color:#a0a0b8;letter-spacing:.06em;margin-bottom:10px">DÍA</p>
+            <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:20px">
+              @for (day of days; track day.sub) {
+                <button (click)="selectDay(day)"
+                  style="flex-shrink:0;min-width:68px;padding:10px 8px;border-radius:12px;border:2px solid;cursor:pointer;text-align:center;transition:all .18s;font-family:inherit"
+                  [style.borderColor]="selectedDay()?.sub === day.sub ? 'var(--purple)' : 'var(--form-border)'"
+                  [style.background]="selectedDay()?.sub === day.sub ? 'var(--gradient)' : 'white'"
+                  [style.color]="selectedDay()?.sub === day.sub ? 'white' : '#1a1a2e'"
+                  [style.boxShadow]="selectedDay()?.sub === day.sub ? '0 4px 14px rgba(var(--primary-rgb),.3)' : 'none'">
+                  <div style="font-weight:800;font-size:13px">{{ day.label }}</div>
+                  <div style="font-size:11px;margin-top:3px;opacity:.75">{{ day.sub }}</div>
+                </button>
               }
             </div>
 
-            <!-- Leyenda -->
-            <div style="display:flex;gap:16px;margin-top:14px">
-              <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#888">
-                <div style="width:12px;height:12px;border-radius:3px;background:#f5f0ff;border:1.5px solid #ede9fe"></div>
-                Disponible
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#888">
-                <div style="width:12px;height:12px;border-radius:3px;background:#fff5f5;border:1.5px solid #fee2e2"></div>
-                Sin cupo
-              </div>
-            </div>
-          }
+            @if (selectedDay()) {
+              @if (loadingSlots()) {
+                <div style="text-align:center;padding:24px;color:#aaa">Cargando disponibilidad...</div>
+              } @else {
+                <p style="font-size:12px;font-weight:700;color:#a0a0b8;letter-spacing:.06em;margin-bottom:10px">HORA DISPONIBLE</p>
+                @if (allSlots().length === 0) {
+                  <div style="text-align:center;padding:20px;color:#aaa">No hay turnos disponibles para este día.</div>
+                } @else {
+                  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px">
+                    @for (slot of allSlots(); track slot) {
+                      @if (isTaken(slot)) {
+                        <button (click)="alertUnavailable()"
+                          style="padding:10px;border-radius:10px;border:2px solid #fee2e2;background:#fff5f5;color:#fca5a5;font-weight:600;font-size:13px;cursor:not-allowed;font-family:inherit">
+                          {{ slot }}
+                          <div style="font-size:10px;font-weight:700;color:#f87171;margin-top:2px">Sin cupo</div>
+                        </button>
+                      } @else {
+                        <button (click)="selectSlot(slot)"
+                          style="padding:10px;border-radius:10px;border:2px solid;cursor:pointer;font-weight:700;font-size:13px;transition:all .18s;font-family:inherit"
+                          [style.borderColor]="selectedSlot()===slot ? 'transparent' : 'var(--form-border)'"
+                          [style.background]="selectedSlot()===slot ? 'var(--gradient)' : 'var(--btn-secondary-bg)'"
+                          [style.color]="selectedSlot()===slot ? 'white' : 'var(--purple)'"
+                          [style.boxShadow]="selectedSlot()===slot ? '0 4px 14px rgba(var(--primary-rgb),.35)' : 'none'"
+                          [style.transform]="selectedSlot()===slot ? 'scale(1.05)' : 'scale(1)'">
+                          {{ slot }}
+                        </button>
+                      }
+                    }
+                  </div>
 
-          @if (selectedDay() && selectedSlot()) {
-            <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="currentStep.set(3)">
-              Continuar — {{ selectedDay()!.label }} {{ selectedDay()!.sub }} a las {{ selectedSlot() }}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          }
-        </div>
-      }
+                  <div style="display:flex;gap:16px;margin-top:14px">
+                    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#888">
+                      <div style="width:12px;height:12px;border-radius:3px;background:var(--btn-secondary-bg);border:1.5px solid var(--form-border)"></div>
+                      Disponible
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#888">
+                      <div style="width:12px;height:12px;border-radius:3px;background:#fff5f5;border:1.5px solid #fee2e2"></div>
+                      Sin cupo
+                    </div>
+                  </div>
+                }
+              }
 
-      <!-- ══ PASO 3: Datos + Pago ══ -->
-      @if (currentStep() === 3) {
-        <div class="card" style="animation:fadeInUp .3s ease">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-            <button (click)="goBack()" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;flex-shrink:0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <h2 style="font-size:1.05rem;font-weight:800">Tus datos y forma de pago</h2>
+              @if (selectedDay() && selectedSlot()) {
+                <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="currentStep.set(3)">
+                  Continuar — {{ selectedDay()!.label }} {{ selectedDay()!.sub }} a las {{ selectedSlot() }}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              }
+            }
           </div>
+        }
 
-          <!-- Resumen -->
-          <div style="background:linear-gradient(135deg,#f5f0ff,#fff0f4);border-radius:12px;padding:16px;margin-bottom:22px;border:1.5px solid #ede9fe">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
-              <div>
-                <div class="text-muted">Servicio</div>
-                <div style="font-weight:700;margin-top:2px">{{ selectedService()!.name }}</div>
-              </div>
-              <div>
-                <div class="text-muted">Duración</div>
-                <div style="font-weight:700;margin-top:2px">{{ selectedService()!.duration }} min</div>
-              </div>
-              <div>
-                <div class="text-muted">Fecha</div>
-                <div style="font-weight:700;margin-top:2px">{{ selectedDay()!.label }} {{ selectedDay()!.sub }}</div>
-              </div>
-              <div>
-                <div class="text-muted">Hora</div>
-                <div style="font-weight:700;margin-top:2px">{{ selectedSlot() }}</div>
-              </div>
-            </div>
-            <div style="border-top:1.5px solid #ede9fe;margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
-              <span class="text-muted">Total</span>
-              <span style="font-weight:800;font-size:18px;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
-                $ {{ selectedService()!.price | number }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Datos personales -->
-          <div class="form-group">
-            <label>Tu nombre completo *</label>
-            <input [(ngModel)]="clientName" placeholder="Juan García" />
-          </div>
-          <div class="form-group">
-            <label>Teléfono *</label>
-            <input [(ngModel)]="clientPhone" placeholder="3001234567" type="tel" />
-          </div>
-          <div class="form-group" style="margin-bottom:22px">
-            <label>Nota para el negocio (opcional)</label>
-            <input [(ngModel)]="clientNote" placeholder="Primera vez, alguna preferencia..." />
-          </div>
-
-          <!-- Medio de pago -->
-          <p style="font-weight:700;font-size:13px;color:#444;margin-bottom:10px">Medio de pago *</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
-            @for (pm of company.paymentMethods; track pm) {
-              <button (click)="selectedPayment.set(pm)"
-                style="padding:11px 14px;border-radius:10px;border:2px solid;cursor:pointer;text-align:left;font-size:13px;font-weight:600;transition:all .18s;font-family:inherit;display:flex;align-items:center;gap:8px"
-                [style.borderColor]="selectedPayment()===pm ? 'var(--purple)' : '#ede9fe'"
-                [style.background]="selectedPayment()===pm ? 'linear-gradient(135deg,#f5f0ff,#f0ebff)' : 'white'"
-                [style.color]="selectedPayment()===pm ? 'var(--purple)' : '#555'">
-                <div style="width:18px;height:18px;border-radius:50%;border:2px solid;flex-shrink:0;display:flex;align-items:center;justify-content:center"
-                     [style.borderColor]="selectedPayment()===pm ? 'var(--purple)' : '#d1d5db'">
-                  @if (selectedPayment()===pm) {
-                    <div style="width:8px;height:8px;border-radius:50%;background:var(--purple)"></div>
-                  }
-                </div>
-                {{ pm }}
+        <!-- ══ PASO 3: Datos + Pago ══ -->
+        @if (currentStep() === 3) {
+          <div class="card" style="animation:fadeInUp .3s ease">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+              <button (click)="goBack()" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;flex-shrink:0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
-            }
-          </div>
+              <h2 style="font-size:1.05rem;font-weight:800">Tus datos y forma de pago</h2>
+            </div>
 
-          <button class="btn btn-primary btn-lg" style="width:100%"
-            (click)="confirm()" [disabled]="!clientName || !clientPhone || !selectedPayment()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            Confirmar y enviar por WhatsApp
-          </button>
-          <p class="text-muted" style="text-align:center;margin-top:10px;font-size:12px">
-            Se abrirá WhatsApp con el mensaje listo para enviar
-          </p>
-        </div>
-      }
+            <div style="background:var(--gradient-soft);border-radius:12px;padding:16px;margin-bottom:22px;border:1.5px solid var(--form-border)">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;font-size:13px">
+                <div>
+                  <div class="text-muted">Servicio</div>
+                  <div style="font-weight:700;margin-top:2px">{{ selectedService()!.name }}</div>
+                </div>
+                <div>
+                  <div class="text-muted">Duración</div>
+                  <div style="font-weight:700;margin-top:2px">{{ selectedService()!.duration }} min</div>
+                </div>
+                <div>
+                  <div class="text-muted">Fecha</div>
+                  <div style="font-weight:700;margin-top:2px">{{ selectedDay()!.label }} {{ selectedDay()!.sub }}</div>
+                </div>
+                <div>
+                  <div class="text-muted">Hora</div>
+                  <div style="font-weight:700;margin-top:2px">{{ selectedSlot() }}</div>
+                </div>
+              </div>
+              <div style="border-top:1.5px solid var(--form-border);margin-top:12px;padding-top:12px;display:flex;justify-content:space-between;align-items:center">
+                <span class="text-muted">Total</span>
+                <span style="font-weight:800;font-size:18px;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+                  $ {{ (selectedService()!.price ?? 0) | number }}
+                </span>
+              </div>
+            </div>
 
-      <!-- ══ PASO 4: Confirmado ══ -->
-      @if (currentStep() === 4) {
-        <div class="card" style="text-align:center;padding:48px 32px;animation:fadeInUp .35s ease">
-          <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:#065f46">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <h2 style="font-size:1.5rem;font-weight:800;color:#065f46;margin-bottom:8px">Solicitud enviada</h2>
-          <p style="color:#555;margin-bottom:4px">
-            <strong>{{ selectedService()!.name }}</strong> — {{ selectedDay()!.label }} {{ selectedDay()!.sub }} a las <strong>{{ selectedSlot() }}</strong>
-          </p>
-          <p class="text-muted" style="margin-bottom:28px">{{ company.name }}</p>
+            <div class="form-group">
+              <label>Tu nombre completo *</label>
+              <input [(ngModel)]="clientName" placeholder="Juan García" />
+            </div>
+            <div class="form-group">
+              <label>Teléfono *</label>
+              <input [(ngModel)]="clientPhone" placeholder="3001234567" type="tel" />
+            </div>
+            <div class="form-group" style="margin-bottom:22px">
+              <label>Nota para el negocio (opcional)</label>
+              <input [(ngModel)]="clientNote" placeholder="Primera vez, alguna preferencia..." />
+            </div>
 
-          <!-- Preview mensaje -->
-          <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:16px 20px;text-align:left;margin-bottom:24px">
-            <p style="font-size:12px;font-weight:700;color:#166534;letter-spacing:.05em;margin-bottom:8px">MENSAJE ENVIADO A WHATSAPP</p>
-            <p style="font-size:13px;color:#166534;line-height:1.7;white-space:pre-line;font-family:monospace">{{ whatsappPreview() }}</p>
-          </div>
+            <p style="font-weight:700;font-size:13px;color:#444;margin-bottom:10px">Medio de pago *</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:20px">
+              @for (pm of paymentMethods; track pm) {
+                <button (click)="selectedPayment.set(pm)"
+                  style="padding:11px 14px;border-radius:10px;border:2px solid;cursor:pointer;text-align:left;font-size:13px;font-weight:600;transition:all .18s;font-family:inherit;display:flex;align-items:center;gap:8px"
+                  [style.borderColor]="selectedPayment()===pm ? 'var(--purple)' : 'var(--form-border)'"
+                  [style.background]="selectedPayment()===pm ? 'var(--gradient-soft)' : 'white'"
+                  [style.color]="selectedPayment()===pm ? 'var(--purple)' : '#555'">
+                  <div style="width:18px;height:18px;border-radius:50%;border:2px solid;flex-shrink:0;display:flex;align-items:center;justify-content:center"
+                       [style.borderColor]="selectedPayment()===pm ? 'var(--purple)' : '#d1d5db'">
+                    @if (selectedPayment()===pm) {
+                      <div style="width:8px;height:8px;border-radius:50%;background:var(--purple)"></div>
+                    }
+                  </div>
+                  {{ pm }}
+                </button>
+              }
+            </div>
 
-          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-            <button class="btn btn-secondary" (click)="reset()">Agendar otra cita</button>
-            @if (company.whatsapp) {
-              <a [href]="whatsappUrl()" target="_blank"
-                 class="btn" style="background:#25d366;color:white;box-shadow:0 4px 14px rgba(37,211,102,.3);display:inline-flex;align-items:center;gap:6px">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                Abrir WhatsApp
-              </a>
-            }
+            <button class="btn btn-primary btn-lg" style="width:100%"
+              (click)="confirm()" [disabled]="!clientName || !clientPhone || !selectedPayment() || booking()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              {{ booking() ? 'Reservando...' : 'Confirmar y enviar por WhatsApp' }}
+            </button>
+            <p class="text-muted" style="text-align:center;margin-top:10px;font-size:12px">
+              Se abrirá WhatsApp con el mensaje listo para enviar
+            </p>
           </div>
-        </div>
+        }
+
+        <!-- ══ PASO 4: Confirmado ══ -->
+        @if (currentStep() === 4) {
+          <div class="card" style="text-align:center;padding:48px 32px;animation:fadeInUp .35s ease">
+            <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:#065f46">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h2 style="font-size:1.5rem;font-weight:800;color:#065f46;margin-bottom:8px">Solicitud enviada</h2>
+            <p style="color:#555;margin-bottom:4px">
+              <strong>{{ selectedService()!.name }}</strong> — {{ selectedDay()!.label }} {{ selectedDay()!.sub }} a las <strong>{{ selectedSlot() }}</strong>
+            </p>
+            <p class="text-muted" style="margin-bottom:28px">{{ company()!.name }}</p>
+
+            <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:16px 20px;text-align:left;margin-bottom:24px">
+              <p style="font-size:12px;font-weight:700;color:#166534;letter-spacing:.05em;margin-bottom:8px">MENSAJE ENVIADO A WHATSAPP</p>
+              <p style="font-size:13px;color:#166534;line-height:1.7;white-space:pre-line;font-family:monospace">{{ whatsappPreview() }}</p>
+            </div>
+
+            <div class="step4-actions" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+              <button class="btn btn-secondary" (click)="reset()">Agendar otra cita</button>
+              @if (company()!.phone) {
+                <a [href]="whatsappUrl()" target="_blank"
+                   class="btn" style="background:#25d366;color:white;box-shadow:0 4px 14px rgba(37,211,102,.3);display:inline-flex;align-items:center;gap:6px">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  Abrir WhatsApp
+                </a>
+              }
+            </div>
+          </div>
+        }
       }
     </div>
 
@@ -369,20 +380,57 @@ function buildDays(n: number) {
     </style>
   `,
 })
-export class CompanyProfileComponent {
-  company = MOCK;
-  days = buildDays(8);
+export class CompanyProfileComponent implements OnInit {
+  private route      = inject(ActivatedRoute);
+  private companySvc = inject(CompanyService);
+  private catalogSvc = inject(ServiceCatalogService);
+  private aptSvc     = inject(AppointmentService);
 
-  currentStep    = signal(1);
-  selectedService = signal<any>(null);
-  selectedDay    = signal<any>(null);
-  selectedSlot   = signal<string | null>(null);
-  selectedPayment = signal<string | null>(null);
-  showUnavailable = signal(false);
+  company  = signal<Company | null>(null);
+  services = signal<ServiceItem[]>([]);
+  loading  = signal(true);
 
-  clientName  = '';
-  clientPhone = '';
-  clientNote  = '';
+  readonly paymentMethods = PAYMENT_METHODS;
+  readonly days = buildDays(8);
+
+  currentStep      = signal(1);
+  selectedService  = signal<ServiceItem | null>(null);
+  selectedDay      = signal<any>(null);
+  selectedSlot     = signal<string | null>(null);
+  selectedPayment  = signal<string | null>(null);
+  showUnavailable  = signal(false);
+  loadingSlots     = signal(false);
+  booking          = signal(false);
+  bookingError     = signal('');
+  existingApts     = signal<any[]>([]);
+
+  companyColor = computed(() => this.company()?.logoColor ?? '#7c3aed');
+  companyCategory = computed(() => {
+    const cat = this.company()?.category;
+    const labels: Record<string, string> = { salon: 'Salón de belleza', barberia: 'Barbería', spa: 'Spa', peluqueria: 'Peluquería' };
+    return cat ? (labels[cat] ?? cat) : '';
+  });
+
+  allSlots = computed(() => {
+    const day      = this.selectedDay();
+    const company  = this.company();
+    const svc      = this.selectedService();
+    if (!day || !company?.schedule?.length || !svc) return [];
+    const key      = DAY_KEYS[day.dayOfWeek];
+    const sched    = company.schedule.find(d => d.key === key);
+    if (!sched?.enabled || !sched.ranges?.length) return [];
+    const interval  = company.slotInterval ?? 30;
+    const duration  = svc.duration         ?? interval;
+    const staff     = svc.staffCount       ?? 1;
+    const apts      = this.existingApts();
+    const slots: string[] = [];
+    for (const range of sched.ranges) {
+      slots.push(...this.aptSvc.calculateAvailableSlots(
+        range.open, range.close, interval, duration, staff, apts
+      ));
+    }
+    return slots;
+  });
 
   steps = [
     { n: 1, label: 'Servicio' },
@@ -391,40 +439,69 @@ export class CompanyProfileComponent {
     { n: 4, label: 'Listo' },
   ];
 
+  clientName  = '';
+  clientPhone = '';
+  clientNote  = '';
+
+  async ngOnInit() {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) { this.loading.set(false); return; }
+    try {
+      const [comp, svcs] = await Promise.all([
+        this.companySvc.getCompany(id),
+        this.catalogSvc.getActiveServices(id),
+      ]);
+      this.company.set(comp);
+      this.services.set(svcs);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
   stepClass(n: number) {
     if (this.currentStep() > n) return 'done';
     if (this.currentStep() === n) return 'active';
     return 'idle';
   }
 
-  isTaken(slot: string): boolean {
-    const day = this.selectedDay();
-    if (!day) return false;
-    return this.company.takenByDay[day.dayOfWeek]?.includes(slot) ?? false;
-  }
+  isTaken(_slot: string): boolean { return false; }
 
   alertUnavailable() {
     this.showUnavailable.set(true);
     setTimeout(() => this.showUnavailable.set(false), 3000);
   }
 
-  selectService(s: any) { this.selectedService.set(s); }
-  selectDay(day: any)   { this.selectedDay.set(day); this.selectedSlot.set(null); }
+  selectService(s: ServiceItem) { this.selectedService.set(s); }
+
+  async selectDay(day: any) {
+    this.selectedDay.set(day);
+    this.selectedSlot.set(null);
+    const cid = this.company()?.id;
+    if (!cid) return;
+    this.loadingSlots.set(true);
+    try {
+      const apts = await this.aptSvc.getByCompanyAndDate(cid, day.date);
+      this.existingApts.set(apts);
+    } finally {
+      this.loadingSlots.set(false);
+    }
+  }
+
   selectSlot(slot: string) { this.selectedSlot.set(slot); }
   goBack() { this.currentStep.update(s => s - 1); }
 
   whatsappPreview = computed(() => {
     if (!this.selectedService() || !this.selectedDay() || !this.selectedSlot()) return '';
-    const svc = this.selectedService();
-    const day = this.selectedDay();
+    const svc = this.selectedService()!;
+    const day = this.selectedDay()!;
     return `Hola, soy *${this.clientName || 'Cliente'}*
 
-Quiero agendar mi cita en *${this.company.name}*
+Quiero agendar mi cita en *${this.company()?.name ?? ''}*
 
 Servicio:  *${svc.name}* (${svc.duration} min)
 Fecha:     *${day.label} ${day.sub}*
 Hora:      *${this.selectedSlot()}*
-Total:     *$${svc.price.toLocaleString('es-CO')}*
+Total:     *$${(svc.price ?? 0).toLocaleString('es-CO')}*
 Pago:      *${this.selectedPayment() ?? ''}*
 ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
 ¡Gracias!`;
@@ -432,13 +509,59 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
 
   whatsappUrl = computed(() => {
     const msg = encodeURIComponent(this.whatsappPreview());
-    return `https://wa.me/${this.company.whatsapp}?text=${msg}`;
+    return `https://wa.me/${this.company()?.phone ?? ''}?text=${msg}`;
   });
 
-  confirm() {
-    this.currentStep.set(4);
-    if (this.company.whatsapp) {
-      setTimeout(() => window.open(this.whatsappUrl(), '_blank'), 400);
+  async confirm() {
+    const cid  = this.company()?.id;
+    const svc  = this.selectedService();
+    const day  = this.selectedDay();
+    const slot = this.selectedSlot();
+    if (!cid || !svc || !day || !slot) return;
+
+    this.booking.set(true);
+    this.bookingError.set('');
+    try {
+      const dur = svc.duration ?? 30;
+      const [h, m] = slot.split(':').map(Number);
+      const endTotal = h * 60 + m + dur;
+      const endTime  = `${String(Math.floor(endTotal/60)).padStart(2,'0')}:${String(endTotal%60).padStart(2,'0')}`;
+
+      await this.aptSvc.bookAppointment({
+        companyId:       cid,
+        companyName:     this.company()!.name,
+        serviceId:       svc.id!,
+        serviceName:     svc.name,
+        serviceDuration: dur,
+        clientName:      this.clientName,
+        clientPhone:     this.clientPhone,
+        isGuestClient:   true,
+        date:            day.date,
+        startTime:       slot,
+        endTime,
+        price:           svc.price,
+        source:          'app',
+      }, svc.staffCount ?? 1);
+
+      this.currentStep.set(4);
+      if (this.company()?.phone) {
+        setTimeout(() => window.open(this.whatsappUrl(), '_blank'), 400);
+      }
+    } catch (e: any) {
+      if (e.message === 'SLOT_TAKEN') {
+        this.bookingError.set('Ese turno ya fue tomado. Por favor elegí otro horario.');
+        const day = this.selectedDay();
+        if (day) {
+          this.aptSvc.getByCompanyAndDate(cid, day.date).then(apts => this.existingApts.set(apts));
+        }
+        this.selectedSlot.set(null);
+        this.currentStep.set(2);
+      } else {
+        this.bookingError.set('Ocurrió un error. Intentá de nuevo.');
+      }
+      setTimeout(() => this.bookingError.set(''), 4000);
+    } finally {
+      this.booking.set(false);
     }
   }
 
@@ -447,9 +570,10 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
     this.selectedDay.set(null);
     this.selectedSlot.set(null);
     this.selectedPayment.set(null);
+    this.existingApts.set([]);
     this.currentStep.set(1);
-    this.clientName = '';
+    this.clientName  = '';
     this.clientPhone = '';
-    this.clientNote = '';
+    this.clientNote  = '';
   }
 }

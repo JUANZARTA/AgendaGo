@@ -100,7 +100,7 @@
             <label style="display:block;font-weight:700;font-size:13px;color:#444;margin-bottom:6px">Contraseña</label>
             <div style="position:relative">
               <input class="auth-input" [type]="showPassword() ? 'text' : 'password'"
-                formControlName="password" placeholder="Mínimo 8 caracteres"
+                formControlName="password" placeholder="Mínimo 6 caracteres"
                 style="padding-right:46px" />
               <button type="button" (click)="showPassword.set(!showPassword())"
                 style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#a0a0b8;padding:0;display:flex;align-items:center"
@@ -120,7 +120,7 @@
               </button>
             </div>
             @if (form.get('password')?.touched && form.get('password')?.hasError('minlength')) {
-              <span style="color:#7c3aed;font-size:12px;font-weight:600;margin-top:4px;display:block">Mínimo 8 caracteres</span>
+              <span style="color:#7c3aed;font-size:12px;font-weight:600;margin-top:4px;display:block">Mínimo 6 caracteres</span>
             }
           </div>
 

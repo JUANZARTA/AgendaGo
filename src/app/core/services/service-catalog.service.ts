@@ -6,6 +6,8 @@ export interface ServiceItem {
   name: string;
   description?: string;
   duration: number | null;
+  price?: number;
+  staffCount: number;
   isActive: boolean;
 }
 

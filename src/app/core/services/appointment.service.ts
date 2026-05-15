@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  Firestore, collection, doc, addDoc, updateDoc, getDocs,
+  Firestore, collection, doc, addDoc, updateDoc, getDocs, deleteDoc,
   query, where, runTransaction, serverTimestamp, onSnapshot, orderBy,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
@@ -20,7 +20,8 @@ export interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'cancelled' | 'completed';
+  price?: number;
+  status: 'pending' | 'scheduled' | 'cancelled' | 'completed';
   cancelledBy?: 'client' | 'company';
   source: 'app' | 'manual';
 }
@@ -29,46 +30,64 @@ export interface Appointment {
 export class AppointmentService {
   private firestore = inject(Firestore);
 
-  /** Calcula slots disponibles dado el horario de la empresa y citas existentes */
+  private toMin(t: string): number {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  private toTime(min: number): string {
+    return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  }
+
+  /** Calcula slots disponibles según intervalo, duración real del servicio y cantidad de staff */
   calculateAvailableSlots(
-    date: string,
     openTime: string,
     closeTime: string,
-    slotDuration: number,
+    slotInterval: number,
+    serviceDuration: number,
+    staffCount: number,
     existingAppointments: Appointment[]
   ): string[] {
     const slots: string[] = [];
-    const [openH, openM] = openTime.split(':').map(Number);
-    const [closeH, closeM] = closeTime.split(':').map(Number);
-    let current = openH * 60 + openM;
-    const end = closeH * 60 + closeM;
+    const open  = this.toMin(openTime);
+    const close = this.toMin(closeTime);
 
-    const occupied = new Set(existingAppointments.map((a) => a.startTime));
-
-    while (current + slotDuration <= end) {
-      const hh = String(Math.floor(current / 60)).padStart(2, '0');
-      const mm = String(current % 60).padStart(2, '0');
-      const slot = `${hh}:${mm}`;
-      if (!occupied.has(slot)) slots.push(slot);
-      current += slotDuration;
+    for (let cur = open; cur + serviceDuration <= close; cur += slotInterval) {
+      const slotEnd = cur + serviceDuration;
+      const overlapping = existingAppointments.filter(a => {
+        const aStart = this.toMin(a.startTime);
+        const aEnd   = this.toMin(a.endTime);
+        return aStart < slotEnd && aEnd > cur;
+      });
+      if (overlapping.length < staffCount) {
+        slots.push(this.toTime(cur));
+      }
     }
     return slots;
   }
 
-  /** Transacción: verifica disponibilidad y crea la cita atómicamente */
-  async bookAppointment(data: Omit<Appointment, 'id' | 'status'>): Promise<string> {
+  /** Transacción: verifica disponibilidad por solapamiento real y staffCount */
+  async bookAppointment(
+    data: Omit<Appointment, 'id' | 'status'>,
+    staffCount: number = 1
+  ): Promise<string> {
     const ref = doc(collection(this.firestore, 'appointments'));
     await runTransaction(this.firestore, async (tx) => {
-      const conflictQuery = query(
+      const dayQuery = query(
         collection(this.firestore, 'appointments'),
         where('companyId', '==', data.companyId),
         where('date', '==', data.date),
-        where('startTime', '==', data.startTime),
-        where('status', '==', 'scheduled')
+        where('status', 'in', ['pending', 'scheduled'])
       );
-      const existing = await getDocs(conflictQuery);
-      if (!existing.empty) throw new Error('SLOT_TAKEN');
-      tx.set(ref, { ...data, status: 'scheduled', source: 'app', createdAt: serverTimestamp() });
+      const snap = await getDocs(dayQuery);
+      const newStart = this.toMin(data.startTime);
+      const newEnd   = this.toMin(data.endTime);
+      const overlapping = snap.docs.filter(d => {
+        const a = d.data() as Appointment;
+        return this.toMin(a.startTime) < newEnd && this.toMin(a.endTime) > newStart;
+      });
+      if (overlapping.length >= staffCount) throw new Error('SLOT_TAKEN');
+      tx.set(ref, { ...data, status: 'pending', createdAt: serverTimestamp() });
     });
     return ref.id;
   }
@@ -80,10 +99,26 @@ export class AppointmentService {
     return ref.id;
   }
 
+  async confirmAppointment(id: string): Promise<void> {
+    await updateDoc(doc(this.firestore, 'appointments', id), {
+      status: 'scheduled', updatedAt: serverTimestamp(),
+    });
+  }
+
+  async completeAppointment(id: string): Promise<void> {
+    await updateDoc(doc(this.firestore, 'appointments', id), {
+      status: 'completed', updatedAt: serverTimestamp(),
+    });
+  }
+
   async cancelAppointment(id: string, cancelledBy: 'client' | 'company'): Promise<void> {
     await updateDoc(doc(this.firestore, 'appointments', id), {
       status: 'cancelled', cancelledBy, updatedAt: serverTimestamp(),
     });
+  }
+
+  async deleteAppointment(id: string): Promise<void> {
+    await deleteDoc(doc(this.firestore, 'appointments', id));
   }
 
   /** Stream en tiempo real para el dashboard de empresa */
@@ -95,9 +130,12 @@ export class AppointmentService {
         where('date', '==', date),
         orderBy('startTime')
       );
-      return onSnapshot(q, (snap) =>
-        observer.next(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment))
+      const unsub = onSnapshot(
+        q,
+        (snap) => observer.next(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment)),
+        (err)  => observer.error(err)
       );
+      return unsub;
     });
   }
 
@@ -106,7 +144,7 @@ export class AppointmentService {
       collection(this.firestore, 'appointments'),
       where('companyId', '==', companyId),
       where('date', '==', date),
-      where('status', '==', 'scheduled')
+      where('status', 'in', ['pending', 'scheduled'])
     );
     const snap = await getDocs(q);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment);

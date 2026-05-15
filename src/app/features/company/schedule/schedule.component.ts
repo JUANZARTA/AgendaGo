@@ -1,13 +1,19 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CompanyStore } from '../../../core/services/company-store.service';
+import { CompanyService } from '../../../core/services/company.service';
+
+interface TimeRange {
+  open: string;
+  close: string;
+}
 
 interface DaySchedule {
   key: string;
   label: string;
   enabled: boolean;
-  open: string;
-  close: string;
+  ranges: TimeRange[];
 }
 
 interface BlockedDate {
@@ -17,13 +23,13 @@ interface BlockedDate {
 }
 
 const DEFAULT_SCHEDULE: DaySchedule[] = [
-  { key: 'lun', label: 'Lunes',     enabled: true,  open: '08:00', close: '18:00' },
-  { key: 'mar', label: 'Martes',    enabled: true,  open: '08:00', close: '18:00' },
-  { key: 'mie', label: 'Miércoles', enabled: true,  open: '08:00', close: '18:00' },
-  { key: 'jue', label: 'Jueves',    enabled: true,  open: '08:00', close: '18:00' },
-  { key: 'vie', label: 'Viernes',   enabled: true,  open: '08:00', close: '19:00' },
-  { key: 'sab', label: 'Sábado',    enabled: true,  open: '09:00', close: '16:00' },
-  { key: 'dom', label: 'Domingo',   enabled: false, open: '09:00', close: '14:00' },
+  { key: 'lun', label: 'Lunes',     enabled: true,  ranges: [{ open: '08:00', close: '18:00' }] },
+  { key: 'mar', label: 'Martes',    enabled: true,  ranges: [{ open: '08:00', close: '18:00' }] },
+  { key: 'mie', label: 'Miércoles', enabled: true,  ranges: [{ open: '08:00', close: '18:00' }] },
+  { key: 'jue', label: 'Jueves',    enabled: true,  ranges: [{ open: '08:00', close: '18:00' }] },
+  { key: 'vie', label: 'Viernes',   enabled: true,  ranges: [{ open: '08:00', close: '19:00' }] },
+  { key: 'sab', label: 'Sábado',    enabled: true,  ranges: [{ open: '09:00', close: '16:00' }] },
+  { key: 'dom', label: 'Domingo',   enabled: false, ranges: [{ open: '09:00', close: '14:00' }] },
 ];
 
 const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
@@ -44,25 +50,20 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
     }
 
     /* ── Section header ───────────────────────────── */
-    .sch-header { margin-bottom: 4px; }
     .sch-title {
       font-size: 1.45rem;
       font-weight: 800;
       color: #1a1a2e;
       letter-spacing: -0.3px;
     }
-    .sch-desc {
-      font-size: 13px;
-      color: #888;
-      margin-top: 4px;
-    }
+    .sch-desc { font-size: 13px; color: #888; margin-top: 4px; }
 
     /* ── Card section ─────────────────────────────── */
     .sch-section {
       background: white;
       border-radius: 16px;
       padding: 22px 24px;
-      box-shadow: 0 4px 24px rgba(124, 58, 237, 0.10);
+      box-shadow: 0 4px 24px rgba(var(--primary-rgb), 0.10);
     }
     .sch-section-title {
       font-size: 14px;
@@ -75,15 +76,11 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
     }
 
     /* ── Duration selector ────────────────────────── */
-    .duration-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .duration-row { display: flex; gap: 8px; flex-wrap: wrap; }
     .duration-btn {
       padding: 8px 16px;
       border-radius: 8px;
-      border: 2px solid #ede8ff;
+      border: 2px solid var(--form-border);
       background: #fdfbff;
       color: #555;
       font-size: 13px;
@@ -91,41 +88,31 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .duration-btn:hover { border-color: #7c3aed; color: #7c3aed; }
-    .duration-btn.active {
-      border-color: #7c3aed;
-      background: #ede9fe;
-      color: #7c3aed;
-    }
+    .duration-btn:hover { border-color: var(--purple); color: var(--purple); }
+    .duration-btn.active { border-color: var(--purple); background: #ede9fe; color: var(--purple); }
 
     /* ── Day rows ─────────────────────────────────── */
-    .day-list { display: flex; flex-direction: column; gap: 0; }
+    .day-list { display: flex; flex-direction: column; }
 
     .day-row {
-      border-bottom: 1px solid #f3f0ff;
+      border-bottom: 1px solid var(--btn-secondary-bg);
       padding: 14px 0;
-      cursor: pointer;
-      user-select: none;
     }
     .day-row:last-child { border-bottom: none; }
 
-    .day-row-main {
+    /* Top bar: toggle + label + chevron */
+    .day-top {
       display: flex;
       align-items: center;
       gap: 14px;
     }
 
-    /* ── Toggle switch (pill + circle, CSS only) ─── */
-    .toggle-wrap {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-    }
+    /* ── Toggle switch ────────────────────────────── */
+    .toggle-wrap { flex-shrink: 0; display: flex; align-items: center; }
     .toggle-input { display: none; }
     .toggle-pill {
       display: inline-block;
-      width: 40px;
-      height: 22px;
+      width: 40px; height: 22px;
       border-radius: 11px;
       background: #ddd;
       position: relative;
@@ -135,21 +122,15 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
     .toggle-pill::after {
       content: '';
       position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 16px;
-      height: 16px;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
       border-radius: 50%;
       background: white;
       box-shadow: 0 1px 4px rgba(0,0,0,0.2);
       transition: transform 0.2s;
     }
-    .toggle-input:checked + .toggle-pill {
-      background: #7c3aed;
-    }
-    .toggle-input:checked + .toggle-pill::after {
-      transform: translateX(18px);
-    }
+    .toggle-input:checked + .toggle-pill { background: var(--purple); }
+    .toggle-input:checked + .toggle-pill::after { transform: translateX(18px); }
 
     .day-label {
       font-weight: 700;
@@ -159,12 +140,6 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
     }
     .day-label.disabled { color: #aaa; }
 
-    .day-hours {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-    }
     .day-closed {
       flex: 1;
       font-size: 13px;
@@ -172,9 +147,29 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
       font-style: italic;
     }
 
+    /* ── Ranges area ──────────────────────────────── */
+    .day-body {
+      margin-top: 10px;
+      padding-left: 54px; /* align under day label */
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: fadeSlideIn 0.2s ease both;
+    }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
     .time-input {
       padding: 6px 10px;
-      border: 2px solid #ede8ff;
+      border: 2px solid var(--form-border);
       border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
@@ -184,18 +179,57 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
       transition: border-color 0.15s;
       cursor: pointer;
     }
-    .time-input:focus { outline: none; border-color: #7c3aed; }
+    .time-input:focus { outline: none; border-color: var(--purple); }
 
     .time-sep { font-size: 13px; color: #aaa; font-weight: 500; }
 
-    .day-expand-icon {
+    .remove-range-btn {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      border: 1.5px solid #fecdd3;
+      background: #fff1f2;
+      color: var(--pink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
       flex-shrink: 0;
-      color: #bbb;
-      transition: transform 0.22s;
-      display: flex;
     }
-    .day-expand-icon.open { transform: rotate(180deg); }
-    .day-expand-icon.hidden { visibility: hidden; }
+    .remove-range-btn:hover { background: #ffe4e8; border-color: #f43f5e; }
+
+    .add-range-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 7px;
+      border: 1.5px dashed #c4b5fd;
+      background: transparent;
+      color: var(--purple);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      align-self: flex-start;
+    }
+    .add-range-btn:hover { border-color: var(--purple); background: var(--btn-secondary-bg); }
+
+    /* ── Chevron expand ───────────────────────────── */
+    .expand-btn {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #bbb;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s, transform 0.22s;
+    }
+    .expand-btn:hover { color: var(--purple); background: var(--btn-secondary-bg); }
+    .expand-btn.open { transform: rotate(180deg); color: var(--purple); }
 
     /* ── Slot grid panel ──────────────────────────── */
     .slot-panel {
@@ -204,16 +238,9 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
       transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s;
       opacity: 0;
     }
-    .slot-panel.expanded {
-      max-height: 600px;
-      opacity: 1;
-    }
-    .slot-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 7px;
-      padding: 14px 0 6px;
-    }
+    .slot-panel.expanded { max-height: 600px; opacity: 1; }
+    .slot-grid { display: flex; flex-wrap: wrap; gap: 7px; padding: 14px 0 6px 54px; }
+
     .slot-btn {
       display: inline-flex;
       align-items: center;
@@ -222,14 +249,14 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
       border-radius: 8px;
       border: 1.5px solid #d4bbff;
       background: #f3eeff;
-      color: #7c3aed;
+      color: var(--purple);
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.15s;
       user-select: none;
     }
-    .slot-btn:hover { border-color: #7c3aed; background: #ebe4ff; }
+    .slot-btn:hover { border-color: var(--purple); background: #ebe4ff; }
     .slot-btn.disabled-slot {
       background: #f5f5f5;
       border-color: #e0e0e0;
@@ -251,13 +278,13 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
     .block-field label { font-size: 12px; font-weight: 700; color: #777; }
     .block-field input {
       padding: 9px 12px;
-      border: 2px solid #ede8ff;
+      border: 2px solid var(--form-border);
       border-radius: 8px;
       font-size: 13px;
       background: #fdfbff;
       transition: border-color 0.15s;
     }
-    .block-field input:focus { outline: none; border-color: #7c3aed; }
+    .block-field input:focus { outline: none; border-color: var(--purple); }
 
     .block-list { display: flex; flex-direction: column; gap: 8px; }
     .block-item {
@@ -274,39 +301,26 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
     .block-item-date { font-size: 13px; font-weight: 700; color: #1a1a2e; }
     .block-item-reason { font-size: 12px; color: #999; margin-top: 2px; }
     .block-remove {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #bbb;
-      padding: 4px;
-      border-radius: 6px;
-      display: flex;
+      background: none; border: none; cursor: pointer; color: #bbb;
+      padding: 4px; border-radius: 6px; display: flex;
       transition: color 0.15s, background 0.15s;
     }
-    .block-remove:hover { color: #f43f5e; background: #fff0f3; }
+    .block-remove:hover { color: var(--pink); background: #fff0f3; }
 
-    .empty-state {
-      text-align: center;
-      padding: 20px;
-      color: #bbb;
-      font-size: 13px;
-    }
+    .empty-state { text-align: center; padding: 20px; color: #bbb; font-size: 13px; }
 
-    /* ── Success toast ────────────────────────────── */
+    /* ── Toast ────────────────────────────────────── */
     .toast {
       position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(0);
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%);
       background: #10b981;
       color: white;
       padding: 12px 22px;
       border-radius: 10px;
       font-size: 14px;
       font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      display: flex; align-items: center; gap: 8px;
       box-shadow: 0 6px 24px rgba(16, 185, 129, 0.35);
       z-index: 200;
       animation: toast-in 0.25s ease;
@@ -316,50 +330,76 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
       to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
 
-    /* ── Save button (sticky footer) ─────────────── */
-    .save-bar {
-      position: sticky;
-      bottom: 16px;
-      display: flex;
-      justify-content: flex-end;
-    }
+    .save-bar { position: sticky; bottom: 16px; display: flex; justify-content: flex-end; }
 
-    /* ── Responsive ───────────────────────────────── */
     @media (max-width: 560px) {
       .sch-section { padding: 16px; }
-      .day-row-main { gap: 10px; }
+      .day-body { padding-left: 0; }
+      .slot-grid { padding-left: 0; }
       .day-label { min-width: 70px; font-size: 13px; }
       .time-input { width: 84px; font-size: 12px; }
       .block-form { flex-direction: column; }
+    }
+
+    /* ── Mobile responsive additions ─────────────────── */
+
+    /* 1. Padding lateral en pantallas muy chicas */
+    @media (max-width: 480px) {
+      .sch-page { padding-left: 0; padding-right: 0; }
+      .sch-section { border-radius: 12px; padding: 16px 14px; }
+    }
+
+    /* 2. Time inputs en <400px */
+    @media (max-width: 400px) {
+      .time-input { width: 76px; font-size: 12px; padding: 5px 6px; }
+      .day-label { min-width: 62px; font-size: 13px; }
+      .day-body { padding-left: 0; }
+      .slot-grid { padding-left: 0; }
+    }
+
+    /* 3. add-range-btn y range-row en mobile */
+    @media (max-width: 480px) {
+      .add-range-btn { font-size: 11px; padding: 4px 10px; }
+      .range-row { flex-wrap: wrap; gap: 6px; }
+    }
+
+    /* 4. font-size 16px para evitar zoom en iOS */
+    @media (max-width: 640px) {
+      .time-input { font-size: 16px; }
+      .block-field input { font-size: 16px; }
+    }
+
+    /* 5. Duration buttons en mobile */
+    @media (max-width: 480px) {
+      .duration-btn { padding: 6px 12px; font-size: 12px; }
     }
   `],
   template: `
     <div class="sch-page">
 
       <!-- Header -->
-      <div class="sch-header">
+      <div>
         <div class="sch-title">Horarios de atención</div>
         <div class="sch-desc">Configurá los días, horarios y bloqueos especiales de tu empresa.</div>
       </div>
 
-      <!-- Duración del turno -->
+      <!-- Intervalo de slots + Staff -->
       <div class="sch-section">
         <div class="sch-section-title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
-          Duración estándar del turno
+          Intervalo entre turnos
         </div>
+        <p style="font-size:12px;color:#888;margin:0 0 12px">Cada cuánto mostrás opciones de hora al cliente. La duración real viene de cada servicio.</p>
         <div class="duration-row">
           @for (d of durations; track d) {
-            <button
-              class="duration-btn"
-              [class.active]="slotDuration() === d"
-              (click)="slotDuration.set(d)">
+            <button class="duration-btn" [class.active]="slotInterval() === d" (click)="slotInterval.set(d)">
               {{ d }} min
             </button>
           }
         </div>
+
       </div>
 
       <!-- Configuración semanal -->
@@ -377,59 +417,85 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
         <div class="day-list">
           @for (day of schedule(); track day.key) {
             <div class="day-row">
-              <div class="day-row-main" (click)="onRowClick(day)">
-                <!-- Toggle -->
-                <div class="toggle-wrap" (click)="$event.stopPropagation(); toggleDay(day.key)">
+
+              <!-- Fila superior: toggle + nombre + chevron -->
+              <div class="day-top">
+                <div class="toggle-wrap" (click)="toggleDay(day.key)">
                   <input
                     class="toggle-input"
                     type="checkbox"
                     [id]="'tog-' + day.key"
                     [checked]="day.enabled"
-                    (change)="toggleDay(day.key)"/>
+                    (change)="toggleDay(day.key)" />
                   <label class="toggle-pill" [for]="'tog-' + day.key"></label>
                 </div>
 
-                <!-- Nombre día -->
                 <span class="day-label" [class.disabled]="!day.enabled">{{ day.label }}</span>
 
-                <!-- Horas o "Cerrado" -->
-                @if (day.enabled) {
-                  <div class="day-hours" (click)="$event.stopPropagation()">
-                    <input
-                      class="time-input"
-                      type="time"
-                      [value]="day.open"
-                      (change)="updateTime(day.key, 'open', $any($event.target).value)"/>
-                    <span class="time-sep">—</span>
-                    <input
-                      class="time-input"
-                      type="time"
-                      [value]="day.close"
-                      (change)="updateTime(day.key, 'close', $any($event.target).value)"/>
-                  </div>
-                } @else {
+                @if (!day.enabled) {
                   <span class="day-closed">Cerrado</span>
                 }
 
-                <!-- Chevron -->
-                <span
-                  class="day-expand-icon"
-                  [class.open]="expandedDay() === day.key"
-                  [class.hidden]="!day.enabled">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </span>
+                @if (day.enabled) {
+                  <button
+                    class="expand-btn"
+                    [class.open]="expandedDay() === day.key"
+                    (click)="toggleExpand(day.key)"
+                    title="Ver turnos disponibles">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                }
               </div>
 
-              <!-- Slots panel -->
+              <!-- Franjas horarias -->
+              @if (day.enabled) {
+                <div class="day-body">
+                  @for (range of day.ranges; track $index; let i = $index) {
+                    <div class="range-row">
+                      <input
+                        class="time-input"
+                        type="time"
+                        [value]="range.open"
+                        (change)="updateRange(day.key, i, 'open', $any($event.target).value)" />
+                      <span class="time-sep">—</span>
+                      <input
+                        class="time-input"
+                        type="time"
+                        [value]="range.close"
+                        (change)="updateRange(day.key, i, 'close', $any($event.target).value)" />
+
+                      @if (day.ranges.length > 1) {
+                        <button
+                          class="remove-range-btn"
+                          title="Eliminar franja"
+                          (click)="removeRange(day.key, i)">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                          </svg>
+                        </button>
+                      }
+                    </div>
+                  }
+
+                  <button class="add-range-btn" (click)="addRange(day.key)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Agregar franja
+                  </button>
+                </div>
+              }
+
+              <!-- Panel de turnos individuales -->
               <div class="slot-panel" [class.expanded]="expandedDay() === day.key && day.enabled">
                 <div class="slot-grid">
                   @for (slot of generateSlots(day); track slot) {
                     <button
                       class="slot-btn"
                       [class.disabled-slot]="isSlotDisabled(day.key, slot)"
-                      (click)="$event.stopPropagation(); toggleSlot(day.key, slot)">
+                      (click)="toggleSlot(day.key, slot)">
                       @if (isSlotDisabled(day.key, slot)) {
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -441,6 +507,7 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
                   }
                 </div>
               </div>
+
             </div>
           }
         </div>
@@ -456,7 +523,6 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
           Bloqueos especiales
         </div>
 
-        <!-- Formulario agregar -->
         <div class="block-form">
           <div class="block-field">
             <label>Fecha</label>
@@ -466,20 +532,15 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
             <label>Motivo (opcional)</label>
             <input type="text" [(ngModel)]="newBlockReason" placeholder="Ej: Día festivo, vacaciones..." />
           </div>
-          <button
-            class="btn btn-secondary btn-sm"
-            style="flex-shrink:0;align-self:flex-end"
-            [disabled]="!newBlockDate"
-            (click)="addBlock()">
+          <button class="btn btn-secondary btn-sm" style="flex-shrink:0;align-self:flex-end"
+            [disabled]="!newBlockDate" (click)="addBlock()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
             Agregar
           </button>
         </div>
 
-        <!-- Lista de bloqueos -->
         @if (blockedDates().length === 0) {
           <div class="empty-state">Sin bloqueos configurados.</div>
         } @else {
@@ -502,8 +563,7 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
                 </div>
                 <button class="block-remove" (click)="removeBlock(block.id)" title="Eliminar bloqueo">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
                 </button>
               </div>
@@ -512,20 +572,19 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
         }
       </div>
 
-      <!-- Botón guardar -->
+      <!-- Guardar -->
       <div class="save-bar">
-        <button class="btn btn-primary" style="gap:8px" (click)="save()">
+        <button class="btn btn-primary" style="gap:8px" (click)="save()" [disabled]="saving()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/>
             <polyline points="7 3 7 8 15 8"/>
           </svg>
-          Guardar cambios
+          {{ saving() ? 'Guardando...' : 'Guardar cambios' }}
         </button>
       </div>
     </div>
 
-    <!-- Toast notificación -->
     @if (saved()) {
       <div class="toast">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -537,63 +596,103 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
   `,
 })
 export class ScheduleComponent {
+  private companyStore = inject(CompanyStore);
+  private companySvc   = inject(CompanyService);
+
   readonly durations = SLOT_DURATIONS;
 
-  schedule = signal<DaySchedule[]>(DEFAULT_SCHEDULE.map(d => ({ ...d })));
-  slotDuration = signal<number>(30);
-  expandedDay = signal<string | null>(null);
+  schedule      = signal<DaySchedule[]>(DEFAULT_SCHEDULE.map(d => ({ ...d, ranges: d.ranges.map(r => ({ ...r })) })));
+  slotInterval  = signal<number>(30);
+  expandedDay   = signal<string | null>(null);
   disabledSlots = signal<Record<string, boolean>>({});
-  blockedDates = signal<BlockedDate[]>([
-    { id: 'b1', date: '2026-05-20', reason: 'Día festivo' },
-  ]);
-  saved = signal(false);
+  blockedDates  = signal<BlockedDate[]>([]);
+  saved         = signal(false);
+  saving        = signal(false);
 
-  newBlockDate = '';
+  newBlockDate   = '';
   newBlockReason = '';
 
-  // ── Day actions ──────────────────────────────────
+  constructor() {
+    effect(() => {
+      const company = this.companyStore.company();
+      if (!company) return;
+      if (company.schedule?.length) {
+        this.schedule.set(company.schedule.map(d => ({ ...d, ranges: d.ranges.map(r => ({ ...r })) })));
+      }
+      if (company.slotInterval)  this.slotInterval.set(company.slotInterval);
+      if (company.disabledSlots)       this.disabledSlots.set({ ...company.disabledSlots });
+      if (company.blockedDates)        this.blockedDates.set([...company.blockedDates]);
+    });
+  }
+
+  // ── Day toggle ───────────────────────────────────
 
   toggleDay(key: string): void {
     this.schedule.update(days =>
       days.map(d => d.key === key ? { ...d, enabled: !d.enabled } : d)
     );
-    if (this.expandedDay() === key) {
-      this.expandedDay.set(null);
-    }
+    if (this.expandedDay() === key) this.expandedDay.set(null);
   }
 
-  updateTime(key: string, field: 'open' | 'close', value: string): void {
+  toggleExpand(key: string): void {
+    this.expandedDay.update(cur => cur === key ? null : key);
+  }
+
+  // ── Range management ─────────────────────────────
+
+  updateRange(dayKey: string, idx: number, field: 'open' | 'close', value: string): void {
     this.schedule.update(days =>
-      days.map(d => d.key === key ? { ...d, [field]: value } : d)
+      days.map(d => {
+        if (d.key !== dayKey) return d;
+        const ranges = d.ranges.map((r, i) => i === idx ? { ...r, [field]: value } : r);
+        return { ...d, ranges };
+      })
     );
-    // Regenerate panel: collapse so slots recalculate on next expand
-    if (this.expandedDay() === key) {
+    if (this.expandedDay() === dayKey) {
       this.expandedDay.set(null);
-      requestAnimationFrame(() => this.expandedDay.set(key));
+      requestAnimationFrame(() => this.expandedDay.set(dayKey));
     }
   }
 
-  onRowClick(day: DaySchedule): void {
-    if (!day.enabled) return;
-    this.expandedDay.update(cur => cur === day.key ? null : day.key);
+  addRange(dayKey: string): void {
+    this.schedule.update(days =>
+      days.map(d => {
+        if (d.key !== dayKey) return d;
+        const last = d.ranges[d.ranges.length - 1];
+        return { ...d, ranges: [...d.ranges, { open: last.close, close: last.close }] };
+      })
+    );
   }
 
-  // ── Slot generation ──────────────────────────────
+  removeRange(dayKey: string, idx: number): void {
+    this.schedule.update(days =>
+      days.map(d => {
+        if (d.key !== dayKey || d.ranges.length <= 1) return d;
+        return { ...d, ranges: d.ranges.filter((_, i) => i !== idx) };
+      })
+    );
+  }
+
+  // ── Slot generation (merges all ranges) ──────────
 
   generateSlots(day: DaySchedule): string[] {
     if (!day.enabled) return [];
-    const [openH, openM] = day.open.split(':').map(Number);
-    const [closeH, closeM] = day.close.split(':').map(Number);
-    const startMin = openH * 60 + openM;
-    const endMin = closeH * 60 + closeM;
-    const duration = this.slotDuration();
-    const slots: string[] = [];
-    for (let m = startMin; m < endMin; m += duration) {
-      const hh = String(Math.floor(m / 60)).padStart(2, '0');
-      const mm = String(m % 60).padStart(2, '0');
-      slots.push(`${hh}:${mm}`);
+    const duration = this.slotInterval();
+    const set = new Set<string>();
+
+    for (const range of day.ranges) {
+      const [openH, openM] = range.open.split(':').map(Number);
+      const [closeH, closeM] = range.close.split(':').map(Number);
+      const start = openH * 60 + openM;
+      const end   = closeH * 60 + closeM;
+      for (let m = start; m < end; m += duration) {
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        set.add(`${hh}:${mm}`);
+      }
     }
-    return slots;
+
+    return [...set].sort();
   }
 
   // ── Slot toggle ──────────────────────────────────
@@ -611,12 +710,10 @@ export class ScheduleComponent {
 
   addBlock(): void {
     if (!this.newBlockDate) return;
-    const entry: BlockedDate = {
-      id: Date.now().toString(),
-      date: this.newBlockDate,
-      reason: this.newBlockReason.trim(),
-    };
-    this.blockedDates.update(list => [...list, entry].sort((a, b) => a.date.localeCompare(b.date)));
+    this.blockedDates.update(list =>
+      [...list, { id: Date.now().toString(), date: this.newBlockDate, reason: this.newBlockReason.trim() }]
+        .sort((a, b) => a.date.localeCompare(b.date))
+    );
     this.newBlockDate = '';
     this.newBlockReason = '';
   }
@@ -627,14 +724,29 @@ export class ScheduleComponent {
 
   formatDate(iso: string): string {
     const [y, m, d] = iso.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return new Date(y, m - 1, d).toLocaleDateString('es-AR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
   }
 
   // ── Save ─────────────────────────────────────────
 
-  save(): void {
-    this.saved.set(true);
-    setTimeout(() => this.saved.set(false), 2000);
+  async save(): Promise<void> {
+    const cid = this.companyStore.companyId();
+    if (!cid) return;
+    this.saving.set(true);
+    try {
+      await this.companySvc.updateCompany(cid, {
+        schedule:      this.schedule(),
+        slotInterval:  this.slotInterval(),
+        blockedDates:  this.blockedDates(),
+        disabledSlots: this.disabledSlots(),
+      });
+      await this.companyStore.refresh();
+      this.saved.set(true);
+      setTimeout(() => this.saved.set(false), 2000);
+    } finally {
+      this.saving.set(false);
+    }
   }
 }

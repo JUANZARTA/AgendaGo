@@ -3,6 +3,19 @@ import { Firestore, collection, doc, setDoc, updateDoc, getDoc, query, where, ge
 import { Auth } from '@angular/fire/auth';
 import { from, Observable } from 'rxjs';
 
+export interface DaySchedule {
+  key: string;
+  label: string;
+  enabled: boolean;
+  ranges: { open: string; close: string }[];
+}
+
+export interface BlockedDate {
+  id: string;
+  date: string;
+  reason: string;
+}
+
 export interface Company {
   id?: string;
   ownerId: string;
@@ -11,11 +24,21 @@ export interface Company {
   category: 'salon' | 'spa' | 'barberia' | 'peluqueria';
   description?: string;
   logoUrl?: string;
-  whatsappNumber?: string;
+  logoIcon?: string;
+  logoColor?: string;
+  phone?: string;
+  city?: string;
+  address?: string;
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+  youtube?: string;
   isActive: boolean;
   isPublic: boolean;
-  defaultSlotDuration: number;
-  schedule: Record<string, { open: string; close: string; enabled: boolean }>;
+  slotInterval: number;
+  schedule: DaySchedule[];
+  blockedDates?: BlockedDate[];
+  disabledSlots?: Record<string, boolean>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -27,7 +50,7 @@ export class CompanyService {
     const uid = this.auth.currentUser!.uid;
     const ref = doc(collection(this.firestore, 'companies'));
     await setDoc(ref, {
-      ...data,
+      ...this._strip(data),
       ownerId: uid,
       isActive: true,
       isPublic: true,
@@ -39,9 +62,15 @@ export class CompanyService {
 
   async updateCompany(id: string, data: Partial<Company>): Promise<void> {
     await updateDoc(doc(this.firestore, 'companies', id), {
-      ...data,
+      ...this._strip(data),
       updatedAt: serverTimestamp(),
     });
+  }
+
+  private _strip<T extends object>(obj: T): Partial<T> {
+    return Object.fromEntries(
+      Object.entries(obj).filter(([, v]) => v !== undefined)
+    ) as Partial<T>;
   }
 
   async getCompany(id: string): Promise<Company | null> {

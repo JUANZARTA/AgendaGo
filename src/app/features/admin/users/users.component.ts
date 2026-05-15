@@ -66,7 +66,7 @@ const ROLE_CLASS: Record<string, string> = { client: 'badge-blue', company: 'bad
               <tr style="border-bottom:1px solid #f7f7f7" [style.opacity]="u.active?'1':'0.55'">
                 <td style="padding:12px">
                   <div style="display:flex;align-items:center;gap:10px">
-                    <div style="width:36px;height:36px;border-radius:50%;background:#f0e6ff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#7c3aed;flex-shrink:0">
+                    <div style="width:36px;height:36px;border-radius:50%;background:var(--btn-secondary-bg);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:var(--purple);flex-shrink:0">
                       {{ u.displayName.charAt(0) }}
                     </div>
                     <span style="font-weight:500">{{ u.displayName }}</span>

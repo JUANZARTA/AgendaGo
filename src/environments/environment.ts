@@ -1,7 +1,7 @@
 export const environment = {
   production: false,
   useEmulators: false,
-  bypassAuth: true,
+  bypassAuth: false,
   firebase: {
     apiKey: 'AIzaSyDk_So7bgA7t-BfZcZqtR503OSWLYcUZcY',
     authDomain: 'agendago-b8ea6.firebaseapp.com',

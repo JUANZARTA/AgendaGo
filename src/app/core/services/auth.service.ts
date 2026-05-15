@@ -30,13 +30,16 @@ export class AuthService {
   private auth = inject(Auth, { optional: true });
   private firestore = inject(Firestore, { optional: true });
 
-  private _user = signal<User | null>(null);
-  private _role = signal<string>('client');
+  private _user        = signal<User | null>(null);
+  private _role        = signal<string>('client');
+  private _displayName = signal<string>('');
   private _profileLoaded = signal(false);
 
-  isLoggedIn = computed(() => !!this._user());
-  role = computed(() => this._role());
-  currentUser = computed(() => this._user());
+  isLoggedIn    = computed(() => !!this._user());
+  role          = computed(() => this._role());
+  currentUser   = computed(() => this._user());
+  displayName   = computed(() => this._displayName());
+  profileLoaded = computed(() => this._profileLoaded());
 
   constructor() {
     if (!this.auth) return;
@@ -46,6 +49,7 @@ export class AuthService {
       if (user && this.firestore) {
         const profile = await this._loadProfile(user.uid);
         this._role.set(profile?.role ?? 'client');
+        this._displayName.set(profile?.displayName ?? '');
       } else {
         this._role.set('client');
       }
@@ -79,6 +83,7 @@ export class AuthService {
   async saveProfile(uid: string, profile: Partial<UserProfile>) {
     if (profile.role) {
       localStorage.setItem(`agenda_role_${uid}`, profile.role);
+      this._role.set(profile.role); // update signal immediately so roleGuard sees correct role
     }
     if (!this.firestore) return;
     await setDoc(doc(this.firestore, 'users', uid), profile, { merge: true });

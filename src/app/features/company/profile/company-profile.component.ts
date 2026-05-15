@@ -1,6 +1,8 @@
-import { Component, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CompanyStore } from '../../../core/services/company-store.service';
+import { CompanyService } from '../../../core/services/company.service';
 
 const PRESET_ICONS: { key: string; label: string; path: string }[] = [
   { key: 'scissors', label: 'Tijeras',    path: 'M6 3v12M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9v12M18 3L6 15' },
@@ -25,7 +27,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
 
     .page-title { font-size:1.45rem; font-weight:800; color:#1a1a2e; margin:0 0 24px; }
 
-    .card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(124,58,237,.12); padding:24px; margin-bottom:20px; }
+    .card { background:white; border-radius:16px; box-shadow:0 4px 24px rgba(var(--primary-rgb),.12); padding:24px; margin-bottom:20px; }
     .card-title { font-size:14px; font-weight:700; color:#1a1a2e; margin:0 0 18px; display:flex; align-items:center; gap:8px; }
 
     .form-group { margin-bottom:16px; }
@@ -39,7 +41,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     }
     .form-group input:focus,
     .form-group select:focus,
-    .form-group textarea:focus { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.1); }
+    .form-group textarea:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(var(--primary-rgb),.1); }
     .form-group textarea { resize:vertical; min-height:72px; }
 
     /* Logo section */
@@ -58,13 +60,13 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
       border:none; background:white; color:#888; transition:all .15s;
       display:flex; align-items:center; justify-content:center; gap:6px;
     }
-    .logo-tab.active { background:#7c3aed; color:white; }
+    .logo-tab.active { background:var(--purple); color:white; }
 
     .upload-area {
       border:2px dashed #d4bbff; border-radius:12px; padding:24px;
       text-align:center; cursor:pointer; transition:all .15s; background:#fdfbff;
     }
-    .upload-area:hover { border-color:#7c3aed; background:#f5f0ff; }
+    .upload-area:hover { border-color:var(--purple); background:var(--btn-secondary-bg); }
     .upload-area input[type=file] { display:none; }
 
     .icon-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
@@ -74,8 +76,8 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
       align-items:center; justify-content:center; gap:5px;
       font-size:11px; font-weight:600; color:#888; transition:all .15s;
     }
-    .icon-option:hover { border-color:#7c3aed; color:#7c3aed; }
-    .icon-option.selected { border-color:#7c3aed; background:#f5f0ff; color:#7c3aed; }
+    .icon-option:hover { border-color:var(--purple); color:var(--purple); }
+    .icon-option.selected { border-color:var(--purple); background:var(--btn-secondary-bg); color:var(--purple); }
 
     .color-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
     .color-dot {
@@ -84,7 +86,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
       flex-shrink:0;
     }
     .color-dot:hover { transform:scale(1.15); }
-    .color-dot.selected { border-color:white; box-shadow:0 0 0 2px #7c3aed; transform:scale(1.1); }
+    .color-dot.selected { border-color:white; box-shadow:0 0 0 2px var(--purple); transform:scale(1.1); }
 
     /* Toast */
     .toast {
@@ -96,9 +98,31 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     }
     @keyframes toast-in { from{opacity:0;transform:translateX(-50%) translateY(12px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
 
-    @media(max-width:560px) {
-      .icon-grid { grid-template-columns:repeat(4,1fr); }
+    /* Grid 2 columnas → 1 en mobile */
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    @media (max-width: 560px) {
+      .icon-grid { grid-template-columns: repeat(4, 1fr); }
     }
+
+    @media (max-width: 480px) {
+      /* Grid de teléfono/ciudad apilado */
+      .grid-2col { grid-template-columns: 1fr; }
+
+      /* Icon grid: reducir tamaño mínimo de las celdas */
+      .icon-option { min-height: 56px; font-size: 10px; }
+
+      /* Inputs 16px para evitar zoom iOS */
+      input, select, textarea { font-size: 16px !important; }
+    }
+
+    @media (max-width: 400px) {
+      /* Logo preview: stack vertical */
+      .logo-preview-row { flex-direction: column; align-items: center; text-align: center; }
+    }
+
+    /* Toast responsive */
+    .toast { max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
   `],
   template: `
     <div class="profile-page">
@@ -116,8 +140,8 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         </div>
 
         <!-- Vista previa -->
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px">
-          <div class="logo-preview" [style.background]="logoMode()==='icon' ? selectedColor() : '#f3f0ff'">
+        <div class="logo-preview-row" style="display:flex;align-items:center;gap:20px;margin-bottom:20px">
+          <div class="logo-preview" [style.background]="logoMode()==='icon' ? selectedColor() : 'var(--btn-secondary-bg)'">
             @if (logoMode() === 'upload' && uploadedImage()) {
               <img [src]="uploadedImage()" alt="Logo" />
             } @else {
@@ -164,7 +188,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
               <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
               <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
             </svg>
-            <div style="font-size:14px;font-weight:600;color:#7c3aed">Hacé clic para subir</div>
+            <div style="font-size:14px;font-weight:600;color:var(--purple)">Hacé clic para subir</div>
             <div style="font-size:12px;color:#aaa;margin-top:4px">PNG, JPG o SVG — máx. 2MB</div>
           </label>
         }
@@ -228,7 +252,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
             placeholder="Describí tu negocio en pocas palabras"></textarea>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="grid-2col">
           <div class="form-group" style="margin-bottom:0">
             <label>Teléfono / WhatsApp</label>
             <input [(ngModel)]="form.phone" placeholder="57300..." />
@@ -254,21 +278,36 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
           <input [(ngModel)]="form.address" placeholder="Calle 123 # 45-67" />
         </div>
 
-        <div class="form-group" style="margin-bottom:0">
+        <div class="form-group">
           <label>Instagram</label>
           <input [(ngModel)]="form.instagram" placeholder="@tu_negocio" />
+        </div>
+
+        <div class="form-group">
+          <label>Facebook</label>
+          <input [(ngModel)]="form.facebook" placeholder="facebook.com/tu_negocio" />
+        </div>
+
+        <div class="form-group">
+          <label>TikTok</label>
+          <input [(ngModel)]="form.tiktok" placeholder="@tu_negocio" />
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
+          <label>YouTube</label>
+          <input [(ngModel)]="form.youtube" placeholder="youtube.com/@tu_negocio" />
         </div>
       </div>
 
       <!-- Acciones -->
       <div style="display:flex;gap:10px">
         <button class="btn btn-primary" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px"
-                (click)="save()" [disabled]="!form.name">
+                (click)="save()" [disabled]="!form.name || saving()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
           </svg>
-          Guardar cambios
+          {{ saving() ? 'Guardando...' : 'Guardar cambios' }}
         </button>
         <button class="btn btn-secondary" (click)="reset()">Descartar</button>
       </div>
@@ -285,28 +324,58 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
   `,
 })
 export class CompanyProfileComponent {
+  private companyStore = inject(CompanyStore);
+  private companySvc   = inject(CompanyService);
+
   readonly presetIcons = PRESET_ICONS;
   readonly presetColors = PRESET_COLORS;
 
-  saved          = signal(false);
-  logoMode       = signal<'upload' | 'icon'>('icon');
-  uploadedImage  = signal<string | null>(null);
+  saved           = signal(false);
+  saving          = signal(false);
+  logoMode        = signal<'upload' | 'icon'>('icon');
+  uploadedImage   = signal<string | null>(null);
   selectedIconKey = signal('scissors');
-  selectedColor  = signal('#7c3aed');
+  selectedColor   = signal('#7c3aed');
 
   selectedIcon = () => PRESET_ICONS.find(i => i.key === this.selectedIconKey()) ?? PRESET_ICONS[0];
 
   form = {
-    name:        'Barbería El Padrino',
+    name:        '',
     category:    'barberia',
-    description: 'Cortes clásicos y arreglo de barba para caballero.',
-    phone:       '573009876543',
-    city:        'Bogotá',
-    address:     'Cra 7 # 45-12',
-    instagram:   '@elpadrino_barber',
+    description: '',
+    phone:       '',
+    city:        '',
+    address:     '',
+    instagram:   '',
+    facebook:    '',
+    tiktok:      '',
+    youtube:     '',
   };
 
   private original = { ...this.form };
+
+  constructor() {
+    effect(() => {
+      const company = this.companyStore.company();
+      if (!company) return;
+      this.form = {
+        name:        company.name ?? '',
+        category:    company.category ?? 'barberia',
+        description: company.description ?? '',
+        phone:       company.phone ?? '',
+        city:        company.city ?? '',
+        address:     company.address ?? '',
+        instagram:   company.instagram ?? '',
+        facebook:    company.facebook ?? '',
+        tiktok:      company.tiktok ?? '',
+        youtube:     company.youtube ?? '',
+      };
+      this.original = { ...this.form };
+      if (company.logoIcon)  this.selectedIconKey.set(company.logoIcon);
+      if (company.logoColor) this.selectedColor.set(company.logoColor);
+      if (company.logoUrl)   { this.uploadedImage.set(company.logoUrl); this.logoMode.set('upload'); }
+    });
+  }
 
   onFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -329,10 +398,33 @@ export class CompanyProfileComponent {
     this.logoMode.set('icon');
   }
 
-  save() {
-    this.original = { ...this.form };
-    this.saved.set(true);
-    setTimeout(() => this.saved.set(false), 2500);
+  async save() {
+    const cid = this.companyStore.companyId();
+    if (!cid || !this.form.name.trim()) return;
+    this.saving.set(true);
+    try {
+      await this.companySvc.updateCompany(cid, {
+        name:        this.form.name.trim(),
+        category:    this.form.category as any,
+        description: this.form.description,
+        phone:       this.form.phone,
+        city:        this.form.city,
+        address:     this.form.address,
+        instagram:   this.form.instagram,
+        facebook:    this.form.facebook,
+        tiktok:      this.form.tiktok,
+        youtube:     this.form.youtube,
+        logoIcon:    this.logoMode() === 'icon' ? this.selectedIconKey() : undefined,
+        logoColor:   this.logoMode() === 'icon' ? this.selectedColor()   : undefined,
+        logoUrl:     this.logoMode() === 'upload' ? (this.uploadedImage() ?? undefined) : undefined,
+      });
+      this.original = { ...this.form };
+      await this.companyStore.refresh();
+      this.saved.set(true);
+      setTimeout(() => this.saved.set(false), 2500);
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   reset() {
