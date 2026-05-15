@@ -203,6 +203,17 @@ import { ReviewService, Review } from '../../../core/services/review.service';
                 @if (r.comment) {
                   <p style="font-size:13px;color:#444;line-height:1.65;margin:0">{{ r.comment }}</p>
                 }
+                @if (r.reply) {
+                  <div style="background:rgba(124,58,237,.06);border-left:3px solid var(--purple);border-radius:0 10px 10px 0;padding:10px 14px;margin-top:12px">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+                      </svg>
+                      <span style="font-size:11px;font-weight:700;color:var(--purple)">Respuesta del negocio</span>
+                    </div>
+                    <p style="font-size:13px;color:#555;line-height:1.6;margin:0">{{ r.reply }}</p>
+                  </div>
+                }
               </div>
             }
           }

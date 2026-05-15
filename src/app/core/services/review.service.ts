@@ -14,6 +14,8 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: number;
+  reply?: string;
+  replyAt?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -35,6 +37,13 @@ export class ReviewService {
         err => observer.error(err)
       );
       return unsub;
+    });
+  }
+
+  async addReply(reviewId: string, reply: string): Promise<void> {
+    await updateDoc(doc(this.firestore, 'reviews', reviewId), {
+      reply: reply.trim(),
+      replyAt: Date.now(),
     });
   }
 
