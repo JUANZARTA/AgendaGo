@@ -96,7 +96,8 @@ export class AuthService {
     if (profile.displayName !== undefined) this._displayName.set(profile.displayName);
     this._profile.update(curr => curr ? { ...curr, ...profile } : profile as UserProfile);
     if (!this.firestore) return;
-    await setDoc(doc(this.firestore, 'users', uid), profile, { merge: true });
+    const clean = Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined));
+    await setDoc(doc(this.firestore, 'users', uid), clean, { merge: true });
   }
 
   loginWithEmail(email: string, password: string) {

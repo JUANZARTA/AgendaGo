@@ -24,122 +24,235 @@ const STATUS_CLASS: Record<string, string> = {
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="page" style="max-width:640px;margin:0 auto">
-      <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:4px">Mis citas</h1>
-      <p style="color:#888;font-size:13px;margin-bottom:20px">Historial de citas agendadas</p>
-
-      <!-- Filtros -->
-      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-        @for (f of filters; track f.value) {
-          <button class="btn btn-sm"
-                  [class]="activeFilter() === f.value ? 'btn-primary' : 'btn-secondary'"
-                  (click)="activeFilter.set(f.value)">
-            {{ f.label }} ({{ count(f.value) }})
-          </button>
-        }
+    <!-- Hero -->
+    <div class="hero" style="margin-bottom:0;padding:32px 20px 28px">
+      <div style="position:relative;z-index:1;max-width:640px;margin:0 auto">
+        <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:4px;color:white">Mis citas</h1>
+        <p style="font-size:0.95rem;opacity:.85;color:white">Historial de citas agendadas</p>
       </div>
+    </div>
 
-      <!-- Cargando -->
-      @if (loading()) {
-        <div style="text-align:center;padding:48px;color:#aaa">
-          <div class="spinner" style="margin:0 auto 12px"></div>
-          <p>Cargando citas...</p>
+    <!-- Contenido -->
+    <div class="apts-body">
+      <div class="apts-inner">
+
+        <!-- Filtros -->
+        <div class="filter-bar">
+          @for (f of filters; track f.value) {
+            <button class="filter-btn" [class.active]="activeFilter() === f.value"
+                    (click)="activeFilter.set(f.value)">
+              {{ f.label }} ({{ count(f.value) }})
+            </button>
+          }
         </div>
 
-      } @else if (error()) {
-        <div style="text-align:center;padding:48px;color:#ef4444">
-          <p>{{ error() }}</p>
-          <button class="btn btn-secondary" style="margin-top:12px" (click)="reload()">Reintentar</button>
-        </div>
+        <!-- Cargando -->
+        @if (loading()) {
+          <div style="text-align:center;padding:48px;color:#aaa">
+            <div class="spinner" style="margin:0 auto 12px"></div>
+            <p>Cargando citas...</p>
+          </div>
 
-      } @else {
-        <!-- Lista -->
-        <div style="display:flex;flex-direction:column;gap:12px">
-          @for (appt of filtered(); track appt.id) {
-            <div class="card">
-              <div class="flex-between" style="margin-bottom:8px">
-                <div>
-                  <div style="font-weight:600;font-size:15px">{{ appt.companyName }}</div>
-                  <div style="color:#888;font-size:13px;margin-top:2px">{{ appt.serviceName }}</div>
-                </div>
-                <span class="badge" [class]="STATUS_CLASS[appt.status]">
-                  {{ STATUS_LABEL[appt.status] }}
-                </span>
-              </div>
+        } @else if (error()) {
+          <div style="text-align:center;padding:48px;color:#ef4444">
+            <p>{{ error() }}</p>
+            <button class="btn btn-secondary" style="margin-top:12px" (click)="reload()">Reintentar</button>
+          </div>
 
-              <div style="display:flex;gap:16px;font-size:13px;color:#555;border-top:1px solid #f0f0f0;padding-top:10px;margin-top:8px;flex-wrap:wrap">
-                <span style="display:inline-flex;align-items:center;gap:4px">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                  {{ formatDate(appt.date) }}
-                </span>
-                <span style="display:inline-flex;align-items:center;gap:4px">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                  {{ appt.startTime }}
-                </span>
-                <span style="display:inline-flex;align-items:center;gap:4px">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                  {{ appt.serviceDuration }} min
-                </span>
-                @if (appt.price) {
-                  <span style="margin-left:auto;font-weight:600;color:var(--purple)">
-                    $ {{ appt.price | number }}
+        } @else {
+          <div style="display:flex;flex-direction:column;gap:14px">
+            @for (appt of filtered(); track appt.id) {
+              <div class="apt-card">
+                <!-- Cabecera -->
+                <div class="apt-card-head">
+                  <div>
+                    <div class="apt-company">{{ appt.companyName }}</div>
+                    <div class="apt-service">{{ appt.serviceName }}</div>
+                  </div>
+                  <span class="badge" [class]="STATUS_CLASS[appt.status]">
+                    {{ STATUS_LABEL[appt.status] }}
                   </span>
-                }
-              </div>
+                </div>
 
-              <!-- Acción cancelar -->
-              @if (appt.status === 'pending' || appt.status === 'scheduled') {
-                <div style="margin-top:12px">
-                  @if (confirmCancelId() === appt.id) {
-                    <div style="display:flex;gap:8px;align-items:center">
-                      <span style="font-size:13px;color:#555">¿Cancelar esta cita?</span>
-                      <button class="btn btn-danger btn-sm" (click)="doCancel(appt.id!)" [disabled]="cancelling()">
-                        @if (cancelling()) { ... } @else { Sí, cancelar }
-                      </button>
-                      <button class="btn btn-secondary btn-sm" (click)="confirmCancelId.set(null)">No</button>
-                    </div>
-                  } @else {
-                    <button class="btn btn-secondary btn-sm" (click)="confirmCancelId.set(appt.id!)">
-                      Cancelar cita
-                    </button>
+                <!-- Meta -->
+                <div class="apt-meta">
+                  <span class="apt-meta-item">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    {{ formatDate(appt.date) }}
+                  </span>
+                  <span class="apt-meta-item">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    {{ appt.startTime }}
+                  </span>
+                  <span class="apt-meta-item">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    {{ appt.serviceDuration }} min
+                  </span>
+                  @if (appt.price) {
+                    <span class="apt-price">$ {{ appt.price | number }}</span>
                   }
                 </div>
-              }
-            </div>
-          }
 
-          @if (filtered().length === 0) {
-            <div style="text-align:center;padding:48px;color:#aaa">
-              <div style="display:flex;justify-content:center;margin-bottom:12px">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Acción cancelar -->
+                @if (appt.status === 'pending' || appt.status === 'scheduled') {
+                  <div style="margin-top:14px">
+                    @if (confirmCancelId() === appt.id) {
+                      <div style="display:flex;gap:8px;align-items:center">
+                        <span style="font-size:13px;color:#555">¿Cancelar esta cita?</span>
+                        <button class="btn btn-danger btn-sm" (click)="doCancel(appt.id!)" [disabled]="cancelling()">
+                          @if (cancelling()) { ... } @else { Sí, cancelar }
+                        </button>
+                        <button class="btn btn-secondary btn-sm" (click)="confirmCancelId.set(null)">No</button>
+                      </div>
+                    } @else {
+                      <button class="cancel-link" (click)="confirmCancelId.set(appt.id!)">
+                        Cancelar cita
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @if (filtered().length === 0) {
+              <div class="empty-state">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                   <line x1="16" y1="2" x2="16" y2="6"/>
                   <line x1="8" y1="2" x2="8" y2="6"/>
                   <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
+                <p style="color:#888;margin-top:12px;margin-bottom:16px">No tenés citas en esta categoría.</p>
+                <a routerLink="/" class="btn btn-primary btn-sm">Buscar negocios</a>
               </div>
-              <p>No tenés citas en esta categoría.</p>
-              <a routerLink="/" class="btn btn-primary" style="margin-top:16px;display:inline-block">
-                Buscar negocios
-              </a>
-            </div>
-          }
-        </div>
-      }
+            }
+          </div>
+        }
+
+      </div>
     </div>
   `,
   styles: [`
+    :host { display: block; }
+
+    /* ── Body section ─────────────────────────────────── */
+    .apts-body {
+      background: #f0f7ff;
+      min-height: calc(100vh - 64px - 88px);
+      padding: 24px 20px 40px;
+    }
+
+    .apts-inner {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    /* ── Filters ──────────────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1.5px solid #e0d9ff;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      background: white;
+      color: #555;
+      transition: all .15s;
+    }
+
+    .filter-btn:hover { border-color: var(--purple); color: var(--purple); }
+
+    .filter-btn.active {
+      background: var(--gradient);
+      border-color: transparent;
+      color: white;
+      box-shadow: 0 4px 14px rgba(124,58,237,.3);
+    }
+
+    /* ── Appointment card ─────────────────────────────── */
+    .apt-card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    }
+
+    .apt-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f3f0ff;
+      margin-bottom: 12px;
+    }
+
+    .apt-company { font-weight: 700; font-size: 15px; }
+    .apt-service { color: #888; font-size: 13px; margin-top: 2px; }
+
+    .apt-meta {
+      display: flex;
+      gap: 14px;
+      font-size: 13px;
+      color: #555;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .apt-meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .apt-price {
+      margin-left: auto;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--purple);
+    }
+
+    /* Cancel link */
+    .cancel-link {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--purple);
+      padding: 0;
+    }
+    .cancel-link:hover { text-decoration: underline; }
+
+    /* Empty */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      background: white;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Spinner */
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
       width: 32px; height: 32px;
