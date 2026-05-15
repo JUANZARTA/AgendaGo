@@ -156,8 +156,7 @@ export class AppointmentService {
   async getByClient(clientId: string): Promise<Appointment[]> {
     const q = query(
       collection(this.firestore, 'appointments'),
-      where('clientId', '==', clientId),
-      orderBy('date', 'desc')
+      where('clientId', '==', clientId)
     );
     const snap = await getDocs(q);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment);

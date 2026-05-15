@@ -9,4 +9,8 @@ export const PUBLIC_ROUTES: Routes = [
     path: 'negocio/:id',
     loadComponent: () => import('./company-profile/company-profile.component').then((m) => m.CompanyProfileComponent),
   },
+  {
+    path: 'negocio/:id/resenas',
+    loadComponent: () => import('./company-reviews/company-reviews.component').then((m) => m.CompanyReviewsComponent),
+  },
 ];

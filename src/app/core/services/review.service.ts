@@ -39,7 +39,8 @@ export class ReviewService {
   }
 
   async addReview(review: Omit<Review, 'id'>, existingReviews: Review[]): Promise<void> {
-    await addDoc(collection(this.firestore, 'reviews'), review);
+    const clean = Object.fromEntries(Object.entries(review).filter(([, v]) => v !== undefined));
+    await addDoc(collection(this.firestore, 'reviews'), clean);
     const all = [...existingReviews, review as Review];
     const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
     await updateDoc(doc(this.firestore, 'companies', review.companyId), {

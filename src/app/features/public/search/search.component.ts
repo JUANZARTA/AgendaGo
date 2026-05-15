@@ -187,6 +187,11 @@ const CATEGORIES = [
                 <a [routerLink]="['/negocio', company.id]" class="btn btn-primary btn-sm" style="flex:1">
                   Ver y agendar
                 </a>
+                <a [routerLink]="['/negocio', company.id, 'resenas']"
+                   class="btn btn-sm" style="background:#f8f7ff;color:var(--purple);border:1.5px solid var(--form-border);display:inline-flex;align-items:center;justify-content:center;min-width:40px;flex-shrink:0"
+                   title="Reseñas">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </a>
                 @if (company.phone) {
                   <a [href]="'https://wa.me/' + company.phone" target="_blank"
                      class="btn btn-sm" style="background:#25d366;color:white;box-shadow:0 4px 12px rgba(37,211,102,.3);display:inline-flex;align-items:center;justify-content:center;min-width:40px;flex-shrink:0">

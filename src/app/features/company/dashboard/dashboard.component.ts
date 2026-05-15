@@ -28,7 +28,7 @@ const DAY_KEYS = ['dom','lun','mar','mie','jue','vie','sab'];
 
 interface DaySlot {
   time: string;
-  appointment: Appointment | null;
+  appointments: Appointment[];
 }
 
 @Component({
@@ -450,14 +450,14 @@ interface DaySlot {
           } @else {
             <div class="timeline">
               @for (slot of daySlots(); track slot.time) {
-                @if (!slot.appointment) {
+                @if (slot.appointments.length === 0) {
                   <!-- Franja vacía -->
                   <div class="slot-empty">
                     <div class="slot-empty-time">{{ slot.time }}</div>
                     <div class="slot-empty-label">Sin asignar</div>
                   </div>
                 } @else {
-                @let apt = slot.appointment;
+                  @for (apt of slot.appointments; track apt.id) {
                 <div class="apt-card" [class]="apt.status">
                   <div class="apt-time">
                     <div class="apt-time-value">{{ apt.startTime }}</div>
@@ -540,7 +540,8 @@ interface DaySlot {
                     }
                   </div>
                 </div>
-                } <!-- /slot con cita -->
+                  } <!-- /@for appointments -->
+                } <!-- /slot con citas -->
               }
             </div>
           }
@@ -864,7 +865,7 @@ export class DashboardComponent implements OnDestroy {
       const close = ch * 60 + cm;
       while (cur + interval <= close) {
         const time = `${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`;
-        slots.push({ time, appointment: apts.find(a => a.startTime === time) ?? null });
+        slots.push({ time, appointments: apts.filter(a => a.startTime === time) });
         cur += interval;
       }
     }

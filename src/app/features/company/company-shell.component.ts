@@ -344,7 +344,7 @@ interface NavItem {
       flex: 1;
       overflow-y: auto;
       background: var(--body-bg);
-      animation: fadeInUp 0.35s ease 0.1s both;
+      animation: fadeInUp 0.35s ease 0.1s backwards;
     }
 
     /* ── Bottom bar (mobile only) ───────────────────────────────── */
