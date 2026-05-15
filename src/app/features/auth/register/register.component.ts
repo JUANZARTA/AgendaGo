@@ -57,7 +57,7 @@ export class RegisterComponent {
         }
         this.success.set(true);
         setTimeout(() => {
-          this.router.navigate(role === 'company' ? ['/empresa'] : ['/']);
+          this.router.navigate(role === 'company' ? ['/empresa'] : ['/cliente']);
         }, 1500);
       },
       error: (e) => {

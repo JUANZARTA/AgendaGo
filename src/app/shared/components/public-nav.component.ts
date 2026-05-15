@@ -72,7 +72,21 @@ import { ThemeSwitcherComponent } from './theme-switcher.component';
         <div class="nav-actions">
           <app-theme-switcher/>
           @if (auth.isLoggedIn()) {
-            <a routerLink="/perfil"
+            @if (auth.role() === 'client') {
+              <a routerLink="/cliente/citas"
+                 style="display:flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
+                 onmouseover="this.style.background='var(--btn-secondary-hover)'"
+                 onmouseout="this.style.background='var(--btn-secondary-bg)'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Mis citas
+              </a>
+            }
+            <a [routerLink]="settingsRoute()"
                title="Configuración"
                style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--btn-secondary-bg);color:var(--purple);text-decoration:none;transition:all .15s;flex-shrink:0"
                onmouseover="this.style.background='var(--btn-secondary-hover)'"
@@ -82,9 +96,14 @@ import { ThemeSwitcherComponent } from './theme-switcher.component';
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
             </a>
-            <div style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;color:white;font-weight:800">
-              {{ initials() }}
-            </div>
+            <a [routerLink]="settingsRoute()"
+               style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;text-decoration:none">
+              @if (auth.profile()?.photoUrl) {
+                <img [src]="auth.profile()!.photoUrl!" style="width:100%;height:100%;object-fit:cover" alt="foto" />
+              } @else {
+                <span style="font-size:15px;color:white;font-weight:800">{{ initials() }}</span>
+              }
+            </a>
             <button (click)="logout()"
               style="padding:9px 18px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);border:none;cursor:pointer;transition:all .15s;white-space:nowrap"
               onmouseover="this.style.background='var(--btn-secondary-hover)'"
@@ -123,7 +142,14 @@ import { ThemeSwitcherComponent } from './theme-switcher.component';
           <app-theme-switcher/>
         </div>
         @if (auth.isLoggedIn()) {
-          <a routerLink="/perfil" (click)="menuOpen.set(false)"
+          @if (auth.role() === 'client') {
+            <a routerLink="/cliente/citas" (click)="menuOpen.set(false)"
+               style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff;display:flex;align-items:center;gap:8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Mis citas
+            </a>
+          }
+          <a [routerLink]="settingsRoute()" (click)="menuOpen.set(false)"
              style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff">
             Configuración
           </a>
@@ -154,11 +180,16 @@ export class PublicNavComponent {
   private router = inject(Router);
   menuOpen = signal(false);
 
-  initials() {
-    const user = this.auth.currentUser();
-    if (!user) return '?';
-    const name = user.displayName || user.email || '';
-    return name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+  initials(): string {
+    const name = this.auth.displayName() || this.auth.currentUser()?.email || '?';
+    return name.split(/\s+/).slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? '').join('') || '?';
+  }
+
+  settingsRoute(): string {
+    const role = this.auth.role();
+    if (role === 'company')    return '/empresa/perfil';
+    if (role === 'superadmin') return '/admin';
+    return '/cliente/perfil';
   }
 
   logout() {

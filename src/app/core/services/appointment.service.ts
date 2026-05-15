@@ -159,4 +159,24 @@ export class AppointmentService {
     const snap = await getDocs(q);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment);
   }
+
+  /** Stream en tiempo real de citas del cliente (no requiere índice compuesto) */
+  watchByClient(clientId: string): Observable<Appointment[]> {
+    return new Observable((observer) => {
+      const q = query(
+        collection(this.firestore, 'appointments'),
+        where('clientId', '==', clientId)
+      );
+      const unsub = onSnapshot(
+        q,
+        (snap) => {
+          const apts = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Appointment);
+          apts.sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
+          observer.next(apts);
+        },
+        (err) => { console.error('[Appointments] snapshot error:', err); observer.error(err); }
+      );
+      return unsub;
+    });
+  }
 }

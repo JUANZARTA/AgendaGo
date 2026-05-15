@@ -14,6 +14,30 @@ interface DisplayCompany {
   city?: string;
   rating: number;
   slots: number;
+  logoUrl?: string;
+  logoColor: string;
+}
+
+const DAY_KEYS = ['dom','lun','mar','mie','jue','vie','sab'];
+
+function toMin(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function countTodaySlots(c: Company): number {
+  if (!c.schedule?.length) return 0;
+  const key   = DAY_KEYS[new Date().getDay()];
+  const sched = c.schedule.find(d => d.key === key);
+  if (!sched?.enabled || !sched.ranges?.length) return 0;
+  const interval = c.slotInterval ?? 30;
+  let count = 0;
+  for (const range of sched.ranges) {
+    const open  = toMin(range.open);
+    const close = toMin(range.close);
+    for (let cur = open; cur + interval <= close; cur += interval) count++;
+  }
+  return count;
 }
 
 function toDisplay(c: Company): DisplayCompany {
@@ -25,7 +49,9 @@ function toDisplay(c: Company): DisplayCompany {
     phone:       c.phone ?? '',
     city:        c.city,
     rating:      4.8,
-    slots:       0,
+    slots:       countTodaySlots(c),
+    logoUrl:     c.logoUrl,
+    logoColor:   c.logoColor ?? CATEGORY_META[c.category]?.color ?? '#7c3aed',
   };
 }
 
@@ -121,10 +147,15 @@ const CATEGORIES = [
             <!-- Header de la card -->
             <div [style.background]="meta(company.category).color + '15'" style="padding:18px 20px 14px">
               <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                <div style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center"
-                     [style.background]="meta(company.category).color + '22'"
-                     [style.color]="meta(company.category).color"
-                     [innerHTML]="meta(company.category).svg">
+                <div style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0"
+                     [style.background]="company.logoUrl ? 'transparent' : company.logoColor + '22'"
+                     [style.color]="company.logoColor">
+                  @if (company.logoUrl) {
+                    <img [src]="company.logoUrl" alt="logo"
+                         style="width:100%;height:100%;object-fit:cover;border-radius:14px" />
+                  } @else {
+                    <span [innerHTML]="meta(company.category).svg"></span>
+                  }
                 </div>
                 <span class="badge" [class]="company.slots > 0 ? 'badge-green' : 'badge-red'">
                   {{ company.slots > 0 ? company.slots + ' turnos' : 'Sin turnos' }}

@@ -6,6 +6,7 @@ import { PublicNavComponent } from '../../../shared/components/public-nav.compon
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 const PAYMENT_METHODS = ['Efectivo', 'Nequi', 'Daviplata', 'Transferencia bancaria', 'Tarjeta débito/crédito'];
 
@@ -295,6 +296,12 @@ function buildDays(n: number) {
               </div>
             </div>
 
+            @if (authSvc.isLoggedIn()) {
+              <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;font-size:13px;color:#166534">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Agendar como <strong style="margin-left:4px">{{ authSvc.displayName() }}</strong>
+              </div>
+            }
             <div class="form-group">
               <label>Tu nombre completo *</label>
               <input [(ngModel)]="clientName" placeholder="Juan García" />
@@ -385,6 +392,7 @@ export class CompanyProfileComponent implements OnInit {
   private companySvc = inject(CompanyService);
   private catalogSvc = inject(ServiceCatalogService);
   private aptSvc     = inject(AppointmentService);
+  readonly authSvc   = inject(AuthService);
 
   company  = signal<Company | null>(null);
   services = signal<ServiceItem[]>([]);
@@ -442,6 +450,15 @@ export class CompanyProfileComponent implements OnInit {
   clientName  = '';
   clientPhone = '';
   clientNote  = '';
+
+  constructor() {
+    effect(() => {
+      const p = this.authSvc.profile();
+      if (!p) return;
+      if (!this.clientName)  this.clientName  = p.displayName ?? '';
+      if (!this.clientPhone) this.clientPhone = p.phone ?? '';
+    });
+  }
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
@@ -527,6 +544,7 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
       const endTotal = h * 60 + m + dur;
       const endTime  = `${String(Math.floor(endTotal/60)).padStart(2,'0')}:${String(endTotal%60).padStart(2,'0')}`;
 
+      const uid = this.authSvc.currentUser()?.uid;
       await this.aptSvc.bookAppointment({
         companyId:       cid,
         companyName:     this.company()!.name,
@@ -535,7 +553,9 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
         serviceDuration: dur,
         clientName:      this.clientName,
         clientPhone:     this.clientPhone,
-        isGuestClient:   true,
+        clientEmail:     this.authSvc.profile()?.email,
+        clientId:        uid,
+        isGuestClient:   !uid,
         date:            day.date,
         startTime:       slot,
         endTime,

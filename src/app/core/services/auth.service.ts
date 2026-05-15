@@ -23,6 +23,10 @@ export interface UserProfile {
   displayName: string;
   role: 'client' | 'company' | 'superadmin';
   createdAt: number;
+  phone?: string;
+  address?: string;
+  photoUrl?: string;
+  profileComplete?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -30,15 +34,17 @@ export class AuthService {
   private auth = inject(Auth, { optional: true });
   private firestore = inject(Firestore, { optional: true });
 
-  private _user        = signal<User | null>(null);
-  private _role        = signal<string>('client');
-  private _displayName = signal<string>('');
+  private _user          = signal<User | null>(null);
+  private _role          = signal<string>('client');
+  private _displayName   = signal<string>('');
+  private _profile       = signal<UserProfile | null>(null);
   private _profileLoaded = signal(false);
 
   isLoggedIn    = computed(() => !!this._user());
   role          = computed(() => this._role());
   currentUser   = computed(() => this._user());
   displayName   = computed(() => this._displayName());
+  profile       = computed(() => this._profile());
   profileLoaded = computed(() => this._profileLoaded());
 
   constructor() {
@@ -50,8 +56,10 @@ export class AuthService {
         const profile = await this._loadProfile(user.uid);
         this._role.set(profile?.role ?? 'client');
         this._displayName.set(profile?.displayName ?? '');
+        this._profile.set(profile);
       } else {
         this._role.set('client');
+        this._profile.set(null);
       }
       this._profileLoaded.set(true);
     });
@@ -83,8 +91,10 @@ export class AuthService {
   async saveProfile(uid: string, profile: Partial<UserProfile>) {
     if (profile.role) {
       localStorage.setItem(`agenda_role_${uid}`, profile.role);
-      this._role.set(profile.role); // update signal immediately so roleGuard sees correct role
+      this._role.set(profile.role);
     }
+    if (profile.displayName !== undefined) this._displayName.set(profile.displayName);
+    this._profile.update(curr => curr ? { ...curr, ...profile } : profile as UserProfile);
     if (!this.firestore) return;
     await setDoc(doc(this.firestore, 'users', uid), profile, { merge: true });
   }
