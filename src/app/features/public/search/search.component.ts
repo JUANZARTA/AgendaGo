@@ -13,6 +13,7 @@ interface DisplayCompany {
   phone: string;
   city?: string;
   rating: number;
+  reviewCount: number;
   slots: number;
   logoUrl?: string;
   logoColor: string;
@@ -48,7 +49,8 @@ function toDisplay(c: Company): DisplayCompany {
     description: c.description ?? '',
     phone:       c.phone ?? '',
     city:        c.city,
-    rating:      4.8,
+    rating:      c.averageRating ?? 5,
+    reviewCount: c.reviewCount ?? 0,
     slots:       countTodaySlots(c),
     logoUrl:     c.logoUrl,
     logoColor:   c.logoColor ?? CATEGORY_META[c.category]?.color ?? '#7c3aed',
@@ -172,14 +174,13 @@ const CATEGORIES = [
               <p style="color:#666;font-size:13px;line-height:1.55;margin-bottom:14px">{{ company.description }}</p>
 
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:14px">
-                <span style="color:#f59e0b;display:inline-flex;gap:2px;align-items:center">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <span style="font-weight:700;font-size:13px">{{ company.rating }}</span>
+                @if (company.reviewCount > 0) {
+                  <span style="font-size:12px;color:#aaa">({{ company.reviewCount }})</span>
+                } @else {
+                  <span style="font-size:12px;color:#bbb">· Nuevo</span>
+                }
               </div>
 
               <div style="display:flex;gap:8px">

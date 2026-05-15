@@ -1,12 +1,14 @@
-import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ReviewService, Review } from '../../../core/services/review.service';
 
 const PAYMENT_METHODS = ['Efectivo', 'Nequi', 'Daviplata', 'Transferencia bancaria', 'Tarjeta débito/crédito'];
 
@@ -376,6 +378,112 @@ function buildDays(n: number) {
             </div>
           </div>
         }
+
+        <!-- ── RESEÑAS ─────────────────────────────────────── -->
+        <div class="card" style="margin-top:20px;padding:24px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+            <div>
+              <h2 style="font-size:1rem;font-weight:800;margin:0">Reseñas</h2>
+              <p style="font-size:13px;color:#888;margin:2px 0 0">
+                @if (avgRating() > 0) {
+                  <span style="display:inline-flex;align-items:center;gap:4px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    <strong>{{ avgRating() }}</strong>
+                  </span>
+                  · {{ reviews().length }} reseña{{ reviews().length !== 1 ? 's' : '' }}
+                } @else {
+                  Sin reseñas aún
+                }
+              </p>
+            </div>
+          </div>
+
+          <!-- Formulario (solo para clientes elegibles) -->
+          @if (canReview() && !reviewSent()) {
+            <div style="background:#f8f7ff;border-radius:14px;padding:18px;margin-bottom:20px">
+              <p style="font-size:13px;font-weight:700;color:var(--purple);margin-bottom:12px">Dejá tu reseña</p>
+
+              <!-- Estrellas -->
+              <div style="display:flex;gap:4px;margin-bottom:14px">
+                @for (i of starRange; track i) {
+                  <button type="button"
+                    (click)="reviewRating.set(i)"
+                    (mouseover)="reviewHover.set(i)"
+                    (mouseout)="reviewHover.set(0)"
+                    style="background:none;border:none;cursor:pointer;padding:2px;line-height:0">
+                    <svg width="28" height="28" viewBox="0 0 24 24"
+                         [attr.fill]="i <= (reviewHover() || reviewRating()) ? '#f59e0b' : '#e5e7eb'"
+                         [attr.stroke]="i <= (reviewHover() || reviewRating()) ? '#f59e0b' : '#d1d5db'"
+                         stroke-width="1" style="transition:fill .12s">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  </button>
+                }
+              </div>
+
+              <!-- Comentario -->
+              <textarea [(ngModel)]="reviewComment" placeholder="Contá tu experiencia..."
+                class="review-textarea">
+              </textarea>
+
+              @if (reviewError()) { <p style="color:#ef4444;font-size:13px;margin-top:6px">{{ reviewError() }}</p> }
+
+              <button class="btn btn-primary" style="margin-top:12px;width:100%"
+                      [disabled]="submittingReview() || reviewRating() === 0"
+                      (click)="submitReview()">
+                @if (submittingReview()) { Enviando... } @else { Publicar reseña }
+              </button>
+            </div>
+          }
+
+          @if (reviewSent()) {
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:20px;font-size:13px;color:#166534;font-weight:600">
+              ¡Gracias! Tu reseña fue publicada.
+            </div>
+          }
+
+          <!-- Lista de reseñas -->
+          @if (loadingReviews()) {
+            <p style="color:#aaa;font-size:13px">Cargando reseñas...</p>
+          } @else if (reviews().length === 0) {
+            <p style="color:#aaa;font-size:13px;text-align:center;padding:20px 0">Todavía no hay reseñas. ¡Sé el primero!</p>
+          } @else {
+            <div style="display:flex;flex-direction:column;gap:14px">
+              @for (r of reviews(); track r.id) {
+                <div style="border-bottom:1px solid #f3f0ff;padding-bottom:14px">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                    <!-- Avatar -->
+                    <div style="width:34px;height:34px;border-radius:50%;background:var(--gradient);
+                                display:flex;align-items:center;justify-content:center;
+                                font-size:13px;font-weight:700;color:white;flex-shrink:0;overflow:hidden">
+                      @if (r.clientPhotoUrl) {
+                        <img [src]="r.clientPhotoUrl" style="width:100%;height:100%;object-fit:cover" alt="" />
+                      } @else {
+                        {{ r.clientName[0]?.toUpperCase() }}
+                      }
+                    </div>
+                    <div>
+                      <div style="font-weight:700;font-size:13px">{{ r.clientName }}</div>
+                      <div style="display:flex;gap:2px">
+                        @for (i of starRange; track i) {
+                          <svg width="11" height="11" viewBox="0 0 24 24"
+                               [attr.fill]="i <= r.rating ? '#f59e0b' : '#e5e7eb'"
+                               [attr.stroke]="i <= r.rating ? '#f59e0b' : '#d1d5db'"
+                               stroke-width="1">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                          </svg>
+                        }
+                      </div>
+                    </div>
+                    <span style="margin-left:auto;font-size:11px;color:#aaa">{{ formatReviewDate(r.createdAt) }}</span>
+                  </div>
+                  <p style="font-size:13px;color:#444;line-height:1.6;margin:0">{{ r.comment }}</p>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
       }
     </div>
 
@@ -384,19 +492,51 @@ function buildDays(n: number) {
         from { opacity:0; transform: translateX(-50%) translateY(-10px); }
         to   { opacity:1; transform: translateX(-50%) translateY(0); }
       }
+      .review-textarea {
+        width: 100%; padding: 12px 14px;
+        border: 1.5px solid #e5e0ff; border-radius: 12px;
+        font-size: 14px; font-family: inherit;
+        resize: vertical; min-height: 80px;
+        box-sizing: border-box; outline: none;
+        color: inherit; background: white;
+        transition: border-color .18s;
+      }
+      .review-textarea:focus { border-color: var(--purple); }
     </style>
   `,
 })
-export class CompanyProfileComponent implements OnInit {
+export class CompanyProfileComponent implements OnInit, OnDestroy {
   private route      = inject(ActivatedRoute);
   private companySvc = inject(CompanyService);
   private catalogSvc = inject(ServiceCatalogService);
   private aptSvc     = inject(AppointmentService);
   readonly authSvc   = inject(AuthService);
+  private reviewSvc  = inject(ReviewService);
 
   company  = signal<Company | null>(null);
   services = signal<ServiceItem[]>([]);
   loading  = signal(true);
+
+  // ── Reviews ──────────────────────────────────────────────
+  reviews        = signal<Review[]>([]);
+  loadingReviews = signal(true);
+  canReview      = signal(false);
+  reviewRating   = signal(0);
+  reviewHover    = signal(0);
+  reviewComment  = '';
+  submittingReview = signal(false);
+  reviewSent     = signal(false);
+  reviewError    = signal('');
+  readonly starRange = [1, 2, 3, 4, 5];
+
+  avgRating = computed(() => {
+    const list = this.reviews();
+    if (!list.length) return 0;
+    const avg = list.reduce((s, r) => s + r.rating, 0) / list.length;
+    return Math.round(avg * 10) / 10;
+  });
+
+  private reviewSub: Subscription | null = null;
 
   readonly paymentMethods = PAYMENT_METHODS;
   readonly days = buildDays(8);
@@ -437,6 +577,18 @@ export class CompanyProfileComponent implements OnInit {
         range.open, range.close, interval, duration, staff, apts
       ));
     }
+
+    // Para el día de hoy, filtrar slots que ya pasaron (con 10 min de buffer)
+    const todayIso = new Date().toISOString().split('T')[0];
+    if (day.date === todayIso) {
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      return slots.filter(s => {
+        const [h, m] = s.split(':').map(Number);
+        return h * 60 + m + 10 > nowMin;
+      });
+    }
+
     return slots;
   });
 
@@ -458,6 +610,29 @@ export class CompanyProfileComponent implements OnInit {
       if (!this.clientName)  this.clientName  = p.displayName ?? '';
       if (!this.clientPhone) this.clientPhone = p.phone ?? '';
     });
+
+    // Reactivo: espera a que auth y company estén listos, luego evalúa elegibilidad
+    effect(() => {
+      const uid = this.authSvc.profile()?.uid;
+      const cid = this.company()?.id;
+      if (!uid || !cid) return;
+      this._checkReviewEligibility(uid, cid);
+    });
+  }
+
+  private _eligibilityChecked = false;
+
+  private async _checkReviewEligibility(uid: string, cid: string) {
+    if (this._eligibilityChecked) return;
+    this._eligibilityChecked = true;
+    try {
+      const apts = await this.aptSvc.getByClient(uid);
+      const hasCompleted = apts.some(a => a.companyId === cid && a.status === 'completed');
+      if (hasCompleted) {
+        const alreadyReviewed = this.reviews().some(r => r.clientId === uid);
+        this.canReview.set(!alreadyReviewed);
+      }
+    } catch { /* silencioso */ }
   }
 
   async ngOnInit() {
@@ -473,7 +648,15 @@ export class CompanyProfileComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+
+    // Cargar reseñas en tiempo real
+    this.reviewSub = this.reviewSvc.getByCompany(id).subscribe({
+      next: (list) => { this.reviews.set(list); this.loadingReviews.set(false); },
+      error: ()    => { this.loadingReviews.set(false); },
+    });
   }
+
+  ngOnDestroy() { this.reviewSub?.unsubscribe(); }
 
   stepClass(n: number) {
     if (this.currentStep() > n) return 'done';
@@ -556,6 +739,7 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
         clientEmail:     this.authSvc.profile()?.email,
         clientId:        uid,
         isGuestClient:   !uid,
+        clientNote:      this.clientNote.trim() || undefined,
         date:            day.date,
         startTime:       slot,
         endTime,
@@ -583,6 +767,37 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
     } finally {
       this.booking.set(false);
     }
+  }
+
+  async submitReview() {
+    if (this.reviewRating() === 0) return;
+    const uid  = this.authSvc.currentUser()?.uid;
+    const name = this.authSvc.displayName() || 'Anónimo';
+    const cid  = this.company()?.id;
+    if (!uid || !cid) return;
+    this.submittingReview.set(true);
+    this.reviewError.set('');
+    try {
+      await this.reviewSvc.addReview({
+        companyId:      cid,
+        clientId:       uid,
+        clientName:     name,
+        clientPhotoUrl: this.authSvc.profile()?.photoUrl,
+        rating:         this.reviewRating(),
+        comment:        this.reviewComment.trim(),
+        createdAt:      Date.now(),
+      }, this.reviews());
+      this.reviewSent.set(true);
+      this.canReview.set(false);
+    } catch {
+      this.reviewError.set('Error al publicar. Intentá de nuevo.');
+    } finally {
+      this.submittingReview.set(false);
+    }
+  }
+
+  formatReviewDate(ts: number): string {
+    return new Date(ts).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   reset() {

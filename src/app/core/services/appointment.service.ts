@@ -21,6 +21,7 @@ export interface Appointment {
   startTime: string;
   endTime: string;
   price?: number;
+  clientNote?: string;
   status: 'pending' | 'scheduled' | 'cancelled' | 'completed';
   cancelledBy?: 'client' | 'company';
   source: 'app' | 'manual';
@@ -87,14 +88,16 @@ export class AppointmentService {
         return this.toMin(a.startTime) < newEnd && this.toMin(a.endTime) > newStart;
       });
       if (overlapping.length >= staffCount) throw new Error('SLOT_TAKEN');
-      tx.set(ref, { ...data, status: 'pending', createdAt: serverTimestamp() });
+      const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
+      tx.set(ref, { ...clean, status: 'pending', createdAt: serverTimestamp() });
     });
     return ref.id;
   }
 
   async createManualAppointment(data: Omit<Appointment, 'id' | 'status'>): Promise<string> {
+    const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
     const ref = await addDoc(collection(this.firestore, 'appointments'), {
-      ...data, status: 'scheduled', source: 'manual', createdAt: serverTimestamp(),
+      ...clean, status: 'scheduled', source: 'manual', createdAt: serverTimestamp(),
     });
     return ref.id;
   }

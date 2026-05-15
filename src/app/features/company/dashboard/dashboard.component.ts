@@ -24,6 +24,13 @@ const TIME_SLOTS: string[] = (() => {
   return slots;
 })();
 
+const DAY_KEYS = ['dom','lun','mar','mie','jue','vie','sab'];
+
+interface DaySlot {
+  time: string;
+  appointment: Appointment | null;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -270,6 +277,29 @@ const TIME_SLOTS: string[] = (() => {
     }
     .cancel-target-info strong { display: block; font-size: 14px; color: #78350f; margin-bottom: 2px; }
 
+    .slot-empty {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1.5px dashed #e5e7eb;
+      background: #fafafa;
+      opacity: .55;
+    }
+    .slot-empty-time {
+      min-width: 56px;
+      text-align: center;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #c4b5fd;
+    }
+    .slot-empty-label {
+      font-size: 13px;
+      color: #c4b5fd;
+      font-weight: 500;
+    }
+
     @media (max-width: 700px) {
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .apt-card { flex-wrap: wrap; }
@@ -415,11 +445,19 @@ const TIME_SLOTS: string[] = (() => {
 
           @if (loadingApts()) {
             <div style="text-align:center;padding:32px;color:#aaa">Cargando citas...</div>
-          } @else if (appointments().length === 0) {
-            <div style="text-align:center;padding:32px;color:#aaa">Sin citas para hoy.</div>
+          } @else if (daySlots().length === 0) {
+            <div style="text-align:center;padding:32px;color:#aaa">No hay horarios configurados para este día.</div>
           } @else {
             <div class="timeline">
-              @for (apt of appointments(); track apt.id) {
+              @for (slot of daySlots(); track slot.time) {
+                @if (!slot.appointment) {
+                  <!-- Franja vacía -->
+                  <div class="slot-empty">
+                    <div class="slot-empty-time">{{ slot.time }}</div>
+                    <div class="slot-empty-label">Sin asignar</div>
+                  </div>
+                } @else {
+                @let apt = slot.appointment;
                 <div class="apt-card" [class]="apt.status">
                   <div class="apt-time">
                     <div class="apt-time-value">{{ apt.startTime }}</div>
@@ -455,6 +493,13 @@ const TIME_SLOTS: string[] = (() => {
                   </div>
 
                   <div class="apt-actions">
+                    <!-- Ver detalle -->
+                    <button class="icon-btn" title="Ver detalle" (click)="detailApt.set(apt)">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </button>
+
                     @switch (apt.status) {
                       @case ('scheduled') { <span class="badge badge-green">Confirmada</span> }
                       @case ('pending')   { <span class="badge badge-yellow">Pendiente</span> }
@@ -495,12 +540,102 @@ const TIME_SLOTS: string[] = (() => {
                     }
                   </div>
                 </div>
+                } <!-- /slot con cita -->
               }
             </div>
           }
         </div>
       }
     </div>
+
+
+    <!-- ===== MODAL: Detalle de cita ===== -->
+    @if (detailApt()) {
+      <div class="modal-overlay" (click)="detailApt.set(null)">
+        <div class="modal-card" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 class="modal-title" style="display:flex;align-items:center;gap:8px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              Detalle de cita
+            </h2>
+            <button class="modal-close" (click)="detailApt.set(null)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Estado -->
+          <div style="margin-bottom:16px">
+            @switch (detailApt()!.status) {
+              @case ('scheduled') { <span class="badge badge-green">Confirmada</span> }
+              @case ('pending')   { <span class="badge badge-yellow">Pendiente</span> }
+              @case ('cancelled') { <span class="badge badge-red">Cancelada</span> }
+              @case ('completed') { <span class="badge badge-blue">Completada</span> }
+            }
+          </div>
+
+          <!-- Sección: Servicio -->
+          <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Servicio</p>
+          <div style="background:#f9f5ff;border-radius:12px;padding:14px 16px;margin-bottom:16px">
+            <div style="font-weight:700;font-size:15px">{{ detailApt()!.serviceName }}</div>
+            <div style="display:flex;gap:14px;margin-top:6px;font-size:13px;color:#666;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:4px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {{ detailApt()!.date }}
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:4px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                {{ detailApt()!.startTime }} – {{ detailApt()!.endTime }}
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:4px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                {{ detailApt()!.serviceDuration }} min
+              </span>
+              @if (detailApt()!.price) {
+                <span style="font-weight:700;color:var(--purple)">\${{ detailApt()!.price | number }}</span>
+              }
+            </div>
+          </div>
+
+          <!-- Sección: Cliente -->
+          <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Cliente</p>
+          <div style="background:#f9f5ff;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:14px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span style="font-weight:600">{{ detailApt()!.clientName }}</span>
+              @if (!detailApt()!.clientId) { <span style="font-size:11px;color:#aaa;background:#f3f4f6;padding:2px 7px;border-radius:20px">Invitado</span> }
+            </div>
+            @if (detailApt()!.clientPhone) {
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.08 6.08l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <a [href]="'tel:' + detailApt()!.clientPhone" style="color:var(--purple);text-decoration:none;font-weight:600">{{ detailApt()!.clientPhone }}</a>
+              </div>
+            }
+            @if (detailApt()!.clientEmail) {
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                {{ detailApt()!.clientEmail }}
+              </div>
+            }
+          </div>
+
+          <!-- Observaciones -->
+          @if (detailApt()!.clientNote) {
+            <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Observaciones</p>
+            <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#78350f;line-height:1.6">
+              {{ detailApt()!.clientNote }}
+            </div>
+          }
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" style="flex:1" (click)="detailApt.set(null)">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    }
 
 
     <!-- ===== MODAL: Nueva cita ===== -->
@@ -696,6 +831,7 @@ export class DashboardComponent implements OnDestroy {
   saving       = signal(false);
 
   showNewModal = signal(false);
+  detailApt    = signal<Appointment | null>(null);
   cancelTarget = signal<Appointment | null>(null);
   cancelReason = signal('');
   cancelOther  = signal('');
@@ -705,6 +841,36 @@ export class DashboardComponent implements OnDestroy {
   scheduled = computed(() => this.appointments().filter(a => a.status === 'scheduled').length);
   pending   = computed(() => this.appointments().filter(a => a.status === 'pending').length);
   cancelled = computed(() => this.appointments().filter(a => a.status === 'cancelled').length);
+
+  daySlots = computed((): DaySlot[] => {
+    const company = this.companyStore.company();
+    const date    = this.selectedDate();
+    if (!company?.schedule?.length) return [];
+
+    const [y, m, d] = date.split('-').map(Number);
+    const dayOfWeek  = new Date(y, m - 1, d).getDay();
+    const key        = DAY_KEYS[dayOfWeek];
+    const sched      = company.schedule.find(s => s.key === key);
+    if (!sched?.enabled || !sched.ranges?.length) return [];
+
+    const interval = company.slotInterval ?? 30;
+    const apts     = this.appointments();
+    const slots: DaySlot[] = [];
+
+    for (const range of sched.ranges) {
+      const [oh, om] = range.open.split(':').map(Number);
+      const [ch, cm] = range.close.split(':').map(Number);
+      let cur = oh * 60 + om;
+      const close = ch * 60 + cm;
+      while (cur + interval <= close) {
+        const time = `${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`;
+        slots.push({ time, appointment: apts.find(a => a.startTime === time) ?? null });
+        cur += interval;
+      }
+    }
+
+    return slots;
+  });
 
   newClient    = '';
   newPhone     = '';
@@ -825,6 +991,7 @@ export class DashboardComponent implements OnDestroy {
         startTime:       this.newTime,
         endTime:         this.calcEndTime(this.newTime, svc.duration ?? 30),
         price:           svc.price,
+        clientNote:      this.newNote.trim() || undefined,
         source:          'manual',
       });
       this.closeNewModal();
