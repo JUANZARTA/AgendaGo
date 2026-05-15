@@ -130,6 +130,21 @@ const CATEGORIES = [
         }
       </div>
 
+      <!-- Filtro por ciudad -->
+      @if (cities().length > 0) {
+        <div style="margin-bottom:20px">
+          <select [ngModel]="city()" (ngModelChange)="city.set($event)"
+            style="padding:10px 14px;border:1.5px solid var(--form-border);border-radius:10px;
+                   font-size:14px;font-family:inherit;color:var(--purple);font-weight:600;
+                   background:white;cursor:pointer;outline:none;min-width:180px">
+            <option value="">Todas las ciudades</option>
+            @for (c of cities(); track c) {
+              <option [value]="c">{{ c }}</option>
+            }
+          </select>
+        </div>
+      }
+
       <!-- Stats rápidos -->
       <div style="display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap">
         <div style="background:white;border-radius:12px;padding:12px 20px;box-shadow:0 2px 12px rgba(var(--primary-rgb),.08);flex:1;min-width:120px;text-align:center">
@@ -207,7 +222,7 @@ const CATEGORIES = [
           <div style="grid-column:1/-1;text-align:center;padding:56px;color:#aaa">
             <div style="display:flex;justify-content:center;margin-bottom:14px"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
             <p style="font-size:1.1rem;color:#888">No encontramos negocios con esos filtros.</p>
-            <button class="btn btn-outline btn-sm" style="margin-top:16px" (click)="search.set('');category.set('')">Limpiar filtros</button>
+            <button class="btn btn-outline btn-sm" style="margin-top:16px" (click)="search.set('');category.set('');city.set('')">Limpiar filtros</button>
           </div>
         }
       </div>
@@ -219,17 +234,27 @@ export class SearchComponent implements OnInit {
 
   search     = signal('');
   category   = signal('');
+  city       = signal('');
   categories = CATEGORIES;
   companies  = signal<DisplayCompany[]>([]);
   loading    = signal(true);
 
+  cities = computed(() => {
+    const all = this.companies()
+      .map(c => c.city)
+      .filter((c): c is string => !!c);
+    return [...new Set(all)].sort();
+  });
+
   filtered = computed(() => {
     const s   = this.search().toLowerCase();
     const cat = this.category();
+    const cty = this.city();
     return this.companies().filter(c => {
       const matchName = c.name.toLowerCase().includes(s) || c.description.toLowerCase().includes(s);
       const matchCat  = cat ? c.category === cat : true;
-      return matchName && matchCat;
+      const matchCity = cty ? c.city === cty : true;
+      return matchName && matchCat && matchCity;
     });
   });
 
