@@ -72,7 +72,7 @@ import { ReviewService, Review } from '../../../core/services/review.service';
         <button (click)="goBack()"
            style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.82);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;margin-bottom:20px;padding:0;font-family:inherit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Volver al negocio
+          Volver al buscador
         </button>
 
         <p style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.72;margin:0 0 6px">Reseñas de</p>
@@ -381,8 +381,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
   }
 
   goBack() {
-    const id = this.companyId() || (this.route.snapshot.paramMap.get('id') ?? '');
-    this.router.navigate(['/negocio', id]);
+    this.router.navigate(['/']);
   }
 
   formatDate(ts: number): string {
