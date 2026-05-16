@@ -1,0 +1,13 @@
+  # 1. Build de producción
+  ng build --configuration production
+
+  # 2. Deploy a Firebase Hosting
+  npx firebase-tools deploy --only hosting
+
+  La primera vez vas a necesitar hacer login:
+  npx firebase-tools login
+
+  Se abre el navegador, autenticás con tu cuenta de Google (la misma del proyecto Firebase), y listo. A partir de ahí los dos comandos de arriba son
+   suficientes cada vez.
+
+  Tu app va a quedar en: https://agendago-b8ea6.web.app
