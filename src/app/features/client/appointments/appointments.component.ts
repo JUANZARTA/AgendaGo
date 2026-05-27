@@ -8,14 +8,14 @@ import { CompanyService } from '../../../core/services/company.service';
 import { NotificationService } from '../../../core/services/notification.service';
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: 'Próxima',
+  pending:   'Pendiente',
   scheduled: 'Próxima',
   completed: 'Completada',
   cancelled: 'Cancelada',
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  pending: 'badge-green',
+  pending:   'badge-yellow',
   scheduled: 'badge-green',
   completed: 'badge-blue',
   cancelled: 'badge-red',
