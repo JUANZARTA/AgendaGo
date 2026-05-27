@@ -1,27 +1,65 @@
 import { Injectable, inject } from '@angular/core';
-import { Messaging, getToken, onMessage } from '@angular/fire/messaging';
-import { Firestore, doc, updateDoc } from '@angular/fire/firestore';
-import { Auth } from '@angular/fire/auth';
-import { Observable, from } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import {
+  Firestore, collection, addDoc, onSnapshot, query, where,
+  writeBatch, getDocs, serverTimestamp, doc, updateDoc,
+} from '@angular/fire/firestore';
+import { Observable } from 'rxjs';
+
+export interface AppNotification {
+  id?: string;
+  recipientId: string;
+  type: 'new_appointment' | 'appointment_confirmed' | 'appointment_cancelled' | 'new_review' | 'new_company';
+  title: string;
+  body: string;
+  read: boolean;
+  link?: string;
+  createdAt?: any;
+}
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
-  private messaging = inject(Messaging);
   private firestore = inject(Firestore);
-  private auth = inject(Auth);
 
-  async requestPermissionAndSaveToken(): Promise<void> {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
-    const token = await getToken(this.messaging, { vapidKey: environment.firebase.vapidKey });
-    const uid = this.auth.currentUser?.uid;
-    if (token && uid) {
-      await updateDoc(doc(this.firestore, 'users', uid), { fcmToken: token });
-    }
+  async create(data: Omit<AppNotification, 'id' | 'read' | 'createdAt'>): Promise<void> {
+    await addDoc(collection(this.firestore, 'notifications'), {
+      ...data,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
   }
 
-  onForegroundMessage(): Observable<any> {
-    return new Observable((observer) => onMessage(this.messaging, observer.next.bind(observer)));
+  watch(recipientId: string): Observable<AppNotification[]> {
+    return new Observable(observer => {
+      const q = query(
+        collection(this.firestore, 'notifications'),
+        where('recipientId', '==', recipientId),
+      );
+      const unsub = onSnapshot(q,
+        snap => {
+          const list = snap.docs.map(d => ({ id: d.id, ...d.data() }) as AppNotification);
+          list.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+          observer.next(list);
+        },
+        err => observer.error(err)
+      );
+      return unsub;
+    });
+  }
+
+  async markRead(id: string): Promise<void> {
+    await updateDoc(doc(this.firestore, 'notifications', id), { read: true });
+  }
+
+  async markAllRead(recipientId: string): Promise<void> {
+    const q = query(
+      collection(this.firestore, 'notifications'),
+      where('recipientId', '==', recipientId),
+      where('read', '==', false),
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+    const batch = writeBatch(this.firestore);
+    snap.docs.forEach(d => batch.update(d.ref, { read: true }));
+    await batch.commit();
   }
 }

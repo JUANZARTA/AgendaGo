@@ -3,9 +3,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAuth() { return request.auth != null; }
-    function isSuperAdmin() { return isAuth() && request.auth.token.role == 'superadmin'; }
-    function isCompany() { return isAuth() && request.auth.token.role == 'company'; }
-    function isOwner(uid) { return isAuth() && request.auth.uid == uid; }
+
+    // Roles viven en Firestore users/{uid}.role, no en custom claims
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isSuperAdmin() { return isAuth() && userRole() == 'superadmin'; }
+    function isCompany()    { return isAuth() && userRole() == 'company'; }
+    function isOwner(uid)   { return isAuth() && request.auth.uid == uid; }
 
     function isCompanyOwner(companyId) {
       return isAuth() && get(/databases/$(database)/documents/companies/$(companyId)).data.ownerId == request.auth.uid;
@@ -13,13 +18,13 @@ service cloud.firestore {
 
     // USERS
     match /users/{uid} {
-      allow read: if isOwner(uid) || isSuperAdmin();
+      allow read:   if isOwner(uid) || isSuperAdmin();
       allow create: if isOwner(uid);
       allow update: if isOwner(uid) || isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
 
-    // COMPANIES — lectura pública si isPublic; escritura solo owner o superadmin
+    // COMPANIES
     match /companies/{companyId} {
       allow read: if resource.data.isPublic == true || isCompanyOwner(companyId) || isSuperAdmin();
       allow create: if isCompany() || isSuperAdmin();
@@ -28,25 +33,25 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
 
       match /services/{serviceId} {
-        allow read: if true;
+        allow read:  if true;
         allow write: if isCompanyOwner(companyId) || isSuperAdmin();
       }
 
       match /blockedSlots/{slotId} {
-        allow read: if true;
+        allow read:  if true;
+        allow write: if isCompanyOwner(companyId) || isSuperAdmin();
+      }
+
+      match /staff/{staffId} {
+        allow read:  if true;
         allow write: if isCompanyOwner(companyId) || isSuperAdmin();
       }
     }
 
     // APPOINTMENTS
     match /appointments/{appointmentId} {
-      allow read: if isAuth() && (
-        resource.data.clientId == request.auth.uid ||
-        isCompanyOwner(resource.data.companyId) ||
-        isSuperAdmin()
-      );
-      allow read: if !isAuth(); // invitados pueden leer para chequear disponibilidad
-      allow create: if true;   // cualquiera puede agendar (invitado incluido)
+      allow read:   if true;
+      allow create: if true;
       allow update: if isAuth() && (
         resource.data.clientId == request.auth.uid ||
         isCompanyOwner(resource.data.companyId) ||
@@ -55,28 +60,37 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
-    // REVIEWS — lectura pública; creación solo autenticado (su propio clientId)
+    // REVIEWS
     match /reviews/{reviewId} {
-      allow read: if true;
+      allow read:   if true;
       allow create: if isAuth() && request.resource.data.clientId == request.auth.uid;
-      allow update, delete: if isSuperAdmin();
+      // empresa responde (solo campos reply y replyAt)
+      allow update: if isSuperAdmin() ||
+        (isAuth() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply', 'replyAt']) &&
+         isCompanyOwner(resource.data.companyId));
+      allow delete: if isSuperAdmin();
     }
 
-    // SUBSCRIPTIONS — solo empresa owner y superadmin
+    // SUBSCRIPTIONS
     match /subscriptions/{companyId} {
-      allow read: if isCompanyOwner(companyId) || isSuperAdmin();
-      allow write: if isSuperAdmin(); // solo backend/superadmin escribe
+      allow read:  if isCompanyOwner(companyId) || isSuperAdmin();
+      allow write: if isSuperAdmin();
     }
 
-    // NOTIFICATIONS — solo el destinatario y superadmin
+    // NOTIFICATIONS
     match /notifications/{notifId} {
       allow read: if isAuth() && (
         resource.data.recipientId == request.auth.uid || isSuperAdmin()
       );
-      allow write: if isSuperAdmin();
+      allow create: if true;
+      allow update: if isAuth() && (
+        resource.data.recipientId == request.auth.uid || isSuperAdmin()
+      );
+      allow delete: if isSuperAdmin();
     }
 
-    // MESSAGES (chat interno)
+    // MESSAGES
     match /messages/{messageId} {
       allow read: if isAuth() && (
         resource.data.clientId == request.auth.uid ||

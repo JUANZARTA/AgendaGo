@@ -299,6 +299,31 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         </div>
       </div>
 
+      <!-- ── Configuración de reservas ── -->
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 9 15 9"/><polyline points="9 12 15 12"/><polyline points="9 15 12 15"/>
+          </svg>
+          Reservas
+        </div>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Confirmar citas automáticamente</div>
+            <div style="font-size:12px;color:#888;margin-top:3px">Las nuevas reservas quedan confirmadas sin revisión manual</div>
+          </div>
+          <div style="position:relative;width:44px;height:24px;flex-shrink:0">
+            <input type="checkbox" [(ngModel)]="form.autoConfirm"
+                   style="position:absolute;opacity:0;width:0;height:0" />
+            <div style="position:absolute;inset:0;border-radius:24px;transition:background .2s"
+                 [style.background]="form.autoConfirm ? 'var(--purple)' : '#e5e7eb'">
+              <div style="position:absolute;top:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"
+                   [style.transform]="form.autoConfirm ? 'translateX(23px)' : 'translateX(3px)'"></div>
+            </div>
+          </div>
+        </label>
+      </div>
+
       <!-- Acciones -->
       <div style="display:flex;gap:10px">
         <button class="btn btn-primary" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px"
@@ -350,6 +375,7 @@ export class CompanyProfileComponent {
     facebook:    '',
     tiktok:      '',
     youtube:     '',
+    autoConfirm: false,
   };
 
   private original = { ...this.form };
@@ -369,6 +395,7 @@ export class CompanyProfileComponent {
         facebook:    company.facebook ?? '',
         tiktok:      company.tiktok ?? '',
         youtube:     company.youtube ?? '',
+        autoConfirm: company.autoConfirm ?? false,
       };
       this.original = { ...this.form };
       if (company.logoIcon)  this.selectedIconKey.set(company.logoIcon);
@@ -417,6 +444,7 @@ export class CompanyProfileComponent {
         logoIcon:    this.logoMode() === 'icon' ? this.selectedIconKey() : undefined,
         logoColor:   this.logoMode() === 'icon' ? this.selectedColor()   : undefined,
         logoUrl:     this.logoMode() === 'upload' ? (this.uploadedImage() ?? undefined) : undefined,
+        autoConfirm: this.form.autoConfirm,
       });
       this.original = { ...this.form };
       await this.companyStore.refresh();

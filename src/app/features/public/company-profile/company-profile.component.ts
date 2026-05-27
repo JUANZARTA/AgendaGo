@@ -7,6 +7,8 @@ import { Company, CompanyService } from '../../../core/services/company.service'
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 import { AppointmentService } from '../../../core/services/appointment.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { StaffService, StaffMember } from '../../../core/services/staff.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 const PAYMENT_METHODS = ['Efectivo', 'Nequi', 'Daviplata', 'Transferencia bancaria', 'Tarjeta débito/crédito'];
 
@@ -250,7 +252,7 @@ function buildDays(n: number) {
               }
 
               @if (selectedDay() && selectedSlot()) {
-                <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="currentStep.set(3)">
+                <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="staffList().length > 0 ? currentStep.set(3) : currentStep.set(4)">
                   Continuar — {{ selectedDay()!.label }} {{ selectedDay()!.sub }} a las {{ selectedSlot() }}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
@@ -259,8 +261,72 @@ function buildDays(n: number) {
           </div>
         }
 
-        <!-- ══ PASO 3: Datos + Pago ══ -->
+        <!-- ══ PASO 3: Profesional ══ -->
         @if (currentStep() === 3) {
+          <div class="card" style="animation:fadeInUp .3s ease">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+              <button (click)="goBack()" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;flex-shrink:0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div>
+                <h2 style="font-size:1.05rem;font-weight:800">¿Con quién querés atenderte?</h2>
+                <p style="color:var(--purple);font-size:13px;font-weight:600;margin-top:1px">{{ selectedService()!.name }} · {{ selectedDay()!.label }} {{ selectedDay()!.sub }} {{ selectedSlot() }}</p>
+              </div>
+            </div>
+
+            <!-- Cualquier profesional -->
+            <button (click)="selectedStaff.set(null)"
+              style="display:flex;align-items:center;gap:14px;width:100%;padding:14px;border-radius:12px;border:2px solid;cursor:pointer;text-align:left;margin-bottom:8px;transition:all .18s;font-family:inherit;background:white"
+              [style.borderColor]="selectedStaff() === null ? 'var(--purple)' : 'var(--form-border)'"
+              [style.background]="selectedStaff() === null ? 'var(--form-bg)' : 'white'">
+              <div style="width:48px;height:48px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:white">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:14px;color:#1a1a2e">Cualquier profesional</div>
+                <div style="color:#888;font-size:13px;margin-top:2px">El primero disponible</div>
+              </div>
+              @if (selectedStaff() === null) {
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              }
+            </button>
+
+            <!-- Lista de staff -->
+            @for (s of staffList(); track s.id) {
+              <button (click)="selectedStaff.set(s)"
+                style="display:flex;align-items:center;gap:14px;width:100%;padding:14px;border-radius:12px;border:2px solid;cursor:pointer;text-align:left;margin-bottom:8px;transition:all .18s;font-family:inherit"
+                [style.borderColor]="selectedStaff()?.id === s.id ? 'var(--purple)' : 'var(--form-border)'"
+                [style.background]="selectedStaff()?.id === s.id ? 'var(--form-bg)' : 'white'">
+                @if (s.photoURL) {
+                  <img [src]="s.photoURL" style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0" />
+                } @else {
+                  <div style="width:48px;height:48px;border-radius:50%;background:var(--btn-secondary-bg);color:var(--purple);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0">
+                    {{ s.name.charAt(0).toUpperCase() }}
+                  </div>
+                }
+                <div style="flex:1">
+                  <div style="font-weight:700;font-size:14px;color:#1a1a2e">{{ s.name }}</div>
+                  @if (s.phone) {
+                    <div style="color:#888;font-size:13px;margin-top:2px">{{ s.phone }}</div>
+                  }
+                </div>
+                @if (selectedStaff()?.id === s.id) {
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                }
+              </button>
+            }
+
+            <button class="btn btn-primary" style="width:100%;margin-top:12px" (click)="currentStep.set(4)">
+              Continuar
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        }
+
+        <!-- ══ PASO 4: Datos + Pago ══ -->
+        @if (currentStep() === 4) {
           <div class="card" style="animation:fadeInUp .3s ease">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
               <button (click)="goBack()" class="btn btn-secondary btn-sm" style="display:inline-flex;align-items:center;flex-shrink:0">
@@ -347,8 +413,8 @@ function buildDays(n: number) {
           </div>
         }
 
-        <!-- ══ PASO 4: Confirmado ══ -->
-        @if (currentStep() === 4) {
+        <!-- ══ PASO 5: Confirmado ══ -->
+        @if (currentStep() === 5) {
           <div class="card" style="text-align:center;padding:48px 32px;animation:fadeInUp .35s ease">
             <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#a7f3d0);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:#065f46">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -394,6 +460,8 @@ export class CompanyProfileComponent implements OnInit {
   private catalogSvc = inject(ServiceCatalogService);
   private aptSvc     = inject(AppointmentService);
   readonly authSvc   = inject(AuthService);
+  private staffSvc   = inject(StaffService);
+  private notifSvc   = inject(NotificationService);
 
   company  = signal<Company | null>(null);
   services = signal<ServiceItem[]>([]);
@@ -412,6 +480,9 @@ export class CompanyProfileComponent implements OnInit {
   booking          = signal(false);
   bookingError     = signal('');
   existingApts     = signal<any[]>([]);
+  staffList        = signal<StaffMember[]>([]);
+  selectedStaff    = signal<StaffMember | null>(null);
+  loadingStaff     = signal(false);
 
   companyColor = computed(() => this.company()?.logoColor ?? '#7c3aed');
   companyCategory = computed(() => {
@@ -428,14 +499,17 @@ export class CompanyProfileComponent implements OnInit {
     const key      = DAY_KEYS[day.dayOfWeek];
     const sched    = company.schedule.find(d => d.key === key);
     if (!sched?.enabled || !sched.ranges?.length) return [];
-    const interval  = company.slotInterval ?? 30;
-    const duration  = svc.duration         ?? interval;
-    const staff     = svc.staffCount       ?? 1;
-    const apts      = this.existingApts();
+    const interval      = company.slotInterval ?? 30;
+    const duration      = svc.duration         ?? interval;
+    const selectedStaff = this.selectedStaff();
+    const apts          = selectedStaff
+      ? this.existingApts().filter(a => a.staffId === selectedStaff.id)
+      : this.existingApts();
+    const staffCount    = selectedStaff ? 1 : (svc.staffCount ?? 1);
     const slots: string[] = [];
     for (const range of sched.ranges) {
       slots.push(...this.aptSvc.calculateAvailableSlots(
-        range.open, range.close, interval, duration, staff, apts
+        range.open, range.close, interval, duration, staffCount, apts
       ));
     }
 
@@ -456,8 +530,9 @@ export class CompanyProfileComponent implements OnInit {
   steps = [
     { n: 1, label: 'Servicio' },
     { n: 2, label: 'Fecha/Hora' },
-    { n: 3, label: 'Datos' },
-    { n: 4, label: 'Listo' },
+    { n: 3, label: 'Profesional' },
+    { n: 4, label: 'Datos' },
+    { n: 5, label: 'Listo' },
   ];
 
   clientName  = '';
@@ -502,7 +577,15 @@ export class CompanyProfileComponent implements OnInit {
     setTimeout(() => this.showUnavailable.set(false), 3000);
   }
 
-  selectService(s: ServiceItem) { this.selectedService.set(s); }
+  selectService(s: ServiceItem) {
+    this.selectedService.set(s);
+    this.staffList.set([]);
+    this.selectedStaff.set(null);
+    const cid = this.company()?.id;
+    if (cid) {
+      this.staffSvc.getStaffForService(cid, s.id!).then(staff => this.staffList.set(staff));
+    }
+  }
 
   async selectDay(day: any) {
     this.selectedDay.set(day);
@@ -519,7 +602,14 @@ export class CompanyProfileComponent implements OnInit {
   }
 
   selectSlot(slot: string) { this.selectedSlot.set(slot); }
-  goBack() { this.currentStep.update(s => s - 1); }
+  goBack() {
+    const s = this.currentStep();
+    if (s === 4 && this.staffList().length === 0) {
+      this.currentStep.set(2);
+    } else {
+      this.currentStep.update(n => n - 1);
+    }
+  }
 
   whatsappPreview = computed(() => {
     if (!this.selectedService() || !this.selectedDay() || !this.selectedSlot()) return '';
@@ -532,7 +622,7 @@ Quiero agendar mi cita en *${this.company()?.name ?? ''}*
 Servicio:  *${svc.name}* (${svc.duration} min)
 Fecha:     *${day.label} ${day.sub}*
 Hora:      *${this.selectedSlot()}*
-Total:     *$${(svc.price ?? 0).toLocaleString('es-CO')}*
+${this.selectedStaff() ? `Profesional: *${this.selectedStaff()!.name}*\n` : ''}Total:     *$${(svc.price ?? 0).toLocaleString('es-CO')}*
 Pago:      *${this.selectedPayment() ?? ''}*
 ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
 ¡Gracias!`;
@@ -558,7 +648,8 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
       const endTotal = h * 60 + m + dur;
       const endTime  = `${String(Math.floor(endTotal/60)).padStart(2,'0')}:${String(endTotal%60).padStart(2,'0')}`;
 
-      const uid = this.authSvc.currentUser()?.uid;
+      const uid         = this.authSvc.currentUser()?.uid;
+      const staffMember = this.selectedStaff();
       await this.aptSvc.bookAppointment({
         companyId:       cid,
         companyName:     this.company()!.name,
@@ -575,10 +666,28 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
         startTime:       slot,
         endTime,
         price:           svc.price,
+        staffId:         staffMember?.id,
+        staffName:       staffMember?.name,
         source:          'app',
-      }, svc.staffCount ?? 1);
+      }, staffMember ? 1 : (svc.staffCount ?? 1), this.company()?.autoConfirm ?? false);
 
-      this.currentStep.set(4);
+      this.currentStep.set(5);
+
+      // Notify company owner about new appointment
+      const owner = this.company()?.ownerId;
+      const svc2 = this.selectedService();
+      const day2 = this.selectedDay();
+      const slot2 = this.selectedSlot();
+      if (owner && svc2 && day2 && slot2) {
+        this.notifSvc.create({
+          recipientId: owner,
+          type: 'new_appointment',
+          title: 'Nueva cita',
+          body: `${this.clientName} · ${svc2.name} · ${day2.label} ${day2.sub} ${slot2}`,
+          link: '/empresa/dashboard',
+        }).catch(() => {});
+      }
+
       if (this.company()?.phone) {
         setTimeout(() => window.open(this.whatsappUrl(), '_blank'), 400);
       }
@@ -606,6 +715,8 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
     this.selectedSlot.set(null);
     this.selectedPayment.set(null);
     this.existingApts.set([]);
+    this.staffList.set([]);
+    this.selectedStaff.set(null);
     this.currentStep.set(1);
     this.clientName  = '';
     this.clientPhone = '';

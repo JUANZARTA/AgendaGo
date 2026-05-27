@@ -1,5 +1,8 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, OnDestroy, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription as RxSubscription } from 'rxjs';
+import { SubscriptionService, Subscription } from '../../../core/services/subscription.service';
+import { CompanyStore } from '../../../core/services/company-store.service';
 
 interface Payment {
   date: string;
@@ -8,19 +11,15 @@ interface Payment {
   status: 'paid' | 'pending' | 'failed';
 }
 
-const MOCK_SUB = {
-  status: 'trial' as 'trial' | 'active' | 'expired' | 'disabled',
-  plan: 'Gratuito (Trial)',
-  trialEnd: '2026-06-12',
-  daysLeft: 29,
-  trialUsed: true,
-};
+interface SubViewModel {
+  status: 'trial' | 'active' | 'expired' | 'disabled';
+  plan: string;
+  trialEnd: string;
+  daysLeft: number;
+  trialUsed: boolean;
+}
 
-const MOCK_PAYMENTS: Payment[] = [
-  { date: '2026-05-01', plan: 'Mensual',    amount: 29000,  status: 'paid' },
-  { date: '2026-04-01', plan: 'Mensual',    amount: 29000,  status: 'paid' },
-  { date: '2026-03-01', plan: 'Semestral',  amount: 156600, status: 'paid' },
-];
+const MOCK_PAYMENTS: Payment[] = [];
 
 @Component({
   selector: 'app-billing',
@@ -43,6 +42,20 @@ const MOCK_PAYMENTS: Payment[] = [
     .page { max-width: 860px; margin: 0 auto; padding: 28px 20px; }
     .page-title { font-size: 1.45rem; font-weight: 800; margin: 0 0 4px; }
     .page-sub   { font-size: 13px; color: #888; margin: 0 0 28px; }
+
+    /* ── Loading ── */
+    .loading-banner {
+      border-radius: 16px;
+      padding: 24px 28px;
+      background: #f8f9fa;
+      border: 2px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+      animation: pulse 1.5s ease infinite;
+    }
+    .loading-text { font-size: 14px; color: #888; }
 
     /* ── Status banner ── */
     .status-banner {
@@ -200,54 +213,61 @@ const MOCK_PAYMENTS: Payment[] = [
       <p class="page-title">Facturación</p>
       <p class="page-sub">Gestioná tu plan y revisá el historial de pagos</p>
 
-      <!-- ── BANNER DE ESTADO ── -->
-      <div class="status-banner" [class]="sub.status">
-        <div class="status-icon" [class]="sub.status">
-          @switch (sub.status) {
-            @case ('trial') {
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      @if (loading()) {
+        <!-- ── LOADING STATE ── -->
+        <div class="loading-banner">
+          <span class="loading-text">Cargando información de suscripción...</span>
+        </div>
+      } @else {
+        <!-- ── BANNER DE ESTADO ── -->
+        <div class="status-banner" [class]="sub().status">
+          <div class="status-icon" [class]="sub().status">
+            @switch (sub().status) {
+              @case ('trial') {
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              }
+              @case ('active') {
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              }
+              @case ('expired') {
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              }
             }
-            @case ('active') {
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            }
-            @case ('expired') {
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            }
+          </div>
+
+          <div class="status-body">
+            <p class="status-label">
+              @switch (sub().status) {
+                @case ('trial')    { Período de prueba activo }
+                @case ('active')   { Suscripción activa }
+                @case ('expired')  { Suscripción vencida }
+                @case ('disabled') { Cuenta deshabilitada }
+              }
+            </p>
+            <p class="status-desc">
+              @switch (sub().status) {
+                @case ('trial')   { Plan gratuito · Vence el {{ sub().trialEnd }} · Renovar antes de que expire para no perder tu agenda }
+                @case ('active')  { {{ sub().plan }} · Próxima renovación el {{ sub().trialEnd }} }
+                @case ('expired') { Tu suscripción venció. Elegí un plan para reactivar tu cuenta }
+              }
+            </p>
+          </div>
+
+          @if (sub().status !== 'disabled') {
+            <div class="days-pill" [class]="sub().status">
+              <span class="days-number" [class]="sub().status">{{ sub().daysLeft }}</span>
+              <span class="days-label">días<br>restantes</span>
+            </div>
           }
         </div>
-
-        <div class="status-body">
-          <p class="status-label">
-            @switch (sub.status) {
-              @case ('trial')    { Período de prueba activo }
-              @case ('active')   { Suscripción activa }
-              @case ('expired')  { Suscripción vencida }
-              @case ('disabled') { Cuenta deshabilitada }
-            }
-          </p>
-          <p class="status-desc">
-            @switch (sub.status) {
-              @case ('trial')   { Plan gratuito · Vence el {{ sub.trialEnd }} · Renovar antes de que expire para no perder tu agenda }
-              @case ('active')  { {{ sub.plan }} · Próxima renovación el {{ sub.trialEnd }} }
-              @case ('expired') { Tu suscripción venció. Elegí un plan para reactivar tu cuenta }
-            }
-          </p>
-        </div>
-
-        @if (sub.status !== 'disabled') {
-          <div class="days-pill" [class]="sub.status">
-            <span class="days-number" [class]="sub.status">{{ sub.daysLeft }}</span>
-            <span class="days-label">días<br>restantes</span>
-          </div>
-        }
-      </div>
+      }
 
       <!-- ── PLANES ── -->
       <p class="plans-title">Elegí tu plan</p>
       <div class="plans-grid">
 
         <!-- Gratuito -->
-        <div class="plan-card" [class.dimmed]="sub.trialUsed && sub.status !== 'trial'">
+        <div class="plan-card" [class.dimmed]="sub().trialUsed && sub().status !== 'trial'">
           <div class="plan-name">Gratuito</div>
           <div class="plan-price-row">
             <span class="plan-price free">$0</span>
@@ -261,10 +281,10 @@ const MOCK_PAYMENTS: Payment[] = [
             <li class="dimmed-feat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Sin servicios ilimitados</li>
           </ul>
           <div class="plan-footer">
-            @if (sub.status === 'trial') {
+            @if (sub().status === 'trial') {
               <div class="plan-used-tag">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                Trial en curso ({{ sub.daysLeft }} días restantes)
+                Trial en curso ({{ sub().daysLeft }} días restantes)
               </div>
             } @else {
               <div class="plan-used-tag">
@@ -366,16 +386,74 @@ const MOCK_PAYMENTS: Payment[] = [
       } @else {
         <div class="empty-history">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          <p>Todavía no hay pagos registrados.</p>
+          <p>Historial de pagos próximamente.</p>
         </div>
       }
 
     </div>
   `,
 })
-export class BillingComponent {
-  sub      = MOCK_SUB;
+export class BillingComponent implements OnDestroy {
+  private subscriptionService = inject(SubscriptionService);
+  private companyStore        = inject(CompanyStore);
+
+  loading  = signal(true);
   payments = MOCK_PAYMENTS;
+
+  sub = signal<SubViewModel>({
+    status:    'trial',
+    plan:      'Gratuito (Trial)',
+    trialEnd:  '—',
+    daysLeft:  0,
+    trialUsed: true,
+  });
+
+  private rxSub: RxSubscription | null = null;
+
+  constructor() {
+    effect(() => {
+      const companyId = this.companyStore.companyId();
+      if (!companyId) return;
+
+      this.rxSub?.unsubscribe();
+      this.loading.set(true);
+
+      this.rxSub = this.subscriptionService.watchStatus(companyId).subscribe((subscription) => {
+        if (!subscription) {
+          this.loading.set(false);
+          return;
+        }
+
+        const daysLeft = this.subscriptionService.daysRemaining(subscription);
+        const endDate  = subscription.status === 'trial'
+          ? subscription.trialEndDate
+          : subscription.currentPeriodEnd;
+        const trialEnd = this.formatTimestamp(endDate);
+        const plan     = subscription.status === 'active' ? 'Plan activo' : 'Gratuito (Trial)';
+
+        this.sub.set({
+          status:    subscription.status,
+          plan,
+          trialEnd,
+          daysLeft,
+          trialUsed: subscription.status !== 'trial',
+        });
+
+        this.loading.set(false);
+      });
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.rxSub?.unsubscribe();
+  }
+
+  private formatTimestamp(ts: any): string {
+    if (!ts) return '—';
+    const date: Date = ts?.toDate ? ts.toDate() : new Date(ts);
+    const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  }
 
   formatDate(iso: string): string {
     const [y, m, d] = iso.split('-');

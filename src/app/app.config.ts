@@ -4,6 +4,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideAuth, getAuth, connectAuthEmulator } from '@angular/fire/auth';
 import { provideFirestore, getFirestore, connectFirestoreEmulator } from '@angular/fire/firestore';
+import { provideStorage, getStorage } from '@angular/fire/storage';
 import { provideMessaging, getMessaging } from '@angular/fire/messaging';
 
 import { routes } from './app.routes';
@@ -24,6 +25,7 @@ const firebaseProviders: (Provider | EnvironmentProviders)[] = firebaseConfigure
         if (environment.useEmulators) connectFirestoreEmulator(fs, 'localhost', 8080);
         return fs;
       }),
+      provideStorage(() => getStorage()),
       provideMessaging(() => getMessaging()),
     ]
   : [];

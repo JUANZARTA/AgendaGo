@@ -22,6 +22,8 @@ export interface Appointment {
   endTime: string;
   price?: number;
   clientNote?: string;
+  staffId?: string;
+  staffName?: string;
   status: 'pending' | 'scheduled' | 'cancelled' | 'completed';
   cancelledBy?: 'client' | 'company';
   source: 'app' | 'manual';
@@ -70,7 +72,8 @@ export class AppointmentService {
   /** Transacción: verifica disponibilidad por solapamiento real y staffCount */
   async bookAppointment(
     data: Omit<Appointment, 'id' | 'status'>,
-    staffCount: number = 1
+    staffCount: number = 1,
+    autoConfirm: boolean = false
   ): Promise<string> {
     const ref = doc(collection(this.firestore, 'appointments'));
     await runTransaction(this.firestore, async (tx) => {
@@ -87,9 +90,17 @@ export class AppointmentService {
         const a = d.data() as Appointment;
         return this.toMin(a.startTime) < newEnd && this.toMin(a.endTime) > newStart;
       });
-      if (overlapping.length >= staffCount) throw new Error('SLOT_TAKEN');
+      if (data.staffId) {
+        const staffOverlapping = overlapping.filter(d => {
+          const a = d.data() as Appointment;
+          return a.staffId === data.staffId;
+        });
+        if (staffOverlapping.length >= 1) throw new Error('SLOT_TAKEN');
+      } else {
+        if (overlapping.length >= staffCount) throw new Error('SLOT_TAKEN');
+      }
       const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
-      tx.set(ref, { ...clean, status: 'pending', createdAt: serverTimestamp() });
+      tx.set(ref, { ...clean, status: autoConfirm ? 'scheduled' : 'pending', createdAt: serverTimestamp() });
     });
     return ref.id;
   }

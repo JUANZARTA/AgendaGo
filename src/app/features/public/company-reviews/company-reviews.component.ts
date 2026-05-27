@@ -8,6 +8,7 @@ import { CompanyService, Company } from '../../../core/services/company.service'
 import { AuthService } from '../../../core/services/auth.service';
 import { AppointmentService } from '../../../core/services/appointment.service';
 import { ReviewService, Review } from '../../../core/services/review.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-company-reviews',
@@ -263,6 +264,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
   private companySvc = inject(CompanyService);
   private aptSvc     = inject(AppointmentService);
   private reviewSvc  = inject(ReviewService);
+  private notifSvc   = inject(NotificationService);
   readonly authSvc   = inject(AuthService);
 
   companyId = signal('');
@@ -373,6 +375,16 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
       }, this.reviews());
       this.reviewSent.set(true);
       this.canReview.set(false);
+      const owner = this.company()?.ownerId;
+      if (owner) {
+        this.notifSvc.create({
+          recipientId: owner,
+          type: 'new_review',
+          title: 'Nueva reseña',
+          body: `${name} dejó ${this.reviewRating()} ★`,
+          link: '/empresa/resenas',
+        }).catch(() => {});
+      }
     } catch {
       this.reviewError.set('Error al publicar. Intentá de nuevo.');
     } finally {

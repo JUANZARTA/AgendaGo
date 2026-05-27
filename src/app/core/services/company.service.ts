@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Firestore, collection, doc, setDoc, updateDoc, getDoc, query, where, getDocs, serverTimestamp } from '@angular/fire/firestore';
 import { Auth } from '@angular/fire/auth';
 import { from, Observable } from 'rxjs';
+import { NotificationService } from './notification.service';
 
 export interface DaySchedule {
   key: string;
@@ -41,12 +42,14 @@ export interface Company {
   disabledSlots?: Record<string, boolean>;
   averageRating?: number;
   reviewCount?: number;
+  autoConfirm?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class CompanyService {
   private firestore = inject(Firestore);
   private auth = inject(Auth);
+  private notifSvc = inject(NotificationService);
 
   async createCompany(data: Partial<Company>): Promise<string> {
     const uid = this.auth.currentUser!.uid;
@@ -59,6 +62,13 @@ export class CompanyService {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    this.notifSvc.create({
+      recipientId: 'admin',
+      type: 'new_company',
+      title: 'Nuevo negocio registrado',
+      body: `${data.name ?? 'Sin nombre'} se registró`,
+      link: '/admin/empresas',
+    }).catch(() => {});
     return ref.id;
   }
 

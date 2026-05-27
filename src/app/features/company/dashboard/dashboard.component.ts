@@ -5,6 +5,8 @@ import { Subscription } from 'rxjs';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
+import { StaffService, StaffMember } from '../../../core/services/staff.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 const CANCEL_REASONS = [
   'El cliente no se presentó',
@@ -395,7 +397,7 @@ interface DaySlot {
             }
           </div>
 
-          <button class="btn btn-primary" (click)="showNewModal.set(true)"
+          <button class="btn btn-primary" (click)="openNewModal()"
                   [disabled]="!companyStore.companyId()"
                   style="display:inline-flex;align-items:center;gap:8px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -471,6 +473,14 @@ interface DaySlot {
                       {{ apt.clientName }}
                     </div>
                     <div class="apt-service">{{ apt.serviceName }}</div>
+                    @if (apt.staffName) {
+                      <div class="apt-meta" style="margin-top:2px;font-size:12px;color:#a0a0b8;display:flex;align-items:center;gap:4px">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        {{ apt.staffName }}
+                      </div>
+                    }
                     <div class="apt-meta" style="display:flex;align-items:center;gap:10px;margin-top:3px">
                       <span style="display:inline-flex;align-items:center;gap:3px">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -678,6 +688,16 @@ interface DaySlot {
           </div>
 
           <div class="form-group">
+            <label>Profesional <span style="color:#aaa;font-weight:400">(opcional)</span></label>
+            <select [(ngModel)]="newStaffId">
+              <option value="">Cualquier profesional</option>
+              @for (s of staff(); track s.id) {
+                <option [value]="s.id">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
             <label>Fecha</label>
             <input type="date" [(ngModel)]="newDate" />
           </div>
@@ -804,6 +824,8 @@ export class DashboardComponent implements OnDestroy {
   readonly companyStore  = inject(CompanyStore);
   private aptSvc         = inject(AppointmentService);
   private catalogSvc     = inject(ServiceCatalogService);
+  private staffSvc       = inject(StaffService);
+  private notifSvc       = inject(NotificationService);
 
   private readonly _today = new Date().toISOString().split('T')[0];
   selectedDate = signal(this._today);
@@ -828,6 +850,7 @@ export class DashboardComponent implements OnDestroy {
 
   appointments = signal<Appointment[]>([]);
   services     = signal<ServiceItem[]>([]);
+  staff        = signal<StaffMember[]>([]);
   loadingApts  = signal(false);
   saving       = signal(false);
 
@@ -876,6 +899,7 @@ export class DashboardComponent implements OnDestroy {
   newClient    = '';
   newPhone     = '';
   newServiceId = '';
+  newStaffId   = '';
   newDate      = '';
   newTime      = '08:00';
   newNote      = '';
@@ -931,6 +955,16 @@ export class DashboardComponent implements OnDestroy {
 
   async confirmApt(id: string) {
     await this.aptSvc.confirmAppointment(id);
+    const apt = this.appointments().find(a => a.id === id);
+    if (apt?.clientId) {
+      this.notifSvc.create({
+        recipientId: apt.clientId,
+        type: 'appointment_confirmed',
+        title: 'Cita confirmada',
+        body: `${this.companyStore.company()?.name ?? ''} · ${apt.serviceName} · ${apt.date} ${apt.startTime}`,
+        link: '/cliente/citas',
+      }).catch(() => {});
+    }
   }
 
   async completeApt(id: string) {
@@ -963,6 +997,15 @@ export class DashboardComponent implements OnDestroy {
     this.saving.set(true);
     try {
       await this.aptSvc.cancelAppointment(target.id, 'company');
+      if (target.clientId) {
+        this.notifSvc.create({
+          recipientId: target.clientId,
+          type: 'appointment_cancelled',
+          title: 'Cita cancelada',
+          body: `Tu cita de ${target.serviceName} en ${this.companyStore.company()?.name ?? ''} fue cancelada`,
+          link: '/cliente/citas',
+        }).catch(() => {});
+      }
       this.cancelTarget.set(null);
     } finally {
       this.saving.set(false);
@@ -977,6 +1020,7 @@ export class DashboardComponent implements OnDestroy {
     const svc = this.services().find(s => s.id === this.newServiceId) ?? this.services()[0];
     if (!svc) return;
 
+    const staffMember = this.staff().find(s => s.id === this.newStaffId);
     this.saving.set(true);
     try {
       await this.aptSvc.createManualAppointment({
@@ -993,6 +1037,8 @@ export class DashboardComponent implements OnDestroy {
         endTime:         this.calcEndTime(this.newTime, svc.duration ?? 30),
         price:           svc.price,
         clientNote:      this.newNote.trim() || undefined,
+        staffId:         staffMember?.id,
+        staffName:       staffMember?.name,
         source:          'manual',
       });
       this.closeNewModal();
@@ -1001,11 +1047,21 @@ export class DashboardComponent implements OnDestroy {
     }
   }
 
+  async openNewModal() {
+    this.showNewModal.set(true);
+    const cid = this.companyStore.companyId();
+    if (cid) {
+      const staffList = await this.staffSvc.getActiveStaff(cid);
+      this.staff.set(staffList);
+    }
+  }
+
   closeNewModal() {
     this.showNewModal.set(false);
     this.newClient    = '';
     this.newPhone     = '';
     this.newServiceId = this.services()[0]?.id ?? '';
+    this.newStaffId   = '';
     this.newDate      = '';
     this.newTime      = '08:00';
     this.newNote      = '';

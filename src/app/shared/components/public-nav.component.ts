@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeSwitcherComponent } from './theme-switcher.component';
+import { NotificationBellComponent } from './notification-bell.component';
 
 @Component({
   selector: 'app-public-nav',
   standalone: true,
-  imports: [RouterLink, ThemeSwitcherComponent],
+  imports: [RouterLink, ThemeSwitcherComponent, NotificationBellComponent],
   styles: [`
     .nav-actions { display: flex; align-items: center; gap: 16px; }
     .nav-hamburger {
@@ -86,6 +87,9 @@ import { ThemeSwitcherComponent } from './theme-switcher.component';
                 Mis citas
               </a>
             }
+            @if (auth.role() === 'client') {
+              <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
+            }
             <a [routerLink]="settingsRoute()"
                title="Configuración"
                style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--btn-secondary-bg);color:var(--purple);text-decoration:none;transition:all .15s;flex-shrink:0"
@@ -148,6 +152,9 @@ import { ThemeSwitcherComponent } from './theme-switcher.component';
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               Mis citas
             </a>
+            <div style="padding:8px 4px">
+              <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
+            </div>
           }
           <a [routerLink]="settingsRoute()" (click)="menuOpen.set(false)"
              style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff">

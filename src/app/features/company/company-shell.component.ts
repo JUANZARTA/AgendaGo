@@ -1,20 +1,23 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnDestroy, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Subscription as RxSubscription } from 'rxjs';
 import { ThemeSwitcherComponent } from '../../shared/components/theme-switcher.component';
+import { NotificationBellComponent } from '../../shared/components/notification-bell.component';
 import { CompanyStore } from '../../core/services/company-store.service';
 import { CompanyOnboardingComponent } from './onboarding/company-onboarding.component';
 import { AuthService } from '../../core/services/auth.service';
+import { SubscriptionService } from '../../core/services/subscription.service';
 
 interface NavItem {
   label: string;
   route: string;
-  icon: 'grid' | 'list' | 'clock' | 'settings' | 'star' | 'credit-card';
+  icon: 'grid' | 'list' | 'clock' | 'settings' | 'star' | 'credit-card' | 'users';
 }
 
 @Component({
   selector: 'app-company-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ThemeSwitcherComponent, CompanyOnboardingComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ThemeSwitcherComponent, NotificationBellComponent, CompanyOnboardingComponent],
   template: `
     @if (companyStore.loading()) {
       <!-- Pantalla de carga inicial -->
@@ -92,6 +95,12 @@ interface NavItem {
                       <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
                       <line x1="1" y1="10" x2="23" y2="10"/>
                     }
+                    @case ('users') {
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    }
                   }
                 </svg>
                 <span class="nav-label">{{ item.label }}</span>
@@ -101,9 +110,16 @@ interface NavItem {
 
           <!-- Company info -->
           <div class="company-info">
+            <app-notification-bell [recipientId]="companyStore.company()?.ownerId ?? ''" />
             <app-theme-switcher/>
             <span class="company-name">{{ companyStore.company()?.name }}</span>
-            <span class="company-badge">Trial · 30 dias</span>
+            @if (sub()?.status === 'active') {
+              <span class="company-badge company-badge--active">Plan activo</span>
+            } @else if (sub()?.status === 'expired') {
+              <span class="company-badge company-badge--expired">Suscripción vencida</span>
+            } @else {
+              <span class="company-badge">Trial · {{ subDaysLeft() }} días</span>
+            }
             <button class="logout-btn" (click)="logout()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -162,6 +178,12 @@ interface NavItem {
                   @case ('credit-card') {
                     <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
                     <line x1="1" y1="10" x2="23" y2="10"/>
+                  }
+                  @case ('users') {
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   }
                 }
               </svg>
@@ -322,6 +344,18 @@ interface NavItem {
       letter-spacing: 0.02em;
     }
 
+    .company-badge--active {
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+
+    .company-badge--expired {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
     .logout-btn {
       display: flex;
       align-items: center;
@@ -419,10 +453,38 @@ interface NavItem {
     }
   `],
 })
-export class CompanyShellComponent {
-  readonly companyStore = inject(CompanyStore);
-  private auth   = inject(AuthService);
-  private router = inject(Router);
+export class CompanyShellComponent implements OnDestroy {
+  readonly companyStore        = inject(CompanyStore);
+  private auth                 = inject(AuthService);
+  private subscriptionService  = inject(SubscriptionService);
+  private router               = inject(Router);
+
+  sub    = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' } | null>(null);
+
+  private rxSub: RxSubscription | null = null;
+
+  constructor() {
+    effect(() => {
+      const companyId = this.companyStore.companyId();
+      if (!companyId) return;
+
+      this.rxSub?.unsubscribe();
+
+      this.rxSub = this.subscriptionService.watchStatus(companyId).subscribe((subscription) => {
+        this.sub.set(subscription);
+      });
+    });
+  }
+
+  subDaysLeft(): number {
+    const s = this.sub();
+    if (!s) return 30;
+    return this.subscriptionService.daysRemaining(s as any);
+  }
+
+  ngOnDestroy(): void {
+    this.rxSub?.unsubscribe();
+  }
 
   logout() {
     this.auth.logout().subscribe();
@@ -434,6 +496,7 @@ export class CompanyShellComponent {
     { label: 'Servicios',   route: '/empresa/servicios',   icon: 'list'        },
     { label: 'Horarios',    route: '/empresa/horarios',    icon: 'clock'       },
     { label: 'Perfil',      route: '/empresa/perfil',      icon: 'settings'    },
+    { label: 'Equipo',      route: '/empresa/equipo',      icon: 'users'       },
     { label: 'Reseñas',     route: '/empresa/resenas',     icon: 'star'        },
     { label: 'Facturación', route: '/empresa/facturacion', icon: 'credit-card' },
   ];

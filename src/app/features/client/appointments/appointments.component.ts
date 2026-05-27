@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
+import { CompanyService } from '../../../core/services/company.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 const STATUS_LABEL: Record<string, string> = {
   pending: 'Próxima',
@@ -266,6 +268,8 @@ const STATUS_CLASS: Record<string, string> = {
 export class AppointmentsComponent implements OnDestroy {
   private auth = inject(AuthService);
   private aptSvc = inject(AppointmentService);
+  private companySvc = inject(CompanyService);
+  private notifSvc = inject(NotificationService);
 
   STATUS_CLASS = STATUS_CLASS;
   STATUS_LABEL = STATUS_LABEL;
@@ -329,9 +333,24 @@ export class AppointmentsComponent implements OnDestroy {
 
   async doCancel(id: string) {
     this.cancelling.set(true);
+    const apt = this.appointments().find(a => a.id === id);
     try {
       await this.aptSvc.cancelAppointment(id, 'client');
       this.confirmCancelId.set(null);
+      // Notify company owner
+      if (apt?.companyId) {
+        this.companySvc.getCompany(apt.companyId).then(company => {
+          if (company?.ownerId) {
+            this.notifSvc.create({
+              recipientId: company.ownerId,
+              type: 'appointment_cancelled',
+              title: 'Cita cancelada',
+              body: `${apt.clientName} canceló su cita de ${apt.serviceName}`,
+              link: '/empresa/dashboard',
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
     } catch {
       this.error.set('No se pudo cancelar. Intentá de nuevo.');
     } finally {
