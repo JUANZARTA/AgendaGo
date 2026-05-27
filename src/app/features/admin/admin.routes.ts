@@ -18,6 +18,10 @@ export const ADMIN_ROUTES: Routes = [
         path: 'usuarios',
         loadComponent: () => import('./users/users.component').then((m) => m.UsersComponent),
       },
+      {
+        path: 'facturacion',
+        loadComponent: () => import('./billing/billing.component').then((m) => m.AdminBillingComponent),
+      },
     ],
   },
 ];

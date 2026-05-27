@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Subscription as RxSubscription } from 'rxjs';
 import { SubscriptionService, Subscription } from '../../../core/services/subscription.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { environment } from '../../../../environments/environment';
 
 interface Payment {
@@ -13,7 +14,7 @@ interface Payment {
 }
 
 interface SubViewModel {
-  status: 'trial' | 'active' | 'expired' | 'disabled';
+  status: 'trial' | 'active' | 'expired' | 'disabled' | 'free';
   plan: string;
   trialEnd: string;
   daysLeft: number;
@@ -73,6 +74,7 @@ const MOCK_PAYMENTS: Payment[] = [];
     .status-banner.active   { background: linear-gradient(135deg,#d1fae5,#ecfdf5); border: 2px solid #6ee7b7; }
     .status-banner.expired  { background: linear-gradient(135deg,#fee2e2,#fff5f5); border: 2px solid #fca5a5; }
     .status-banner.disabled { background: #f1f5f9; border: 2px solid #e2e8f0; }
+    .status-banner.free     { background: linear-gradient(135deg,#f5f3ff,#fdf4ff); border: 2px solid #e9d5ff; }
 
     .status-icon {
       width: 56px; height: 56px;
@@ -83,6 +85,7 @@ const MOCK_PAYMENTS: Payment[] = [];
     .status-icon.trial    { background: #fef3c7; color: #92400e; }
     .status-icon.active   { background: #d1fae5; color: #065f46; }
     .status-icon.expired  { background: #fee2e2; color: #991b1b; }
+    .status-icon.free     { background: #f5f3ff; color: #6d28d9; font-size: 26px; line-height: 1; }
     .status-icon.disabled { background: #e2e8f0; color: #64748b; }
 
     .status-body { flex: 1; min-width: 0; }
@@ -233,6 +236,7 @@ const MOCK_PAYMENTS: Payment[] = [];
               @case ('expired') {
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               }
+              @case ('free') { ⭐ }
             }
           </div>
 
@@ -243,6 +247,7 @@ const MOCK_PAYMENTS: Payment[] = [];
                 @case ('active')   { Suscripción activa }
                 @case ('expired')  { Suscripción vencida }
                 @case ('disabled') { Cuenta deshabilitada }
+                @case ('free')     { Plan gratuito · Beneficiario }
               }
             </p>
             <p class="status-desc">
@@ -250,11 +255,12 @@ const MOCK_PAYMENTS: Payment[] = [];
                 @case ('trial')   { Plan gratuito · Vence el {{ sub().trialEnd }} · Renovar antes de que expire para no perder tu agenda }
                 @case ('active')  { {{ sub().plan }} · Próxima renovación el {{ sub().trialEnd }} }
                 @case ('expired') { Tu suscripción venció. Elegí un plan para reactivar tu cuenta }
+                @case ('free')    { Fuiste seleccionado como beneficiario de Agenda Co. Tenés acceso ilimitado y gratuito a todas las funciones de la plataforma. }
               }
             </p>
           </div>
 
-          @if (sub().status !== 'disabled') {
+          @if (sub().status !== 'disabled' && sub().status !== 'free') {
             <div class="days-pill" [class]="sub().status">
               <span class="days-number" [class]="sub().status">{{ sub().daysLeft }}</span>
               <span class="days-label">días<br>restantes</span>
@@ -263,7 +269,19 @@ const MOCK_PAYMENTS: Payment[] = [];
         </div>
       }
 
-      <!-- ── PLANES ── -->
+      <!-- ── Banner beneficiario ── -->
+      @if (sub().status === 'free') {
+        <div style="border-radius:16px;padding:28px 32px;background:linear-gradient(135deg,#f5f3ff,#fdf4ff);border:2px solid #e9d5ff;display:flex;align-items:center;gap:20px;margin-bottom:8px">
+          <div style="font-size:40px;flex-shrink:0">⭐</div>
+          <div>
+            <div style="font-size:1rem;font-weight:800;color:#6d28d9;margin-bottom:4px">¡Sos beneficiario de Agenda Co!</div>
+            <div style="font-size:13px;color:#7c3aed;line-height:1.6">Tenés acceso <strong>gratuito e ilimitado</strong> a todas las funciones de la plataforma. No necesitás pagar ni renovar ningún plan.</div>
+          </div>
+        </div>
+      }
+
+      <!-- ── PLANES (solo si no es beneficiario) ── -->
+      @if (sub().status !== 'free') {
       <p class="plans-title">Elegí tu plan</p>
       <div class="plans-grid">
 
@@ -345,6 +363,7 @@ const MOCK_PAYMENTS: Payment[] = [];
         </div>
 
       </div>
+      } <!-- /if not free -->
 
       <!-- ── HISTORIAL ── -->
       <div class="history-header">
@@ -397,6 +416,7 @@ const MOCK_PAYMENTS: Payment[] = [];
 export class BillingComponent implements OnDestroy {
   private subscriptionService = inject(SubscriptionService);
   private companyStore        = inject(CompanyStore);
+  private notifSvc            = inject(NotificationService);
 
   loading  = signal(true);
   payments = MOCK_PAYMENTS;
@@ -454,10 +474,23 @@ export class BillingComponent implements OnDestroy {
 
   payMonthly(): void {
     this.wompiCheckout('mensual', 2900000);
+    this.notifyAdminPayment('mensual', '$29.000');
   }
 
   paySemestral(): void {
     this.wompiCheckout('semestral', 15660000);
+    this.notifyAdminPayment('semestral', '$156.600');
+  }
+
+  private notifyAdminPayment(plan: string, amount: string): void {
+    const name = this.companyStore.company()?.name ?? 'Una empresa';
+    this.notifSvc.create({
+      recipientId: 'admin',
+      type:        'payment_initiated',
+      title:       `Pago iniciado — ${name}`,
+      body:        `${name} inició un pago del plan ${plan} por ${amount}. Verificá en Wompi y activá el plan manualmente.`,
+      link:        '/admin/facturacion',
+    });
   }
 
   ngOnDestroy(): void {

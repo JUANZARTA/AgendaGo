@@ -2,18 +2,19 @@ import { Component, signal, computed, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  Firestore, collection, onSnapshot, getDocs, updateDoc, doc,
+  Firestore, collection, onSnapshot, getDocs, updateDoc, doc, setDoc, serverTimestamp,
 } from '@angular/fire/firestore';
+import { NotificationService } from '../../../core/services/notification.service';
 
 const CAT_LABEL: Record<string, string> = {
   salon: 'Salón', spa: 'Spa', barberia: 'Barbería', peluqueria: 'Peluquería',
 };
 const SUB_CLASS: Record<string, string> = {
   trial: 'badge-blue', active: 'badge-green', expired: 'badge-red',
-  disabled: 'badge-red', '—': 'badge-blue',
+  disabled: 'badge-red', free: 'badge-purple', '—': 'badge-blue',
 };
 const SUB_LABEL: Record<string, string> = {
-  trial: 'Trial', active: 'Activa', expired: 'Vencida', disabled: 'Deshabilitada', '—': 'Sin plan',
+  trial: 'Trial', active: 'Activa', expired: 'Vencida', disabled: 'Deshabilitada', free: 'Gratuita', '—': 'Sin plan',
 };
 
 interface AdminCompany {
@@ -95,7 +96,11 @@ interface AdminCompany {
                     </span>
                   </td>
                   <td style="padding:12px;color:#aaa;font-size:12px">{{ c.createdLabel }}</td>
-                  <td style="padding:12px;text-align:right">
+                  <td style="padding:12px;text-align:right;display:flex;gap:8px;justify-content:flex-end;align-items:center">
+                    <button class="btn btn-sm btn-primary"
+                            (click)="openPlanModal(c)">
+                      Plan
+                    </button>
                     <button class="btn btn-sm" [class]="c.isActive ? 'btn-danger' : 'btn-primary'"
                             (click)="confirmTarget.set({ id: c.id, isActive: c.isActive })">
                       {{ c.isActive ? 'Deshabilitar' : 'Habilitar' }}
@@ -112,6 +117,95 @@ interface AdminCompany {
         </div>
       }
     </div>
+
+    <!-- Modal: confirmar cuenta gratuita -->
+    @if (confirmFreePlan()) {
+      <div style="position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px">
+        <div style="background:white;border-radius:16px;padding:32px;max-width:420px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.2);border-top:4px solid #7c3aed;text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;background:#f5f3ff;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px">⭐</div>
+          <h3 style="font-size:1rem;font-weight:800;color:#1a1a2e;margin-bottom:8px">¿Confirmar cuenta gratuita?</h3>
+          <p style="font-size:13px;color:#666;line-height:1.6;margin-bottom:8px">
+            Vas a otorgarle acceso <strong>gratuito e ilimitado</strong> a <strong>{{ planTarget()?.name }}</strong>.
+          </p>
+          <p style="font-size:12px;color:#ef4444;margin-bottom:24px;font-weight:600">
+            Esta empresa no generará ingresos. Asegurate de que es un caso autorizado.
+          </p>
+          <div style="display:flex;gap:10px">
+            <button (click)="confirmFreePlan.set(false)"
+              style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #e5e7eb;background:none;font-size:13px;font-weight:600;color:#888;cursor:pointer;font-family:inherit">
+              Cancelar
+            </button>
+            <button (click)="doSavePlan()" [disabled]="savingPlan()"
+              style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#db2777);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit"
+              [style.opacity]="savingPlan() ? '0.6' : '1'">
+              {{ savingPlan() ? 'Guardando...' : 'Sí, confirmar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Modal: gestión de plan -->
+    @if (planTarget(); as company) {
+      <div style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px"
+           (click)="planTarget.set(null)">
+        <div style="background:white;border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.18)"
+             (click)="$event.stopPropagation()">
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <h3 style="margin:0;font-size:1rem;font-weight:800;color:#1a1a2e">Plan — {{ company.name }}</h3>
+            <button (click)="planTarget.set(null)"
+              style="width:28px;height:28px;border-radius:8px;border:none;background:#f5f5f5;cursor:pointer;font-size:18px;line-height:1;color:#888">×</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Estado de suscripción</label>
+              <select [(ngModel)]="editPlanStatus"
+                style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px">
+                <option value="trial">Trial</option>
+                <option value="active">Activa</option>
+                <option value="expired">Vencida</option>
+                <option value="disabled">Deshabilitada</option>
+                <option value="free">⭐ Gratuita (tiempo ilimitado)</option>
+              </select>
+              @if (editPlanStatus === 'free') {
+                <div style="margin-top:8px;padding:10px 14px;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:8px;font-size:12px;color:#7c3aed;font-weight:600;display:flex;gap:8px">
+                  <span>⚠️</span>
+                  <span>Acceso ilimitado sin fecha de vencimiento. Se pedirá confirmación.</span>
+                </div>
+              }
+            </div>
+
+            @if (editPlanStatus !== 'free') {
+              <div>
+                <label style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Fecha de vencimiento</label>
+                <input type="date" [(ngModel)]="editPlanPeriodEnd"
+                  style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" />
+              </div>
+            }
+
+            <div>
+              <label style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Nota interna (opcional)</label>
+              <textarea [(ngModel)]="editPlanNote" rows="2" placeholder="Ej: Pago recibido por transferencia..."
+                style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;resize:none;font-family:inherit;box-sizing:border-box"></textarea>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-top:4px">
+              <button (click)="planTarget.set(null)"
+                style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #e5e7eb;background:none;font-size:13px;font-weight:600;color:#888;cursor:pointer;font-family:inherit">
+                Cancelar
+              </button>
+              <button (click)="savePlan()" [disabled]="savingPlan()"
+                style="flex:1;padding:11px;border-radius:10px;border:none;background:var(--gradient,linear-gradient(135deg,#7c3aed,#db2777));color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit"
+                [style.opacity]="savingPlan() ? '0.6' : '1'">
+                {{ savingPlan() ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
 
     <!-- Modal de confirmación -->
     @if (confirmTarget(); as target) {
@@ -156,16 +250,24 @@ export class CompaniesComponent implements OnDestroy {
   SUB_CLASS = SUB_CLASS;
   SUB_LABEL = SUB_LABEL;
 
-  private firestore = inject(Firestore);
+  private firestore  = inject(Firestore);
+  private notifSvc   = inject(NotificationService);
 
   private rawCompanies = signal<any[]>([]);
   private subsMap      = signal<Record<string, any>>({});
   private emailMap     = signal<Record<string, string>>({});
 
-  loading       = signal(true);
-  search        = '';
-  filterStatus  = '';
-  confirmTarget = signal<{ id: string; isActive: boolean } | null>(null);
+  loading         = signal(true);
+  search          = '';
+  filterStatus    = '';
+  confirmTarget   = signal<{ id: string; isActive: boolean } | null>(null);
+
+  planTarget      = signal<{ id: string; name: string; ownerId: string } | null>(null);
+  confirmFreePlan = signal(false);
+  editPlanStatus  = 'trial';
+  editPlanPeriodEnd = '';
+  editPlanNote    = '';
+  savingPlan      = signal(false);
 
   companies = computed<AdminCompany[]>(() => {
     const subs   = this.subsMap();
@@ -223,6 +325,63 @@ export class CompaniesComponent implements OnDestroy {
   }
 
   ngOnDestroy() { this.unsub?.(); }
+
+  openPlanModal(c: { id: string; name: string; ownerId: string }) {
+    this.planTarget.set({ id: c.id, name: c.name, ownerId: c.ownerId });
+    this.editPlanStatus   = 'active';
+    this.editPlanPeriodEnd = '';
+    this.editPlanNote     = '';
+  }
+
+  savePlan() {
+    if (this.editPlanStatus === 'free') {
+      this.confirmFreePlan.set(true);
+      return;
+    }
+    this.doSavePlan();
+  }
+
+  async doSavePlan() {
+    const target = this.planTarget();
+    if (!target) return;
+    this.savingPlan.set(true);
+    this.confirmFreePlan.set(false);
+
+    const data: Record<string, any> = {
+      companyId: target.id,
+      status:    this.editPlanStatus,
+    };
+
+    if (this.editPlanStatus === 'free') {
+      data['currentPeriodEnd'] = null;
+      data['adminNote'] = (this.editPlanNote.trim() || '') + ' [Cuenta gratuita otorgada por admin]';
+    } else {
+      if (this.editPlanPeriodEnd) {
+        data['currentPeriodEnd'] = new Date(this.editPlanPeriodEnd);
+        if (this.editPlanStatus === 'active') data['lastPaymentDate'] = serverTimestamp();
+      }
+      if (this.editPlanNote.trim()) data['adminNote'] = this.editPlanNote.trim();
+    }
+
+    await setDoc(doc(this.firestore, 'subscriptions', target.id), data, { merge: true });
+
+    const statusLabels: Record<string, string> = {
+      trial: 'Trial', active: 'Plan activo', expired: 'Vencida',
+      disabled: 'Deshabilitada', free: 'Gratuita (Beneficiario)',
+    };
+    if (target.ownerId) {
+      await this.notifSvc.create({
+        recipientId: target.ownerId,
+        type:        'plan_changed',
+        title:       'Tu plan fue actualizado',
+        body:        `El administrador cambió tu suscripción a: ${statusLabels[this.editPlanStatus] ?? this.editPlanStatus}.`,
+        link:        '/empresa/facturacion',
+      });
+    }
+
+    this.savingPlan.set(false);
+    this.planTarget.set(null);
+  }
 
   async doToggle(target: { id: string; isActive: boolean }) {
     this.confirmTarget.set(null);

@@ -7,7 +7,7 @@ import { NotificationService, AppNotification } from '../../core/services/notifi
 interface NavItem {
   label: string;
   route: string;
-  icon: 'bar-chart' | 'home' | 'users';
+  icon: 'bar-chart' | 'home' | 'users' | 'credit-card';
 }
 
 @Component({
@@ -64,6 +64,10 @@ interface NavItem {
                     <circle cx="9" cy="7" r="4"/>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  }
+                  @case ('credit-card') {
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                    <line x1="1" y1="10" x2="23" y2="10"/>
                   }
                 }
               </svg>
@@ -136,6 +140,10 @@ interface NavItem {
                   <circle cx="9" cy="7" r="4"/>
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                }
+                @case ('credit-card') {
+                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                  <line x1="1" y1="10" x2="23" y2="10"/>
                 }
               }
             </svg>
@@ -512,8 +520,9 @@ export class AdminShellComponent implements OnDestroy {
   }
 
   readonly navItems: NavItem[] = [
-    { label: 'Métricas', route: '/admin/metricas', icon: 'bar-chart' },
-    { label: 'Empresas', route: '/admin/empresas', icon: 'home'      },
-    { label: 'Usuarios', route: '/admin/usuarios', icon: 'users'     },
+    { label: 'Métricas',     route: '/admin/metricas',     icon: 'bar-chart'  },
+    { label: 'Empresas',     route: '/admin/empresas',     icon: 'home'       },
+    { label: 'Usuarios',     route: '/admin/usuarios',     icon: 'users'      },
+    { label: 'Facturación',  route: '/admin/facturacion',  icon: 'credit-card'},
   ];
 }

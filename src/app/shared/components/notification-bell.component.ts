@@ -258,6 +258,8 @@ export class NotificationBellComponent implements OnChanges, OnDestroy {
       appointment_cancelled: 'icon-cancelled',
       new_review:            'icon-review',
       new_company:           'icon-company',
+      plan_changed:          'icon-company',
+      payment_initiated:     'icon-appointment',
     }[type] ?? 'icon-appointment';
   }
 

@@ -74,8 +74,8 @@ interface AdminUser {
                   </td>
                   <td style="padding:12px;color:#555;font-size:13px">{{ u.email }}</td>
                   <td style="padding:12px">
-                    <span class="badge" [class]="ROLE_CLASS[u.role] ?? 'badge-blue'">
-                      {{ ROLE_LABEL[u.role] ?? u.role }}
+                    <span class="badge" [class]="ROLE_CLASS[u.role] || 'badge-blue'">
+                      {{ ROLE_LABEL[u.role] || u.role }}
                     </span>
                   </td>
                   <td style="padding:12px;color:#888;font-size:13px">{{ u.createdLabel }}</td>

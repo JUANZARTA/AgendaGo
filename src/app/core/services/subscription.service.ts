@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 export interface Subscription {
   companyId: string;
-  status: 'trial' | 'active' | 'expired' | 'disabled';
+  status: 'trial' | 'active' | 'expired' | 'disabled' | 'free';
   trialStartDate: any;
   trialEndDate: any;
   currentPeriodEnd?: any;
@@ -29,6 +29,7 @@ export class SubscriptionService {
   }
 
   daysRemaining(sub: Subscription): number {
+    if (sub.status === 'free') return Infinity;
     const end = sub.status === 'trial' ? sub.trialEndDate?.toDate() : sub.currentPeriodEnd?.toDate();
     if (!end) return 0;
     return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86400000));

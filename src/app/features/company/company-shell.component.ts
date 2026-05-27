@@ -3,7 +3,6 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } fro
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs/operators';
 import { Subscription as RxSubscription } from 'rxjs';
-import { ThemeSwitcherComponent } from '../../shared/components/theme-switcher.component';
 import { CompanyStore } from '../../core/services/company-store.service';
 import { CompanyOnboardingComponent } from './onboarding/company-onboarding.component';
 import { AuthService } from '../../core/services/auth.service';
@@ -19,7 +18,7 @@ interface NavItem {
 @Component({
   selector: 'app-company-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ThemeSwitcherComponent, CompanyOnboardingComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CompanyOnboardingComponent],
   template: `
     @if (companyStore.loading()) {
       <!-- Pantalla de carga inicial -->
@@ -133,7 +132,9 @@ interface NavItem {
           <!-- Company info -->
           <div class="company-info">
             <span class="company-name">{{ companyStore.company()?.name }}</span>
-            @if (sub()?.status === 'active') {
+            @if (sub()?.status === 'free') {
+              <span class="company-badge company-badge--free">⭐ Beneficiario</span>
+            } @else if (sub()?.status === 'active') {
               <span class="company-badge company-badge--active">Plan activo</span>
             } @else if (sub()?.status === 'expired') {
               <span class="company-badge company-badge--expired">Suscripción vencida</span>
@@ -534,6 +535,12 @@ interface NavItem {
       border-color: rgba(239, 68, 68, 0.25);
     }
 
+    .company-badge--free {
+      color: #7c3aed;
+      background: rgba(124, 58, 237, 0.12);
+      border-color: rgba(124, 58, 237, 0.25);
+    }
+
     .logout-btn {
       display: flex;
       align-items: center;
@@ -705,7 +712,7 @@ export class CompanyShellComponent implements OnDestroy {
   private router               = inject(Router);
   private notifSvc             = inject(NotificationService);
 
-  sub              = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' } | null>(null);
+  sub              = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' | 'free' } | null>(null);
   notifPanelOpen   = signal(false);
   moreMenuOpen     = signal(false);
   notifications    = signal<AppNotification[]>([]);
