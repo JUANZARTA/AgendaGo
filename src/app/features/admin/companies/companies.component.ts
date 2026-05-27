@@ -97,7 +97,7 @@ interface AdminCompany {
                   <td style="padding:12px;color:#aaa;font-size:12px">{{ c.createdLabel }}</td>
                   <td style="padding:12px;text-align:right">
                     <button class="btn btn-sm" [class]="c.isActive ? 'btn-danger' : 'btn-primary'"
-                            (click)="toggle(c.id, c.isActive)">
+                            (click)="confirmTarget.set({ id: c.id, isActive: c.isActive })">
                       {{ c.isActive ? 'Deshabilitar' : 'Habilitar' }}
                     </button>
                   </td>
@@ -112,6 +112,44 @@ interface AdminCompany {
         </div>
       }
     </div>
+
+    <!-- Modal de confirmación -->
+    @if (confirmTarget(); as target) {
+      <div style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px" (click)="confirmTarget.set(null)">
+        <div style="background:white;border-radius:16px;padding:32px;max-width:400px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.18)" (click)="$event.stopPropagation()">
+          <div style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"
+               [style.background]="target.isActive ? '#fee2e2' : '#dcfce7'">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" [attr.stroke]="target.isActive ? '#ef4444' : '#16a34a'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              @if (target.isActive) {
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              } @else {
+                <polyline points="20 6 9 17 4 12"/>
+              }
+            </svg>
+          </div>
+          <h3 style="text-align:center;font-size:1rem;font-weight:800;color:#1a1a2e;margin-bottom:8px">
+            {{ target.isActive ? '¿Deshabilitar empresa?' : '¿Habilitar empresa?' }}
+          </h3>
+          <p style="text-align:center;font-size:13px;color:#666;line-height:1.6;margin-bottom:24px">
+            {{ target.isActive
+              ? 'La empresa no podrá operar y verá un aviso de suspensión. Podés revertirlo en cualquier momento.'
+              : 'La empresa podrá operar con normalidad nuevamente.' }}
+          </p>
+          <div style="display:flex;gap:10px">
+            <button (click)="confirmTarget.set(null)"
+              style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #e5e7eb;background:none;font-size:13px;font-weight:600;color:#888;cursor:pointer;font-family:inherit">
+              Cancelar
+            </button>
+            <button (click)="doToggle(target)"
+              style="flex:1;padding:11px;border-radius:10px;border:none;font-size:13px;font-weight:700;color:white;cursor:pointer;font-family:inherit"
+              [style.background]="target.isActive ? '#ef4444' : '#16a34a'">
+              {{ target.isActive ? 'Sí, deshabilitar' : 'Sí, habilitar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class CompaniesComponent implements OnDestroy {
@@ -124,9 +162,10 @@ export class CompaniesComponent implements OnDestroy {
   private subsMap      = signal<Record<string, any>>({});
   private emailMap     = signal<Record<string, string>>({});
 
-  loading     = signal(true);
-  search      = '';
-  filterStatus = '';
+  loading       = signal(true);
+  search        = '';
+  filterStatus  = '';
+  confirmTarget = signal<{ id: string; isActive: boolean } | null>(null);
 
   companies = computed<AdminCompany[]>(() => {
     const subs   = this.subsMap();
@@ -185,8 +224,9 @@ export class CompaniesComponent implements OnDestroy {
 
   ngOnDestroy() { this.unsub?.(); }
 
-  async toggle(id: string, currentIsActive: boolean) {
-    await updateDoc(doc(this.firestore, 'companies', id), { isActive: !currentIsActive });
+  async doToggle(target: { id: string; isActive: boolean }) {
+    this.confirmTarget.set(null);
+    await updateDoc(doc(this.firestore, 'companies', target.id), { isActive: !target.isActive });
   }
 
   private formatTs(ts: any): string {

@@ -28,6 +28,7 @@ export interface UserProfile {
   photoUrl?: string;
   profileComplete?: boolean;
   fcmToken?: string;
+  isActive?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
