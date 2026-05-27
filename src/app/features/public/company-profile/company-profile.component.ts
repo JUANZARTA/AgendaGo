@@ -1,7 +1,8 @@
-import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
@@ -9,6 +10,7 @@ import { AppointmentService } from '../../../core/services/appointment.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { StaffService, StaffMember } from '../../../core/services/staff.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { MessageService, Message } from '../../../core/services/message.service';
 
 const PAYMENT_METHODS = ['Efectivo', 'Nequi', 'Daviplata', 'Transferencia bancaria', 'Tarjeta débito/crédito'];
 
@@ -446,6 +448,59 @@ function buildDays(n: number) {
       }
     </div>
 
+    @if (authSvc.isLoggedIn() && authSvc.role() === 'client') {
+      @if (!chatOpen()) {
+        <button (click)="openChat()"
+          style="position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--gradient);border:none;cursor:pointer;box-shadow:0 4px 16px rgba(var(--primary-rgb),.35);display:flex;align-items:center;justify-content:center;z-index:100;color:white">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </button>
+      } @else {
+        <div style="position:fixed;bottom:24px;right:24px;width:340px;height:460px;background:white;border-radius:18px;box-shadow:0 8px 40px rgba(0,0,0,.18);display:flex;flex-direction:column;z-index:100;overflow:hidden">
+          <div style="padding:16px 18px;background:var(--gradient);display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:white">{{ company()?.name }}</div>
+              <a [routerLink]="['/cliente/mensajes']"
+                 [queryParams]="{companyId: company()?.id, companyName: company()?.name}"
+                 style="font-size:11px;color:rgba(255,255,255,.8);text-decoration:underline">
+                Ver historial completo
+              </a>
+            </div>
+            <button (click)="closeChat()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px">
+            @if (chatMessages().length === 0) {
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#aaa">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span style="font-size:13px">Iniciá la conversación</span>
+              </div>
+            }
+            @for (m of chatMessages(); track m.id) {
+              <div [style.align-self]="m.senderRole === 'client' ? 'flex-end' : 'flex-start'"
+                   style="max-width:80%">
+                <div [style.background]="m.senderRole === 'client' ? 'var(--gradient)' : '#f5f0ff'"
+                     [style.color]="m.senderRole === 'client' ? 'white' : '#1a1a2e'"
+                     style="padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.5">
+                  {{ m.text }}
+                </div>
+              </div>
+            }
+          </div>
+          <div style="padding:12px 14px;border-top:1.5px solid #f0ebff;display:flex;gap:8px">
+            <input [value]="chatText()" (input)="chatText.set($any($event.target).value)"
+                   (keydown.enter)="sendChat()"
+                   placeholder="Escribí un mensaje..."
+                   style="flex:1;padding:10px 14px;border:1.5px solid #ede9fe;border-radius:10px;font-size:13px;outline:none;font-family:inherit" />
+            <button (click)="sendChat()" [disabled]="!chatText().trim() || chatSending()"
+                    style="background:var(--gradient);border:none;border-radius:10px;width:38px;height:38px;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      }
+    }
+
     <style>
       @keyframes toast-in {
         from { opacity:0; transform: translateX(-50%) translateY(-10px); }
@@ -454,7 +509,7 @@ function buildDays(n: number) {
     </style>
   `,
 })
-export class CompanyProfileComponent implements OnInit {
+export class CompanyProfileComponent implements OnInit, OnDestroy {
   private route      = inject(ActivatedRoute);
   private companySvc = inject(CompanyService);
   private catalogSvc = inject(ServiceCatalogService);
@@ -462,6 +517,7 @@ export class CompanyProfileComponent implements OnInit {
   readonly authSvc   = inject(AuthService);
   private staffSvc   = inject(StaffService);
   private notifSvc   = inject(NotificationService);
+  private msgService = inject(MessageService);
 
   company  = signal<Company | null>(null);
   services = signal<ServiceItem[]>([]);
@@ -492,22 +548,34 @@ export class CompanyProfileComponent implements OnInit {
   });
 
   allSlots = computed(() => {
-    const day      = this.selectedDay();
-    const company  = this.company();
-    const svc      = this.selectedService();
-    if (!day || !company?.schedule?.length || !svc) return [];
-    const key      = DAY_KEYS[day.dayOfWeek];
-    const sched    = company.schedule.find(d => d.key === key);
-    if (!sched?.enabled || !sched.ranges?.length) return [];
+    const day     = this.selectedDay();
+    const company = this.company();
+    const svc     = this.selectedService();
+    if (!day || !company || !svc) return [];
+
+    const key           = DAY_KEYS[day.dayOfWeek];
     const interval      = company.slotInterval ?? 30;
-    const duration      = svc.duration         ?? interval;
+    const duration      = svc.duration ?? interval;
     const selectedStaff = this.selectedStaff();
     const apts          = selectedStaff
       ? this.existingApts().filter(a => a.staffId === selectedStaff.id)
       : this.existingApts();
-    const staffCount    = selectedStaff ? 1 : (svc.staffCount ?? 1);
+    const staffCount = selectedStaff ? 1 : (svc.staffCount ?? 1);
+
+    let ranges: { open: string; close: string }[];
+    if (selectedStaff?.schedule) {
+      const staffDay = selectedStaff.schedule[key];
+      if (!staffDay?.enabled) return [];
+      ranges = [{ open: staffDay.open, close: staffDay.close }];
+    } else {
+      if (!company.schedule?.length) return [];
+      const sched = company.schedule.find(d => d.key === key);
+      if (!sched?.enabled || !sched.ranges?.length) return [];
+      ranges = sched.ranges;
+    }
+
     const slots: string[] = [];
-    for (const range of sched.ranges) {
+    for (const range of ranges) {
       slots.push(...this.aptSvc.calculateAvailableSlots(
         range.open, range.close, interval, duration, staffCount, apts
       ));
@@ -516,7 +584,7 @@ export class CompanyProfileComponent implements OnInit {
     // Para el día de hoy, filtrar slots que ya pasaron (con 10 min de buffer)
     const todayIso = new Date().toISOString().split('T')[0];
     if (day.date === todayIso) {
-      const now = new Date();
+      const now    = new Date();
       const nowMin = now.getHours() * 60 + now.getMinutes();
       return slots.filter(s => {
         const [h, m] = s.split(':').map(Number);
@@ -538,6 +606,12 @@ export class CompanyProfileComponent implements OnInit {
   clientName  = '';
   clientPhone = '';
   clientNote  = '';
+
+  chatOpen     = signal(false);
+  chatMessages = signal<Message[]>([]);
+  chatText     = signal('');
+  chatSending  = signal(false);
+  private chatSub: Subscription | null = null;
 
   constructor() {
     effect(() => {
@@ -709,6 +783,52 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
     }
   }
 
+  openChat() {
+    const companyId = this.company()?.id;
+    const clientId = this.authSvc.currentUser()?.uid;
+    if (!companyId || !clientId) return;
+    this.chatOpen.set(true);
+    this.chatSub?.unsubscribe();
+    this.chatSub = this.msgService.watchMessages(companyId, clientId).subscribe(msgs => {
+      this.chatMessages.set(msgs);
+    });
+  }
+
+  closeChat() {
+    this.chatOpen.set(false);
+    this.chatSub?.unsubscribe();
+    this.chatSub = null;
+  }
+
+  async sendChat() {
+    const text = this.chatText().trim();
+    if (!text) return;
+    const companyId = this.company()?.id;
+    const user = this.authSvc.currentUser();
+    if (!companyId || !user) return;
+    this.chatSending.set(true);
+    this.chatText.set('');
+    const clientName = user.displayName ?? this.authSvc.profile()?.displayName ?? user.email ?? '';
+    try {
+      await this.msgService.sendMessage({
+        companyId,
+        companyName: this.company()?.name ?? '',
+        clientId: user.uid,
+        clientName,
+        senderRole: 'client',
+        text,
+      });
+    } catch {
+      this.chatText.set(text);
+    } finally {
+      this.chatSending.set(false);
+    }
+  }
+
+  ngOnDestroy() {
+    this.chatSub?.unsubscribe();
+  }
+
   reset() {
     this.selectedService.set(null);
     this.selectedDay.set(null);
@@ -718,8 +838,9 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
     this.staffList.set([]);
     this.selectedStaff.set(null);
     this.currentStep.set(1);
-    this.clientName  = '';
-    this.clientPhone = '';
-    this.clientNote  = '';
+    this.clientNote = '';
+    const p = this.authSvc.profile();
+    this.clientName  = p?.displayName ?? '';
+    this.clientPhone = p?.phone ?? '';
   }
 }

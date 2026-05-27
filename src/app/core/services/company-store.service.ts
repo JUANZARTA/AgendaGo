@@ -20,21 +20,26 @@ export class CompanyStore {
       if (user) {
         this._load(user.uid);
       } else {
+        this._initialLoadDone = false;
         this.company.set(null);
         this.loading.set(false);
       }
     });
   }
 
+  private _initialLoadDone = false;
+
   private async _load(uid: string): Promise<void> {
-    this.loading.set(true);
+    if (!this._initialLoadDone) this.loading.set(true);
     try {
       const list = await this.svc.getCompaniesByOwner(uid);
       this.company.set(list[0] ?? null);
-    } catch {
+    } catch (err) {
+      console.error('[CompanyStore] Error cargando empresa:', err);
       this.company.set(null);
     } finally {
       this.loading.set(false);
+      this._initialLoadDone = true;
     }
   }
 

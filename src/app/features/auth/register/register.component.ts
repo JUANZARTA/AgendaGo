@@ -30,6 +30,30 @@ export class RegisterComponent {
 
   get selectedRole() { return this.form.get('role')?.value; }
 
+  onGoogle() {
+    const role = this.form.value.role ?? 'client';
+    this.loading.set(true);
+    this.error.set('');
+    this.auth.loginWithGoogle().subscribe({
+      next: async (credential) => {
+        await this.auth.saveProfile(credential.user.uid, {
+          uid: credential.user.uid,
+          email: credential.user.email ?? '',
+          displayName: credential.user.displayName ?? '',
+          role: role as 'client' | 'company',
+          createdAt: Date.now(),
+        });
+        await this.auth.waitForProfile();
+        this.loading.set(false);
+        this.router.navigate(role === 'company' ? ['/empresa'] : ['/cliente']);
+      },
+      error: () => {
+        this.error.set('Error al registrarse con Google.');
+        this.loading.set(false);
+      },
+    });
+  }
+
   onSubmit() {
     if (this.form.invalid) return;
     this.loading.set(true);

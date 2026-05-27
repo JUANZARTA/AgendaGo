@@ -30,7 +30,17 @@ const STATUS_CLASS: Record<string, string> = {
     <div class="hero" style="margin-bottom:0;padding:32px 20px 28px">
       <div style="position:relative;z-index:1;max-width:640px;margin:0 auto">
         <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:4px;color:white">Mis citas</h1>
-        <p style="font-size:0.95rem;opacity:.85;color:white">Historial de citas agendadas</p>
+        <p style="font-size:0.95rem;opacity:.85;color:white;margin-bottom:16px">Historial de citas agendadas</p>
+        <a routerLink="/"
+           style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-size:14px;font-weight:700;color:white;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);text-decoration:none;transition:all .15s;backdrop-filter:blur(4px)"
+           onmouseover="this.style.background='rgba(255,255,255,.28)'"
+           onmouseout="this.style.background='rgba(255,255,255,.18)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          Buscar negocios
+        </a>
       </div>
     </div>
 
@@ -104,24 +114,34 @@ const STATUS_CLASS: Record<string, string> = {
                   }
                 </div>
 
-                <!-- Acción cancelar -->
-                @if (appt.status === 'pending' || appt.status === 'scheduled') {
-                  <div style="margin-top:14px">
+                <!-- Acciones -->
+                <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <!-- Mensaje a la empresa -->
+                  @if (appt.companyId) {
+                    <a [routerLink]="['/cliente/mensajes']"
+                       [queryParams]="{companyId: appt.companyId, companyName: appt.companyName}"
+                       style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--purple);text-decoration:none">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      </svg>
+                      Mensaje
+                    </a>
+                  }
+                  <!-- Cancelar -->
+                  @if (appt.status === 'pending' || appt.status === 'scheduled') {
                     @if (confirmCancelId() === appt.id) {
-                      <div style="display:flex;gap:8px;align-items:center">
-                        <span style="font-size:13px;color:#555">¿Cancelar esta cita?</span>
-                        <button class="btn btn-danger btn-sm" (click)="doCancel(appt.id!)" [disabled]="cancelling()">
-                          @if (cancelling()) { ... } @else { Sí, cancelar }
-                        </button>
-                        <button class="btn btn-secondary btn-sm" (click)="confirmCancelId.set(null)">No</button>
-                      </div>
+                      <span style="font-size:13px;color:#555">¿Cancelar?</span>
+                      <button class="btn btn-danger btn-sm" (click)="doCancel(appt.id!)" [disabled]="cancelling()">
+                        @if (cancelling()) { ... } @else { Sí }
+                      </button>
+                      <button class="btn btn-secondary btn-sm" (click)="confirmCancelId.set(null)">No</button>
                     } @else {
                       <button class="cancel-link" (click)="confirmCancelId.set(appt.id!)">
                         Cancelar cita
                       </button>
                     }
-                  </div>
-                }
+                  }
+                </div>
               </div>
             }
 

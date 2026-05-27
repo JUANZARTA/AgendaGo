@@ -71,11 +71,11 @@ import { NotificationBellComponent } from './notification-bell.component';
 
         <!-- Acciones desktop -->
         <div class="nav-actions">
-          <app-theme-switcher/>
           @if (auth.isLoggedIn()) {
             @if (auth.role() === 'client') {
+              <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
               <a routerLink="/cliente/citas"
-                 style="display:flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
+                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
                  onmouseover="this.style.background='var(--btn-secondary-hover)'"
                  onmouseout="this.style.background='var(--btn-secondary-bg)'">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -87,21 +87,10 @@ import { NotificationBellComponent } from './notification-bell.component';
                 Mis citas
               </a>
             }
-            @if (auth.role() === 'client') {
-              <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
-            }
+            <!-- Avatar → perfil -->
             <a [routerLink]="settingsRoute()"
-               title="Configuración"
-               style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--btn-secondary-bg);color:var(--purple);text-decoration:none;transition:all .15s;flex-shrink:0"
-               onmouseover="this.style.background='var(--btn-secondary-hover)'"
-               onmouseout="this.style.background='var(--btn-secondary-bg)'">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-            </a>
-            <a [routerLink]="settingsRoute()"
-               style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;text-decoration:none">
+               style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;text-decoration:none"
+               [title]="auth.displayName()">
               @if (auth.profile()?.photoUrl) {
                 <img [src]="auth.profile()!.photoUrl!" style="width:100%;height:100%;object-fit:cover" alt="foto" />
               } @else {
@@ -109,9 +98,9 @@ import { NotificationBellComponent } from './notification-bell.component';
               }
             </a>
             <button (click)="logout()"
-              style="padding:9px 18px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);border:none;cursor:pointer;transition:all .15s;white-space:nowrap"
-              onmouseover="this.style.background='var(--btn-secondary-hover)'"
-              onmouseout="this.style.background='var(--btn-secondary-bg)'">
+              style="padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:#888;background:none;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit"
+              onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'"
+              onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#888'">
               Salir
             </button>
           } @else {

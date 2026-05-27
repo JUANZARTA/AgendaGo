@@ -2,31 +2,31 @@
 
 :root {
   /* ── Brand (overridden per theme) ─────────────── */
-  --primary-rgb: 124, 58, 237;
-  --purple: #7c3aed;
-  --pink: #f43f5e;
-  --gradient: linear-gradient(135deg, #7c3aed 0%, #f43f5e 100%);
-  --gradient-soft: linear-gradient(135deg, #f5f0ff 0%, #fff0f4 100%);
-  --body-bg: linear-gradient(160deg, #fdf4ff 0%, #f0f4ff 100%);
-  --shadow: 0 4px 24px rgba(124, 58, 237, 0.12);
-  --shadow-hover: 0 8px 32px rgba(124, 58, 237, 0.22);
+  --primary-rgb: 37, 99, 235;
+  --purple: #2563eb;
+  --pink: #6366f1;
+  --gradient: linear-gradient(135deg, #2563eb 0%, #6366f1 100%);
+  --gradient-soft: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
+  --body-bg: linear-gradient(160deg, #f0f9ff 0%, #eef2ff 100%);
+  --shadow: 0 4px 24px rgba(37, 99, 235, 0.12);
+  --shadow-hover: 0 8px 32px rgba(37, 99, 235, 0.22);
   /* ── Button tokens ────────────────────────────── */
-  --btn-primary-shadow: rgba(124, 58, 237, 0.35);
-  --btn-primary-shadow-hover: rgba(124, 58, 237, 0.45);
-  --btn-secondary-bg: #f3f0ff;
-  --btn-secondary-color: #7c3aed;
-  --btn-secondary-hover: #ebe4ff;
+  --btn-primary-shadow: rgba(37, 99, 235, 0.35);
+  --btn-primary-shadow-hover: rgba(37, 99, 235, 0.45);
+  --btn-secondary-bg: #eff6ff;
+  --btn-secondary-color: #2563eb;
+  --btn-secondary-hover: #dbeafe;
   /* ── Form tokens ──────────────────────────────── */
-  --form-border: #ede8ff;
-  --form-bg: #fdfbff;
-  --form-focus-shadow: rgba(124, 58, 237, 0.12);
+  --form-border: #dbeafe;
+  --form-bg: #f8fbff;
+  --form-focus-shadow: rgba(37, 99, 235, 0.12);
   /* ── Shell tokens ─────────────────────────────── */
-  --sidebar-bg: #1a1a2e;
-  --sidebar-logo-gradient: linear-gradient(135deg, #a78bfa, #f43f5e);
-  --nav-active-shadow: rgba(124, 58, 237, 0.4);
+  --sidebar-bg: #0f172a;
+  --sidebar-logo-gradient: linear-gradient(135deg, #60a5fa, #818cf8);
+  --nav-active-shadow: rgba(37, 99, 235, 0.4);
   /* ── Misc ─────────────────────────────────────── */
-  --scrollbar-color: #d4bbff;
-  --step-dot-shadow: rgba(124, 58, 237, 0.4);
+  --scrollbar-color: #93c5fd;
+  --step-dot-shadow: rgba(37, 99, 235, 0.4);
   --green: #10b981;
   --amber: #f59e0b;
   --radius: 16px;
@@ -312,7 +312,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(-45deg, #3730a3, #4f46e5, #6d28d9, #7c3aed, #9333ea, #a855f7, #c026d3, #7c3aed, #3730a3);
+  background: linear-gradient(-45deg, #1d4ed8, #2563eb, #3b82f6, #4f46e5, #6366f1, #3b82f6, #1d4ed8, #2563eb, #1d4ed8);
   background-size: 500% 500%;
   animation: gradient-move 12s ease infinite;
 }
@@ -451,7 +451,7 @@ a { color: inherit; text-decoration: none; }
   background: white;
   border-radius: 24px;
   padding: 36px 32px;
-  box-shadow: 0 8px 48px rgba(124, 58, 237, 0.14);
+  box-shadow: 0 8px 48px rgba(37, 99, 235, 0.14);
   animation: fadeInUp 0.6s ease both;
 }
 
@@ -473,15 +473,15 @@ a { color: inherit; text-decoration: none; }
 .auth-input {
   width: 100%;
   padding: 13px 16px;
-  border: 2px solid #ede9fe;
+  border: 2px solid #dbeafe;
   border-radius: 12px;
   font-size: 15px;
-  background: #f8f5ff;
+  background: #f8fbff;
   transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
   color: #1a1a2e;
-  &:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); background: white; }
-  &::placeholder { color: #c4b8e8; }
+  &:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); background: white; }
+  &::placeholder { color: #a5b4c8; }
 }
 
 /* ── Responsive ────────────────────────────────── */
@@ -526,6 +526,31 @@ a { color: inherit; text-decoration: none; }
 /* ══════════════════════════════════════════════════
    THEMES — CSS variable overrides per data-theme
    ══════════════════════════════════════════════════ */
+
+/* Azul = default. Violeta queda como tema alternativo */
+[data-theme="azul"] {
+  --primary-rgb: 37, 99, 235;
+  --purple: #2563eb;
+  --pink: #6366f1;
+  --gradient: linear-gradient(135deg, #2563eb 0%, #6366f1 100%);
+  --gradient-soft: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
+  --body-bg: linear-gradient(160deg, #f0f9ff 0%, #eef2ff 100%);
+  --shadow: 0 4px 24px rgba(37, 99, 235, 0.12);
+  --shadow-hover: 0 8px 32px rgba(37, 99, 235, 0.22);
+  --btn-primary-shadow: rgba(37, 99, 235, 0.35);
+  --btn-primary-shadow-hover: rgba(37, 99, 235, 0.45);
+  --btn-secondary-bg: #eff6ff;
+  --btn-secondary-color: #2563eb;
+  --btn-secondary-hover: #dbeafe;
+  --form-border: #dbeafe;
+  --form-bg: #f8fbff;
+  --form-focus-shadow: rgba(37, 99, 235, 0.12);
+  --sidebar-bg: #0f172a;
+  --sidebar-logo-gradient: linear-gradient(135deg, #60a5fa, #818cf8);
+  --nav-active-shadow: rgba(37, 99, 235, 0.4);
+  --scrollbar-color: #93c5fd;
+  --step-dot-shadow: rgba(37, 99, 235, 0.4);
+}
 
 [data-theme="violeta"] {
   --primary-rgb: 124, 58, 237;

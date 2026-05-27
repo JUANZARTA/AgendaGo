@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { ThemeService, THEMES, Theme } from '../../core/services/theme.service';
 
 const PRIMARY: Record<Theme, string> = {
+  azul:    '#2563eb',
   violeta: '#7c3aed',
   dorado:  '#d97706',
   oceano:  '#0891b2',

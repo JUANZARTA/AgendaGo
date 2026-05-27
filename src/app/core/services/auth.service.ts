@@ -27,6 +27,7 @@ export interface UserProfile {
   address?: string;
   photoUrl?: string;
   profileComplete?: boolean;
+  fcmToken?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -65,16 +66,29 @@ export class AuthService {
     });
   }
 
-  waitForProfile(): Promise<void> {
+  waitForProfile(timeoutMs = 5000): Promise<void> {
     if (this._profileLoaded()) return Promise.resolve();
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
+      const deadline = Date.now() + timeoutMs;
       const interval = setInterval(() => {
-        if (this._profileLoaded()) {
+        if (this._profileLoaded() || Date.now() >= deadline) {
           clearInterval(interval);
           resolve();
         }
       }, 50);
     });
+  }
+
+  async waitForAuth(): Promise<void> {
+    if (this.auth && typeof (this.auth as any)['authStateReady'] === 'function') {
+      await (this.auth as any)['authStateReady']();
+      await Promise.resolve(); // let onAuthStateChanged handlers update _user signal
+    }
+    // Only wait for Firestore profile if there IS a logged-in user.
+    // Avoids resolving with role='client' from the transient null auth state on page reload.
+    if (this.isLoggedIn()) {
+      await this.waitForProfile();
+    }
   }
 
   private async _loadProfile(uid: string): Promise<UserProfile | null> {

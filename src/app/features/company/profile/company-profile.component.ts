@@ -128,6 +128,37 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     <div class="profile-page">
       <h1 class="page-title">Perfil de la empresa</h1>
 
+      <!-- ── Compartir negocio ── -->
+      <div class="card" style="background:linear-gradient(135deg,#f9f5ff 0%,#fdf2ff 100%);border:1.5px solid #f0e8ff">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          Tu página pública
+        </div>
+        <p style="font-size:13px;color:#666;margin:0 0 14px">Compartí este link con tus clientes para que agenden directamente, sin pasar por la búsqueda.</p>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1;background:white;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:13px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{ shareUrl }}
+          </div>
+          <button (click)="copyLink()"
+            style="flex-shrink:0;padding:9px 16px;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;display:flex;align-items:center;gap:6px;transition:all .15s"
+            [style.background]="linkCopied() ? '#d1fae5' : 'var(--gradient)'"
+            [style.color]="linkCopied() ? '#065f46' : 'white'">
+            @if (linkCopied()) {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              ¡Copiado!
+            } @else {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copiar link
+            }
+          </button>
+        </div>
+      </div>
+
       <!-- ── Logo ── -->
       <div class="card">
         <div class="card-title">
@@ -355,8 +386,19 @@ export class CompanyProfileComponent {
   readonly presetIcons = PRESET_ICONS;
   readonly presetColors = PRESET_COLORS;
 
-  saved           = signal(false);
-  saving          = signal(false);
+  saved       = signal(false);
+  saving      = signal(false);
+  linkCopied  = signal(false);
+
+  get shareUrl(): string {
+    return `${window.location.origin}/negocio/${this.companyStore.companyId() ?? ''}`;
+  }
+
+  async copyLink(): Promise<void> {
+    await navigator.clipboard.writeText(this.shareUrl);
+    this.linkCopied.set(true);
+    setTimeout(() => this.linkCopied.set(false), 2500);
+  }
   logoMode        = signal<'upload' | 'icon'>('icon');
   uploadedImage   = signal<string | null>(null);
   selectedIconKey = signal('scissors');

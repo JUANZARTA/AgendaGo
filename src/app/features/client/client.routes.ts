@@ -14,6 +14,10 @@ export const CLIENT_ROUTES: Routes = [
         path: 'perfil',
         loadComponent: () => import('./profile/client-profile.component').then(m => m.ClientProfileComponent),
       },
+      {
+        path: 'mensajes',
+        loadComponent: () => import('./messages/client-messages.component').then(m => m.ClientMessagesComponent),
+      },
     ],
   },
 ];

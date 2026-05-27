@@ -1,9 +1,27 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { StaffMember, StaffService } from '../../../core/services/staff.service';
+import { StaffMember, StaffDaySchedule, StaffService } from '../../../core/services/staff.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
+
+const DAY_ORDER = ['lun','mar','mie','jue','vie','sab','dom'];
+const DAY_LABELS: Record<string, string> = {
+  lun: 'Lunes', mar: 'Martes', mie: 'Miércoles',
+  jue: 'Jueves', vie: 'Viernes', sab: 'Sábado', dom: 'Domingo',
+};
+
+function defaultSchedule(): Record<string, StaffDaySchedule> {
+  return {
+    lun: { enabled: true,  open: '09:00', close: '18:00' },
+    mar: { enabled: true,  open: '09:00', close: '18:00' },
+    mie: { enabled: true,  open: '09:00', close: '18:00' },
+    jue: { enabled: true,  open: '09:00', close: '18:00' },
+    vie: { enabled: true,  open: '09:00', close: '18:00' },
+    sab: { enabled: false, open: '09:00', close: '14:00' },
+    dom: { enabled: false, open: '09:00', close: '14:00' },
+  };
+}
 
 interface StaffDraft {
   name: string;
@@ -11,6 +29,8 @@ interface StaffDraft {
   photoURL: string;
   serviceIds: string[];
   isActive: boolean;
+  useCustomSchedule: boolean;
+  schedule: Record<string, StaffDaySchedule>;
 }
 
 const EMPTY_DRAFT: StaffDraft = {
@@ -19,6 +39,8 @@ const EMPTY_DRAFT: StaffDraft = {
   photoURL: '',
   serviceIds: [],
   isActive: true,
+  useCustomSchedule: false,
+  schedule: defaultSchedule(),
 };
 
 @Component({
@@ -120,6 +142,19 @@ const EMPTY_DRAFT: StaffDraft = {
       accent-color: var(--purple);
     }
 
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .toggle-track {
+      width: 38px; height: 22px; border-radius: 11px; background: #e5e7eb;
+      position: relative; transition: background .2s; flex-shrink: 0; cursor: pointer;
+    }
+    .toggle-track.on { background: var(--purple); }
+    .toggle-thumb {
+      width: 16px; height: 16px; border-radius: 50%; background: white;
+      position: absolute; top: 3px; left: 3px;
+      transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .toggle-track.on .toggle-thumb { transform: translateX(16px); }
+
     @media (max-width: 480px) {
       .staff-card { flex-wrap: wrap !important; }
       .staff-actions { width: 100%; justify-content: flex-end; margin-top: 6px; }
@@ -210,6 +245,17 @@ const EMPTY_DRAFT: StaffDraft = {
         >
           <h2 style="margin-bottom:16px">{{ editId() ? 'Editar' : 'Nuevo' }} integrante</h2>
 
+          <!-- Banner: activación bloqueada sin servicios -->
+          @if (noServiceWarning()) {
+            <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px 14px;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <div style="font-weight:700;font-size:13px;color:#92400e">Para activar, asigná al menos un servicio</div>
+                <div style="font-size:12px;color:#b45309;margin-top:3px">Al guardar con servicios asignados, el profesional quedará activo automáticamente.</div>
+              </div>
+            </div>
+          }
+
           <!-- Photo preview + upload -->
           <div class="form-group">
             <label>Foto de perfil</label>
@@ -261,6 +307,59 @@ const EMPTY_DRAFT: StaffDraft = {
                   </label>
                 }
               </div>
+              @if (draft.serviceIds.length === 0) {
+                <p style="font-size:12px;color:#f59e0b;margin:8px 0 0;display:flex;align-items:center;gap:5px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Sin servicios asignados — se guardará como inactivo
+                </p>
+              }
+            }
+          </div>
+
+          <!-- Horario del profesional -->
+          <div class="form-group">
+            <label style="margin-bottom:10px;display:block">Horario del profesional</label>
+
+            <!-- Toggle: empresa vs personalizado -->
+            <div class="toggle-row" style="background:#f9f5ff;border:1.5px solid #f0e8ff;border-radius:12px;padding:12px 14px;margin-bottom:10px">
+              <div>
+                @if (draft.useCustomSchedule) {
+                  <div style="font-size:13px;font-weight:700;color:#1a1a2e">Horario propio</div>
+                  <div style="font-size:11px;color:#888;margin-top:2px">Este profesional tiene días y horarios distintos</div>
+                } @else {
+                  <div style="font-size:13px;font-weight:700;color:#1a1a2e">Horario de la empresa</div>
+                  <div style="font-size:11px;color:#888;margin-top:2px">Activá si tiene días u horas diferentes</div>
+                }
+              </div>
+              <div class="toggle-track" [class.on]="draft.useCustomSchedule" (click)="draft.useCustomSchedule = !draft.useCustomSchedule">
+                <div class="toggle-thumb"></div>
+              </div>
+            </div>
+
+            <!-- Editor de horario (solo si personalizado) -->
+            @if (draft.useCustomSchedule) {
+              <div style="display:flex;flex-direction:column;gap:5px">
+                @for (day of dayOrder; track day) {
+                  <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;border:1.5px solid #e5e7eb;flex-wrap:wrap">
+                    <label style="display:flex;align-items:center;gap:7px;cursor:pointer;min-width:88px;flex-shrink:0">
+                      <input type="checkbox" [(ngModel)]="draft.schedule[day].enabled"
+                             style="width:15px;height:15px;cursor:pointer;accent-color:var(--purple)" />
+                      <span style="font-size:13px;font-weight:600;color:#374151">{{ dayLabels[day] }}</span>
+                    </label>
+                    @if (draft.schedule[day].enabled) {
+                      <div style="display:flex;align-items:center;gap:6px;flex:1">
+                        <input type="time" [(ngModel)]="draft.schedule[day].open"
+                               style="border:1.5px solid #e5e7eb;border-radius:8px;padding:4px 8px;font-size:13px;color:#1a1a2e;background:white;outline:none;flex:1;min-width:0" />
+                        <span style="color:#aaa;font-size:13px;flex-shrink:0">–</span>
+                        <input type="time" [(ngModel)]="draft.schedule[day].close"
+                               style="border:1.5px solid #e5e7eb;border-radius:8px;padding:4px 8px;font-size:13px;color:#1a1a2e;background:white;outline:none;flex:1;min-width:0" />
+                      </div>
+                    } @else {
+                      <span style="font-size:12px;color:#ccc;flex:1">No trabaja</span>
+                    }
+                  </div>
+                }
+              </div>
             }
           </div>
 
@@ -291,14 +390,15 @@ export class StaffComponent {
   companyId    = this.companyStore.companyId;
   storeLoading = this.companyStore.loading;
 
-  staff      = signal<StaffMember[]>([]);
-  services   = signal<ServiceItem[]>([]);
-  showModal  = signal(false);
-  editId     = signal<string | null>(null);
-  loading    = signal(false);
-  saving     = signal(false);
-  photoFile  = signal<File | null>(null);
-  photoPreview = signal<string | null>(null);
+  staff            = signal<StaffMember[]>([]);
+  services         = signal<ServiceItem[]>([]);
+  showModal        = signal(false);
+  editId           = signal<string | null>(null);
+  loading          = signal(false);
+  saving           = signal(false);
+  photoFile        = signal<File | null>(null);
+  photoPreview     = signal<string | null>(null);
+  noServiceWarning = signal(false);
 
   draft: StaffDraft = { ...EMPTY_DRAFT };
 
@@ -360,9 +460,12 @@ export class StaffComponent {
     this.photoPreview.set(URL.createObjectURL(file));
   }
 
+  readonly dayOrder  = DAY_ORDER;
+  readonly dayLabels = DAY_LABELS;
+
   openNew(): void {
     this.editId.set(null);
-    this.draft = { ...EMPTY_DRAFT, serviceIds: [] };
+    this.draft = { ...EMPTY_DRAFT, serviceIds: [], schedule: defaultSchedule() };
     this.photoFile.set(null);
     this.photoPreview.set(null);
     this.showModal.set(true);
@@ -370,12 +473,15 @@ export class StaffComponent {
 
   openEdit(member: StaffMember): void {
     this.editId.set(member.id!);
+    const hasCustom = !!(member.schedule && Object.keys(member.schedule).length > 0);
     this.draft = {
-      name: member.name,
-      phone: member.phone ?? '',
-      photoURL: member.photoURL ?? '',
-      serviceIds: [...member.serviceIds],
-      isActive: member.isActive,
+      name:              member.name,
+      phone:             member.phone     ?? '',
+      photoURL:          member.photoURL  ?? '',
+      serviceIds:        [...member.serviceIds],
+      isActive:          member.isActive,
+      useCustomSchedule: hasCustom,
+      schedule:          hasCustom ? JSON.parse(JSON.stringify(member.schedule)) : defaultSchedule(),
     };
     this.photoFile.set(null);
     this.photoPreview.set(member.photoURL ?? null);
@@ -397,12 +503,14 @@ export class StaffComponent {
         photoURL = await this.staffSvc.uploadPhoto(cid, id ?? draftId, this.photoFile()!);
       }
 
+      const hasServices = this.draft.serviceIds.length > 0;
       const payload: Omit<StaffMember, 'id'> = {
-        name: this.draft.name.trim(),
-        phone: this.draft.phone.trim() || undefined,
-        photoURL: photoURL || undefined,
+        name:       this.draft.name.trim(),
+        phone:      this.draft.phone.trim() || undefined,
+        photoURL:   photoURL || undefined,
         serviceIds: this.draft.serviceIds,
-        isActive: this.draft.isActive,
+        isActive:   hasServices ? this.draft.isActive : false,
+        schedule:   this.draft.useCustomSchedule ? this.draft.schedule : {},
       };
 
       if (id) {
@@ -436,6 +544,14 @@ export class StaffComponent {
   async toggle(member: StaffMember): Promise<void> {
     const cid = this.companyStore.companyId();
     if (!cid || !member.id) return;
+
+    if (!member.isActive && member.serviceIds.length === 0) {
+      this.openEdit(member);
+      this.draft.isActive = true;
+      this.noServiceWarning.set(true);
+      return;
+    }
+
     await this.staffSvc.updateStaff(cid, member.id, { isActive: !member.isActive });
     await this.loadStaff(cid);
   }
@@ -443,6 +559,7 @@ export class StaffComponent {
   close(): void {
     this.showModal.set(false);
     this.editId.set(null);
+    this.noServiceWarning.set(false);
     // Revoke any object URL to avoid memory leaks
     const preview = this.photoPreview();
     if (preview?.startsWith('blob:')) {

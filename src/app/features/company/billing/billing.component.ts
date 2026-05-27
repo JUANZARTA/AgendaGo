@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Subscription as RxSubscription } from 'rxjs';
 import { SubscriptionService, Subscription } from '../../../core/services/subscription.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
+import { environment } from '../../../../environments/environment';
 
 interface Payment {
   date: string;
@@ -310,7 +311,7 @@ const MOCK_PAYMENTS: Payment[] = [];
             <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Estadísticas del negocio</li>
           </ul>
           <div class="plan-footer">
-            <button class="btn btn-primary plan-cta">
+            <button class="btn btn-primary plan-cta" (click)="payMonthly()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
               Pagar $29.000
             </button>
@@ -336,7 +337,7 @@ const MOCK_PAYMENTS: Payment[] = [];
             <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Soporte prioritario</li>
           </ul>
           <div class="plan-footer">
-            <button class="btn btn-primary plan-cta">
+            <button class="btn btn-primary plan-cta" (click)="paySemestral()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
               Pagar $156.600
             </button>
@@ -442,6 +443,21 @@ export class BillingComponent implements OnDestroy {
         this.loading.set(false);
       });
     });
+  }
+
+  private wompiCheckout(plan: string, amountInCents: number): void {
+    const companyId = this.companyStore.companyId() ?? 'unknown';
+    const ref = `${plan}-${companyId}-${Date.now()}`;
+    const url = `https://checkout.wompi.co/p/?public-key=${environment.wompiPublicKey}&currency=COP&amount-in-cents=${amountInCents}&reference=${ref}`;
+    window.open(url, '_blank');
+  }
+
+  payMonthly(): void {
+    this.wompiCheckout('mensual', 2900000);
+  }
+
+  paySemestral(): void {
+    this.wompiCheckout('semestral', 15660000);
   }
 
   ngOnDestroy(): void {

@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { StaffService } from '../../../core/services/staff.service';
+import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 
 const DEFAULT_SCHEDULE = [
   { key: 'lun', label: 'Lunes',     enabled: true,  ranges: [{ open: '08:00', close: '18:00' }] },
@@ -280,7 +282,7 @@ const SLOT_OPTIONS = [
         <!-- ══ PASO 1: Tipo de negocio ══ -->
         @if (step() === 1) {
           <div class="anim">
-            <div class="ob-step-label">Paso 1 de 3 — Tipo de negocio</div>
+            <div class="ob-step-label">Paso 1 de 4 — Tipo de negocio</div>
             <h1 class="ob-title">¿Qué tipo de negocio tenés?</h1>
             <p class="ob-subtitle">Elegí la categoría que mejor te describe</p>
 
@@ -312,7 +314,7 @@ const SLOT_OPTIONS = [
               Volver
             </button>
 
-            <div class="ob-step-label">Paso 2 de 3 — Tu negocio</div>
+            <div class="ob-step-label">Paso 2 de 4 — Tu negocio</div>
             <h1 class="ob-title">Configurá tu negocio</h1>
             <p class="ob-subtitle">Podés cambiar todo esto después desde el perfil</p>
 
@@ -357,9 +359,28 @@ const SLOT_OPTIONS = [
               <p class="hint">Los clientes te escribirán a este número</p>
             </div>
 
+            <!-- Reservas -->
+            <div style="border:1.5px solid #f0e8ff;border-radius:16px;padding:18px 20px;margin-bottom:20px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span style="font-size:13px;font-weight:700;color:#374151">Reservas</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:#1a1a2e">Confirmar citas automáticamente</div>
+                  <div style="font-size:12px;color:#888;margin-top:2px">Las nuevas reservas quedan confirmadas sin revisión manual</div>
+                </div>
+                <div class="toggle-wrap" (click)="autoConfirm = !autoConfirm" style="flex-shrink:0">
+                  <div class="toggle-track" [class.on]="autoConfirm">
+                    <div class="toggle-thumb"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Redes sociales -->
             <div class="socials-section">
-              <div class="socials-label">Redes sociales</div>
+              <div class="socials-label">Redes sociales <span style="font-weight:400;color:#aaa;font-size:12px">(opcional)</span></div>
 
               <!-- Chips de plataformas -->
               <div class="socials-chips">
@@ -397,7 +418,7 @@ const SLOT_OPTIONS = [
           </div>
         }
 
-        <!-- ══ PASO 3: ¿Configurar horarios? ══ -->
+        <!-- ══ PASO 3: ¿Tenés equipo? ══ -->
         @if (step() === 3) {
           <div class="anim">
             <button class="ob-btn-back" (click)="step.set(2)">
@@ -405,13 +426,72 @@ const SLOT_OPTIONS = [
               Volver
             </button>
 
-            <div class="ob-step-label">Paso 3 de 3 — Horarios</div>
+            <div class="ob-step-label">Paso 2 de 4 — Tu equipo</div>
+            <h1 class="ob-title">¿Trabajás con equipo?</h1>
+            <p class="ob-subtitle">Agregá tus profesionales ahora o hacelo después desde el panel</p>
+
+            <!-- Lista de integrantes agregados -->
+            @if (pendingStaff.length > 0) {
+              <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+                @for (m of pendingStaff; track $index) {
+                  <div style="display:flex;align-items:center;gap:10px;background:#f9f5ff;border:1.5px solid #f0e8ff;border-radius:12px;padding:10px 14px">
+                    <div style="width:36px;height:36px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                      <span style="color:white;font-weight:800;font-size:14px">{{ m.name.charAt(0).toUpperCase() }}</span>
+                    </div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}</div>
+                      @if (m.phone) {
+                        <div style="font-size:11px;color:#888">{{ m.phone }}</div>
+                      }
+                    </div>
+                    <button (click)="pendingStaff.splice($index, 1)" style="background:none;border:none;cursor:pointer;color:#bbb;padding:4px;display:flex;align-items:center" title="Eliminar">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Formulario inline para agregar integrante -->
+            <div style="background:#fafafa;border:1.5px dashed #e5e7eb;border-radius:16px;padding:16px;margin-bottom:20px">
+              <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Agregar integrante</div>
+              <div class="ob-form-group" style="margin-bottom:10px">
+                <input [(ngModel)]="newStaffName" placeholder="Nombre del profesional *" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box" />
+              </div>
+              <div class="ob-form-group" style="margin-bottom:12px">
+                <input [(ngModel)]="newStaffPhone" placeholder="Teléfono (opcional)" type="tel" style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box" />
+              </div>
+              <button (click)="addStaffMember()"
+                      [disabled]="!newStaffName.trim()"
+                      style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;border:none;background:var(--gradient);color:white;font-size:13px;font-weight:700;cursor:pointer;opacity:1;font-family:inherit"
+                      [style.opacity]="!newStaffName.trim() ? '0.5' : '1'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar
+              </button>
+            </div>
+
+            <button class="ob-btn-primary" (click)="step.set(4)">
+              {{ pendingStaff.length > 0 ? 'Continuar con ' + pendingStaff.length + (pendingStaff.length === 1 ? ' integrante' : ' integrantes') : 'Continuar sin equipo' }}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        }
+
+        <!-- ══ PASO 4: ¿Configurar horarios? ══ -->
+        @if (step() === 4) {
+          <div class="anim">
+            <button class="ob-btn-back" (click)="step.set(3)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+
+            <div class="ob-step-label">Paso 3 de 4 — Horarios</div>
             <h1 class="ob-title">¿Configurás tus horarios ahora?</h1>
             <p class="ob-subtitle">Si preferís, podés hacerlo después desde el panel de Horarios</p>
 
             <div class="choice-grid">
               <!-- Configurar ahora -->
-              <button class="choice-card primary-choice" (click)="step.set(4)">
+              <button class="choice-card primary-choice" (click)="_prevStep=4; step.set(5)">
                 <div class="choice-icon" style="background:rgba(255,255,255,.2)">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -422,15 +502,13 @@ const SLOT_OPTIONS = [
               </button>
 
               <!-- Después -->
-              <button class="choice-card" (click)="doCreate()" [disabled]="creating()">
+              <button class="choice-card" (click)="_prevStep=4; step.set(6)">
                 <div class="choice-icon" style="background:#f0e8ff">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                   </svg>
                 </div>
-                <div class="choice-title" style="color:#1a1a2e">
-                  {{ creating() ? 'Creando...' : 'Hacerlo después' }}
-                </div>
+                <div class="choice-title" style="color:#1a1a2e">Hacerlo después</div>
                 <div class="choice-desc">Empezar con horarios por defecto</div>
               </button>
             </div>
@@ -439,15 +517,15 @@ const SLOT_OPTIONS = [
           </div>
         }
 
-        <!-- ══ PASO 4: Editor de horarios ══ -->
-        @if (step() === 4) {
+        <!-- ══ PASO 5: Editor de horarios ══ -->
+        @if (step() === 5) {
           <div class="anim">
-            <button class="ob-btn-back" (click)="step.set(3)">
+            <button class="ob-btn-back" (click)="step.set(4)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               Volver
             </button>
 
-            <div class="ob-step-label">Paso 3 de 3 — Horarios</div>
+            <div class="ob-step-label">Paso 3 de 4 — Horarios</div>
             <h1 class="ob-title">Configurá tus horarios</h1>
             <p class="ob-subtitle">Podés ajustar esto en detalle desde el panel de Horarios</p>
 
@@ -491,13 +569,147 @@ const SLOT_OPTIONS = [
 
             @if (error()) { <div class="error-box">{{ error() }}</div> }
 
+            <button class="ob-btn-primary" (click)="_prevStep=5; step.set(6)" [disabled]="creating()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              Continuar
+            </button>
+          </div>
+        }
+
+        <!-- ══ PASO 6: ¿Configurar servicios? ══ -->
+        @if (step() === 6) {
+          <div class="anim">
+            <button class="ob-btn-back" (click)="step.set(_prevStep)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+
+            <div class="ob-step-label">Paso 4 de 4 — Servicios</div>
+            <h1 class="ob-title">¿Configurás tus servicios ahora?</h1>
+            <p class="ob-subtitle">Si preferís, podés hacerlo después desde el panel de Servicios</p>
+
+            <div class="choice-grid">
+              <!-- Configurar ahora -->
+              <button class="choice-card primary-choice" (click)="step.set(7)">
+                <div class="choice-icon" style="background:rgba(255,255,255,.2)">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                  </svg>
+                </div>
+                <div class="choice-title">Configurar ahora</div>
+                <div class="choice-desc">Agregá tus servicios con precio y duración</div>
+              </button>
+
+              <!-- Después -->
+              <button class="choice-card" (click)="doCreate()" [disabled]="creating()">
+                <div class="choice-icon" style="background:#f0e8ff">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                  </svg>
+                </div>
+                <div class="choice-title" style="color:#1a1a2e">
+                  {{ creating() ? 'Creando...' : 'Hacerlo después' }}
+                </div>
+                <div class="choice-desc">Empezar sin servicios configurados</div>
+              </button>
+            </div>
+
+            @if (error()) { <div class="error-box" style="margin-top:16px">{{ error() }}</div> }
+          </div>
+        }
+
+        <!-- ══ PASO 7: Editor de servicios ══ -->
+        @if (step() === 7) {
+          <div class="anim">
+            <button class="ob-btn-back" (click)="step.set(6)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Volver
+            </button>
+
+            <div class="ob-step-label">Paso 4 de 4 — Servicios</div>
+            <h1 class="ob-title">Tus servicios</h1>
+            <p class="ob-subtitle">Podés ajustar precios y detalles desde el panel de Servicios</p>
+
+            <!-- Lista de servicios agregados -->
+            @if (pendingServices.length > 0) {
+              <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+                @for (s of pendingServices; track $index) {
+                  <div style="display:flex;align-items:center;gap:10px;background:#f9f5ff;border:1.5px solid #f0e8ff;border-radius:12px;padding:10px 14px">
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13px;font-weight:700;color:#1a1a2e">{{ s.name }}</div>
+                      <div style="font-size:11px;color:#888;margin-top:2px">
+                        {{ s.duration }} min
+                        @if (s.price) {<span> - {{ '$' + s.price }}</span>}
+                        @if (s.description) {<span> - {{ s.description }}</span>}
+                      </div>
+                    </div>
+                    <button (click)="pendingServices.splice($index, 1)" style="background:none;border:none;cursor:pointer;color:#bbb;padding:4px;display:flex;align-items:center" title="Eliminar">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Formulario inline para agregar servicio -->
+            <div style="background:#fafafa;border:1.5px dashed #e5e7eb;border-radius:16px;padding:16px;margin-bottom:20px">
+              <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Agregar servicio</div>
+
+              <div class="ob-form-group" style="margin-bottom:10px">
+                <input [(ngModel)]="newSvc.name" placeholder="Nombre del servicio *"
+                  style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box" />
+              </div>
+
+              <div class="ob-form-group" style="margin-bottom:10px">
+                <textarea [(ngModel)]="newSvc.description" placeholder="Descripción (opcional)"
+                  style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;min-height:56px;line-height:1.5"></textarea>
+              </div>
+
+              <div class="grid-2" style="margin-bottom:10px">
+                <div>
+                  <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px">Duración</label>
+                  <select [(ngModel)]="newSvc.duration"
+                    style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%222%22%3E%3Cpolyline points=%226 9 12 15 18 9%22/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer">
+                    @for (opt of slotOptions; track opt.value) {
+                      <option [ngValue]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px">Precio</label>
+                  <div style="display:flex;align-items:center;border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                    <span style="padding:10px 11px;background:#f5f0ff;border-right:1.5px solid #e5e7eb;font-weight:700;color:var(--purple);font-size:14px;flex-shrink:0;user-select:none">$</span>
+                    <input type="text" inputmode="numeric" [value]="newSvcPriceDisplay" (input)="onPriceInput($event)" placeholder="0"
+                      style="border:none;outline:none;padding:10px 11px;font-size:13px;font-family:inherit;flex:1;min-width:0;background:white;color:#1a1a2e" />
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-bottom:14px">
+                <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px">Profesionales necesarios</label>
+                <input [(ngModel)]="newSvc.staffCount" type="number" min="1" max="10"
+                  style="width:80px;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box" />
+                <span style="font-size:12px;color:#aaa;margin-left:8px">persona(s) por turno</span>
+              </div>
+
+              <button (click)="addService()"
+                      [disabled]="!newSvc.name.trim()"
+                      [style.opacity]="!newSvc.name.trim() ? '0.5' : '1'"
+                      style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;border:none;background:var(--gradient);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar
+              </button>
+            </div>
+
+            @if (error()) { <div class="error-box">{{ error() }}</div> }
+
             <button class="ob-btn-primary" (click)="doCreate()" [disabled]="creating()">
               @if (creating()) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                 Creando tu negocio...
               } @else {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Finalizar configuración
+                {{ pendingServices.length > 0 ? 'Finalizar con ' + pendingServices.length + (pendingServices.length === 1 ? ' servicio' : ' servicios') : 'Finalizar configuración' }}
               }
             </button>
           </div>
@@ -508,9 +720,11 @@ const SLOT_OPTIONS = [
   `,
 })
 export class CompanyOnboardingComponent {
-  private companyStore = inject(CompanyStore);
-  private companySvc   = inject(CompanyService);
-  private authSvc      = inject(AuthService);
+  private companyStore      = inject(CompanyStore);
+  private companySvc        = inject(CompanyService);
+  private authSvc           = inject(AuthService);
+  private staffSvc          = inject(StaffService);
+  private serviceCatalogSvc = inject(ServiceCatalogService);
 
   readonly categories     = CATEGORIES;
   readonly socialPlatforms = SOCIAL_PLATFORMS;
@@ -520,6 +734,25 @@ export class CompanyOnboardingComponent {
   selectedCat = signal<string>('');
   creating    = signal(false);
   error       = signal('');
+  autoConfirm = false;
+
+  pendingStaff: { name: string; phone: string }[] = [];
+  newStaffName  = '';
+  newStaffPhone = '';
+
+  pendingServices: Omit<ServiceItem, 'id'>[] = [];
+  newSvc = { name: '', description: '', duration: 30, staffCount: 1 };
+  newSvcPriceDisplay = '';
+  _prevStep = 4;
+
+  onPriceInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const raw = input.value.replace(/\D/g, '');
+    if (!raw) { this.newSvcPriceDisplay = ''; input.value = ''; return; }
+    const formatted = parseInt(raw, 10).toLocaleString('es-CO');
+    this.newSvcPriceDisplay = formatted;
+    input.value = formatted;
+  }
 
   form = { name: '', description: '', city: '', address: '', phone: '' };
 
@@ -531,10 +764,10 @@ export class CompanyOnboardingComponent {
   }
 
   socials: Record<string, { enabled: boolean; handle: string }> = {
-    instagram: { enabled: true,  handle: '' },
-    facebook:  { enabled: true,  handle: '' },
-    tiktok:    { enabled: true,  handle: '' },
-    youtube:   { enabled: true,  handle: '' },
+    instagram: { enabled: false, handle: '' },
+    facebook:  { enabled: false, handle: '' },
+    tiktok:    { enabled: false, handle: '' },
+    youtube:   { enabled: false, handle: '' },
   };
 
   scheduleLocal = DEFAULT_SCHEDULE.map(d => ({
@@ -547,9 +780,10 @@ export class CompanyOnboardingComponent {
   progressBars = computed(() => {
     const s = this.step();
     return [
-      s > 1 ? 'done' : 'active',
-      s > 2 ? 'done' : s === 2 ? 'active' : 'inactive',
-      s >= 3 ? 'active' : 'inactive',
+      s > 1 ? 'done' : 'active',                          // tipo
+      s > 3 ? 'done' : s >= 2 ? 'active' : 'inactive',   // datos + equipo
+      s > 5 ? 'done' : s >= 4 ? 'active' : 'inactive',   // horarios
+      s >= 6 ? 'active' : 'inactive',                     // servicios
     ];
   });
 
@@ -558,6 +792,34 @@ export class CompanyOnboardingComponent {
   pickCategory(value: string) {
     this.selectedCat.set(value);
     this.step.set(2);
+  }
+
+  addStaffMember() {
+    const name = this.newStaffName.trim();
+    if (!name) return;
+    this.pendingStaff.push({ name, phone: this.newStaffPhone.trim() });
+    this.newStaffName  = '';
+    this.newStaffPhone = '';
+  }
+
+  addService() {
+    const name = this.newSvc.name.trim();
+    if (!name) return;
+
+    const service: Omit<ServiceItem, 'id'> = {
+      name,
+      duration:   this.newSvc.duration,
+      staffCount: this.newSvc.staffCount || 1,
+      isActive:   true,
+    };
+    const desc = this.newSvc.description.trim();
+    if (desc) service.description = desc;
+    const price = parseInt(this.newSvcPriceDisplay.replace(/\D/g, ''), 10);
+    if (price > 0) service.price = price;
+
+    this.pendingServices.push(service);
+    this.newSvc = { name: '', description: '', duration: 30, staffCount: 1 };
+    this.newSvcPriceDisplay = '';
   }
 
   async doCreate() {
@@ -577,26 +839,40 @@ export class CompanyOnboardingComponent {
         return s.enabled && s.handle.trim() ? s.handle.trim() : undefined;
       };
 
-      await this.companySvc.createCompany({
-        name:                this.form.name.trim(),
+      const companyId = await this.companySvc.createCompany({
+        name:         this.form.name.trim(),
         slug,
-        category:            this.selectedCat() as any,
-        description:         this.form.description.trim() || undefined,
-        phone:               this.form.phone.trim() || undefined,
-        city:                this.form.city.trim() || undefined,
-        address:             this.form.address.trim() || undefined,
-        instagram:           social('instagram'),
-        facebook:            social('facebook'),
-        tiktok:              social('tiktok'),
-        youtube:             social('youtube'),
-        logoColor:           CATEGORIES.find(c => c.value === this.selectedCat())?.color,
-        isActive:            true,
-        isPublic:            true,
+        category:     this.selectedCat() as any,
+        description:  this.form.description.trim() || undefined,
+        phone:        this.form.phone.trim() || undefined,
+        city:         this.form.city.trim() || undefined,
+        address:      this.form.address.trim() || undefined,
+        instagram:    social('instagram'),
+        facebook:     social('facebook'),
+        tiktok:       social('tiktok'),
+        youtube:      social('youtube'),
+        logoColor:    CATEGORIES.find(c => c.value === this.selectedCat())?.color,
+        isActive:     true,
+        isPublic:     true,
+        autoConfirm:  this.autoConfirm,
         slotInterval: this.slotInterval,
-        schedule:            this.scheduleLocal,
-        blockedDates:        [],
-        disabledSlots:       {},
+        schedule:     this.scheduleLocal,
+        blockedDates: [],
+        disabledSlots: {},
       });
+
+      for (const m of this.pendingStaff) {
+        await this.staffSvc.createStaff(companyId, {
+          name:       m.name,
+          phone:      m.phone || undefined,
+          serviceIds: [],
+          isActive:   true,
+        });
+      }
+
+      for (const s of this.pendingServices) {
+        await this.serviceCatalogSvc.createService(companyId, s);
+      }
 
       await this.companyStore.refresh();
     } catch (err: any) {
@@ -607,6 +883,7 @@ export class CompanyOnboardingComponent {
         code === 'unauthenticated'   ? 'Sesión expirada. Cerrá sesión e iniciá de nuevo.' :
         err?.message ? `Error: ${err.message}` : 'Error de conexión. Intentá de nuevo.'
       );
+    } finally {
       this.creating.set(false);
     }
   }

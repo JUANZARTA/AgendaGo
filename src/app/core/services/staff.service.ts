@@ -13,6 +13,12 @@ import {
 } from '@angular/fire/firestore';
 import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 
+export interface StaffDaySchedule {
+  enabled: boolean;
+  open: string;
+  close: string;
+}
+
 export interface StaffMember {
   id?: string;
   name: string;
@@ -20,6 +26,7 @@ export interface StaffMember {
   photoURL?: string;
   serviceIds: string[];
   isActive: boolean;
+  schedule?: Record<string, StaffDaySchedule>;
 }
 
 @Injectable({ providedIn: 'root' })

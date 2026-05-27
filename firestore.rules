@@ -19,14 +19,19 @@ service cloud.firestore {
     // USERS
     match /users/{uid} {
       allow read:   if isOwner(uid) || isSuperAdmin();
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isSuperAdmin();
+      allow create: if isOwner(uid) && request.resource.data.role in ['client', 'company'];
+      allow update: if isSuperAdmin() ||
+        (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) ||
+        (isOwner(uid) && !resource.data.keys().hasAny(['role']) && request.resource.data.role in ['client', 'company']);
       allow delete: if isSuperAdmin();
     }
 
     // COMPANIES
     match /companies/{companyId} {
-      allow read: if resource.data.isPublic == true || isCompanyOwner(companyId) || isSuperAdmin();
+      allow read: if resource.data.isPublic == true
+                  || (isAuth() && request.auth.uid == resource.data.ownerId)
+                  || isCompanyOwner(companyId)
+                  || isSuperAdmin();
       allow create: if isCompany() || isSuperAdmin();
       allow update: if isCompanyOwner(companyId) || isSuperAdmin() ||
         (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['averageRating', 'reviewCount']));
@@ -96,7 +101,15 @@ service cloud.firestore {
         resource.data.clientId == request.auth.uid ||
         isCompanyOwner(resource.data.companyId)
       );
-      allow create: if isAuth();
+      allow create: if isAuth() && (
+        (request.resource.data.senderRole == 'client'  && request.resource.data.clientId == request.auth.uid) ||
+        (request.resource.data.senderRole == 'company' && isCompanyOwner(request.resource.data.companyId))
+      );
+      // Marcar como leído
+      allow update: if isAuth() && (
+        resource.data.clientId == request.auth.uid ||
+        isCompanyOwner(resource.data.companyId)
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
     }
   }
 }
