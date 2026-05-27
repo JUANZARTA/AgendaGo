@@ -1,5 +1,24 @@
 # Funcionalidades fuera del MVP
 
+---
+
+## Dominio personalizado (no comprado)
+
+**Opciones evaluadas**
+
+| Dominio | Precio año 1 | Renovación anual | Estado |
+|---------|-------------|-----------------|--------|
+| agendaco.online | CO$ 4.900 | ~CO$ 150.900 | Recomendado |
+| agendaco.site | CO$ 3.900 | ~CO$ 141.900 | Alternativa |
+| agendaco.xyz | CO$ 7.900 | ~CO$ 68.900 | Descartado (mala reputación) |
+
+**Notas**
+- Registrar evaluado: GoDaddy
+- Para conectar: Firebase Console → Hosting → "Add custom domain" → cargar 2 registros DNS en el registrar → activo en ~24h con HTTPS automático
+- Sin contrato de permanencia: si no se renueva, el dominio expira sin penalidades
+
+---
+
 Features evaluadas y documentadas, pendientes de implementación post-lanzamiento.
 
 ---

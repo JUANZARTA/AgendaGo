@@ -11,3 +11,8 @@
    suficientes cada vez.
 
   Tu app va a quedar en: https://agendago-b8ea6.web.app
+
+ng build --configuration production
+  npx firebase-tools deploy --only firestore:rules,firestore:indexes,hosting
+
+

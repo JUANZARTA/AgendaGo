@@ -16,125 +16,150 @@ import { Subscription } from 'rxjs';
     } @else {
     <div class="shell" (click)="notifPanelOpen.set(false)">
 
+      <!-- ── HEADER ───────────────────────────────────── -->
       <header class="header">
         <div class="header-inner">
-        <!-- Logo -->
-        <a routerLink="/cliente/citas" class="header-brand">
-          <div class="brand-icon-wrap">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="6" y1="3" x2="6" y2="15"/>
-              <circle cx="6" cy="18" r="3"/>
-              <circle cx="18" cy="6" r="3"/>
-              <line x1="18" y1="9" x2="18" y2="21"/>
-              <line x1="18" y1="3" x2="6" y2="15"/>
-            </svg>
-          </div>
-          <span class="brand-name">Agenda Co</span>
-        </a>
 
-        <div style="flex:1"></div>
-
-        <!-- Acciones -->
-        <div class="header-actions">
-
-          <!-- Buscar negocios (primario) -->
-          <a routerLink="/" class="action-btn action-btn--primary">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            Buscar
-          </a>
-
-          <!-- Mis citas -->
-          <a routerLink="/cliente/citas" routerLinkActive="action-nav--active" class="action-btn action-btn--nav">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Mis citas
-          </a>
-
-          <!-- Mensajes -->
-          <a routerLink="/cliente/mensajes" routerLinkActive="action-nav--active"
-             class="action-btn action-btn--nav" style="position:relative">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            Mensajes
-            @if (unreadCount() > 0) {
-              <span class="msg-badge">{{ unreadCount() }}</span>
-            }
-          </a>
-
-          <!-- Notificaciones -->
-          <div style="position:relative">
-            <button class="icon-btn" title="Notificaciones" (click)="$event.stopPropagation(); toggleNotifPanel()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          <a routerLink="/" class="header-brand">
+            <div class="brand-icon-wrap">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white"
                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                <line x1="6" y1="3" x2="6" y2="15"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="6" r="3"/>
+                <line x1="18" y1="9" x2="18" y2="21"/>
+                <line x1="18" y1="3" x2="6" y2="15"/>
               </svg>
-              @if (unreadNotifCount() > 0) {
-                <span class="notif-badge">{{ unreadNotifCount() }}</span>
-              }
-            </button>
+            </div>
+            <span class="brand-name">Agenda Co</span>
+          </a>
 
-            @if (notifPanelOpen()) {
-              <div class="notif-panel" (click)="$event.stopPropagation()">
-                <div class="notif-panel-header">
-                  <span>Notificaciones</span>
-                  @if (unreadNotifCount() > 0) {
-                    <button class="notif-mark-all" (click)="markAllRead()">Marcar todas leídas</button>
+          <div style="flex:1"></div>
+
+          <!-- Desktop nav -->
+          <div class="header-actions desktop-only">
+            <a routerLink="/" class="action-btn action-btn--primary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              Buscar
+            </a>
+            <a routerLink="/cliente/citas" routerLinkActive="action-nav--active" class="action-btn action-btn--nav">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Mis citas
+            </a>
+            <a routerLink="/cliente/mensajes" routerLinkActive="action-nav--active"
+               class="action-btn action-btn--nav" style="position:relative">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Mensajes
+              @if (unreadCount() > 0) { <span class="msg-badge">{{ unreadCount() }}</span> }
+            </a>
+          </div>
+
+          <!-- Bell + gear + avatar (always visible) -->
+          <div class="header-icons">
+            <div style="position:relative">
+              <button class="icon-btn" title="Notificaciones" (click)="$event.stopPropagation(); toggleNotifPanel()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                @if (unreadNotifCount() > 0) { <span class="notif-badge">{{ unreadNotifCount() }}</span> }
+              </button>
+
+              @if (notifPanelOpen()) {
+                <div class="notif-panel" (click)="$event.stopPropagation()">
+                  <div class="notif-panel-header">
+                    <span>Notificaciones</span>
+                    @if (unreadNotifCount() > 0) {
+                      <button class="notif-mark-all" (click)="markAllRead()">Marcar todas leídas</button>
+                    }
+                  </div>
+                  @if (notifications().length === 0) {
+                    <div class="notif-empty">Sin notificaciones</div>
+                  }
+                  @for (n of notifications(); track n.id) {
+                    <div class="notif-item" [class.unread]="!n.read" (click)="openNotif(n)">
+                      <div class="notif-title">{{ n.title }}</div>
+                      <div class="notif-body">{{ n.body }}</div>
+                      <div class="notif-time">{{ formatTime(n.createdAt) }}</div>
+                    </div>
                   }
                 </div>
-                @if (notifications().length === 0) {
-                  <div class="notif-empty">Sin notificaciones</div>
-                }
-                @for (n of notifications(); track n.id) {
-                  <div class="notif-item" [class.unread]="!n.read" (click)="openNotif(n)">
-                    <div class="notif-title">{{ n.title }}</div>
-                    <div class="notif-body">{{ n.body }}</div>
-                    <div class="notif-time">{{ formatTime(n.createdAt) }}</div>
-                  </div>
-                }
-              </div>
-            }
+              }
+            </div>
+
+            <!-- Salir (mobile) -->
+            <button class="icon-btn mobile-only" title="Cerrar sesión" (click)="logout()">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+            <a routerLink="/cliente/perfil" class="icon-btn desktop-only" title="Configuración">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </a>
+
+            <a routerLink="/cliente/perfil" class="avatar-btn" [title]="authSvc.displayName()">
+              @if (authSvc.profile()?.photoUrl) {
+                <img class="avatar-img" [src]="authSvc.profile()!.photoUrl!" alt="foto" />
+              } @else {
+                <span class="avatar-initials">{{ initials() }}</span>
+              }
+            </a>
+
+            <button class="action-btn action-btn--exit desktop-only" (click)="logout()">Salir</button>
           </div>
 
-          <!-- Configuración -->
-          <a routerLink="/cliente/perfil" class="icon-btn" title="Configuración">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </a>
-
-          <!-- Avatar → perfil -->
-          <a routerLink="/cliente/perfil" class="avatar-btn" [title]="authSvc.displayName()">
-            @if (authSvc.profile()?.photoUrl) {
-              <img class="avatar-img" [src]="authSvc.profile()!.photoUrl!" alt="foto" />
-            } @else {
-              <span class="avatar-initials">{{ initials() }}</span>
-            }
-          </a>
-
-          <!-- Salir -->
-          <button class="action-btn action-btn--exit" (click)="logout()">Salir</button>
         </div>
-        </div><!-- /header-inner -->
       </header>
 
+      <!-- ── CONTENT ───────────────────────────────────── -->
       <main class="content">
         <router-outlet />
       </main>
+
+      <!-- ── BOTTOM NAV (mobile) ───────────────────────── -->
+      <nav class="bottom-nav">
+        <a routerLink="/" class="bn-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Buscar</span>
+        </a>
+        <a routerLink="/cliente/citas" routerLinkActive="bn-item--active" class="bn-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span>Mis citas</span>
+        </a>
+        <a routerLink="/cliente/mensajes" routerLinkActive="bn-item--active" class="bn-item" style="position:relative">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          @if (unreadCount() > 0) { <span class="bn-badge">{{ unreadCount() }}</span> }
+          <span>Mensajes</span>
+        </a>
+        <a routerLink="/cliente/perfil" routerLinkActive="bn-item--active" class="bn-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span>Perfil</span>
+        </a>
+      </nav>
 
     </div>
     }
@@ -149,7 +174,7 @@ import { Subscription } from 'rxjs';
       background: var(--body-bg);
     }
 
-    /* ── Header ─────────────────────────────────────────── */
+    /* ── Header ─────────────────────────────── */
     .header {
       background: white;
       border-bottom: 1.5px solid #f0ebff;
@@ -164,7 +189,7 @@ import { Subscription } from 'rxjs';
       height: 64px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
     }
 
     .header-brand {
@@ -196,10 +221,17 @@ import { Subscription } from 'rxjs';
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
-    /* Shared action button base */
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Shared action button */
     .action-btn {
       display: flex;
       align-items: center;
@@ -217,7 +249,6 @@ import { Subscription } from 'rxjs';
       flex-shrink: 0;
     }
 
-    /* Gradient primary (Buscar) */
     .action-btn--primary {
       color: white;
       background: var(--gradient);
@@ -225,7 +256,6 @@ import { Subscription } from 'rxjs';
     }
     .action-btn--primary:hover { opacity: .88; }
 
-    /* Subtle nav link (Mis citas, Mensajes) */
     .action-btn--nav {
       color: var(--purple);
       background: var(--btn-secondary-bg);
@@ -237,28 +267,23 @@ import { Subscription } from 'rxjs';
       box-shadow: 0 4px 12px rgba(124,58,237,.2);
     }
 
-    /* Badge no leídos */
-    .msg-badge {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      background: var(--pink, #ec4899);
-      color: white;
-      border-radius: 20px;
-      font-size: 10px;
-      font-weight: 800;
-      padding: 1px 5px;
-      min-width: 16px;
-      text-align: center;
-    }
-
-    /* Salir */
     .action-btn--exit {
       color: #888;
       background: none;
       border: 1.5px solid #e5e7eb;
     }
     .action-btn--exit:hover { border-color: var(--purple); color: var(--purple); }
+
+    .msg-badge {
+      position: absolute;
+      top: 4px; right: 4px;
+      background: var(--pink, #ec4899);
+      color: white;
+      border-radius: 20px;
+      font-size: 10px; font-weight: 800;
+      padding: 1px 5px; min-width: 16px;
+      text-align: center;
+    }
 
     .icon-btn {
       width: 36px; height: 36px;
@@ -281,10 +306,8 @@ import { Subscription } from 'rxjs';
       background: #ef4444;
       color: white;
       border-radius: 20px;
-      font-size: 10px;
-      font-weight: 800;
-      padding: 1px 5px;
-      min-width: 16px;
+      font-size: 10px; font-weight: 800;
+      padding: 1px 5px; min-width: 16px;
       text-align: center;
     }
 
@@ -302,32 +325,19 @@ import { Subscription } from 'rxjs';
     }
     .notif-panel-header {
       padding: 14px 16px;
-      font-weight: 800;
-      font-size: 14px;
+      font-weight: 800; font-size: 14px;
       border-bottom: 1px solid #f0ebff;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      display: flex; justify-content: space-between; align-items: center;
     }
     .notif-mark-all {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--purple);
-      font-weight: 600;
+      background: none; border: none; cursor: pointer;
+      font-size: 12px; color: var(--purple); font-weight: 600;
     }
-    .notif-empty {
-      padding: 24px;
-      text-align: center;
-      color: #aaa;
-      font-size: 13px;
-    }
+    .notif-empty { padding: 24px; text-align: center; color: #aaa; font-size: 13px; }
     .notif-item {
       padding: 12px 16px;
       border-bottom: 1px solid #f7f5ff;
-      cursor: pointer;
-      transition: background .12s;
+      cursor: pointer; transition: background .12s;
     }
     .notif-item:hover { background: #faf8ff; }
     .notif-item.unread { background: #f5f0ff; }
@@ -342,38 +352,90 @@ import { Subscription } from 'rxjs';
       background: var(--gradient);
       display: flex; align-items: center; justify-content: center;
       text-decoration: none;
-      overflow: hidden;
-      flex-shrink: 0;
+      overflow: hidden; flex-shrink: 0;
       box-shadow: 0 4px 12px rgba(124,58,237,.25);
       transition: transform .18s;
     }
     .avatar-btn:hover { transform: scale(1.07); }
-
     .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-initials { font-size: 15px; font-weight: 800; color: white; }
 
-    .avatar-initials {
-      font-size: 15px;
-      font-weight: 800;
-      color: white;
-    }
+    /* ── Content ──────────────────────────────── */
+    .content { flex: 1; overflow-y: auto; }
 
-    /* ── Content ─────────────────────────────────────────── */
-    .content {
-      flex: 1;
-      overflow-y: auto;
+    /* ── Bottom nav (hidden on desktop) ──────── */
+    .bottom-nav { display: none; }
+
+    /* ── Responsive ───────────────────────────── */
+    .mobile-only { display: none; }
+
+    @media (max-width: 768px) {
+      .desktop-only { display: none !important; }
+      .mobile-only  { display: flex !important; }
+
+      .notif-panel {
+        position: fixed;
+        top: 70px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+      }
+
+      .content { padding-bottom: 68px; }
+
+      .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 64px;
+        background: white;
+        border-top: 1px solid #f0ebff;
+        box-shadow: 0 -2px 16px rgba(0,0,0,.07);
+        z-index: 100;
+        padding: 0 4px;
+      }
+
+      .bn-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        text-decoration: none;
+        color: #aaa;
+        font-size: 0.65rem;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: color .15s;
+        position: relative;
+      }
+      .bn-item:hover { color: var(--purple); }
+      .bn-item--active { color: var(--purple); }
+
+      .bn-badge {
+        position: absolute;
+        top: 6px; right: calc(50% - 18px);
+        background: #ec4899;
+        color: white;
+        border-radius: 20px;
+        font-size: 9px; font-weight: 800;
+        padding: 1px 4px; min-width: 14px;
+        text-align: center;
+      }
     }
   `],
 })
 export class ClientShellComponent implements OnDestroy {
-  readonly authSvc = inject(AuthService);
-  private msgSvc  = inject(MessageService);
-  private notifSvc = inject(NotificationService);
-  private router  = inject(Router);
+  readonly authSvc  = inject(AuthService);
+  private msgSvc    = inject(MessageService);
+  private notifSvc  = inject(NotificationService);
+  private router    = inject(Router);
 
-  unreadCount      = signal(0);
-  unreadNotifCount = signal(0);
-  notifications    = signal<AppNotification[]>([]);
-  notifPanelOpen   = signal(false);
+  unreadCount       = signal(0);
+  unreadNotifCount  = signal(0);
+  notifications     = signal<AppNotification[]>([]);
+  notifPanelOpen    = signal(false);
   private msgSub:   Subscription | null = null;
   private notifSub: Subscription | null = null;
 
@@ -386,9 +448,7 @@ export class ClientShellComponent implements OnDestroy {
     const uid = this.authSvc.currentUser()?.uid;
     if (uid) {
       this.msgSub = this.msgSvc.watchByClient(uid).subscribe({
-        next: (msgs) => {
-          this.unreadCount.set(msgs.filter(m => m.senderRole === 'company' && !m.read).length);
-        },
+        next: (msgs) => this.unreadCount.set(msgs.filter(m => m.senderRole === 'company' && !m.read).length),
         error: () => {},
       });
       this.notifSub = this.notifSvc.watch(uid).subscribe({
@@ -401,9 +461,7 @@ export class ClientShellComponent implements OnDestroy {
     }
   }
 
-  toggleNotifPanel() {
-    this.notifPanelOpen.update(v => !v);
-  }
+  toggleNotifPanel() { this.notifPanelOpen.update(v => !v); }
 
   async openNotif(n: AppNotification) {
     if (!n.read && n.id) await this.notifSvc.markRead(n.id);

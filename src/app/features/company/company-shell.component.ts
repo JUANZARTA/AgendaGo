@@ -130,7 +130,6 @@ interface NavItem {
 
           <!-- Company info -->
           <div class="company-info">
-            <app-theme-switcher/>
             <span class="company-name">{{ companyStore.company()?.name }}</span>
             @if (sub()?.status === 'active') {
               <span class="company-badge company-badge--active">Plan activo</span>
@@ -151,6 +150,40 @@ interface NavItem {
 
         </aside>
 
+        <!-- ── MOBILE HEADER (hidden on desktop) ────────────────────── -->
+        <header class="mobile-header">
+          <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(var(--primary-rgb),.3);flex-shrink:0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>
+          </div>
+          <span style="font-weight:900;font-size:1.05rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Agenda Co</span>
+          <div style="flex:1"></div>
+          <!-- Campana -->
+          <button class="mh-icon-btn" (click)="notifPanelOpen.set(!notifPanelOpen())" style="position:relative">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            @if (unreadCount() > 0) {
+              <span style="position:absolute;top:-3px;right:-3px;background:#f43f5e;color:white;border-radius:99px;font-size:9px;font-weight:700;padding:1px 4px;min-width:14px;text-align:center">{{ unreadCount() }}</span>
+            }
+          </button>
+          <!-- Salir -->
+          <button class="mh-icon-btn" title="Cerrar sesión" (click)="logout()">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+          <!-- Avatar → perfil empresa -->
+          <a routerLink="/empresa/perfil" class="mh-avatar" title="Configuración">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </a>
+        </header>
+
         <!-- ── MAIN CONTENT ────────────────────────────────────────── -->
         <main class="content">
           <router-outlet/>
@@ -158,59 +191,63 @@ interface NavItem {
 
         <!-- ── BOTTOM BAR (mobile) ────────────────────────────────── -->
         <nav class="bottom-bar">
-          @for (item of navItems; track item.route) {
-            <a
-              class="bottom-item"
-              [routerLink]="item.route"
-              routerLinkActive="bottom-item--active"
-              [routerLinkActiveOptions]="{ exact: false }"
-            >
-              <svg class="bottom-icon" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
+          <!-- 4 main items -->
+          @for (item of mainNavItems; track item.route) {
+            <a class="bottom-item" [routerLink]="item.route"
+               routerLinkActive="bottom-item--active"
+               [routerLinkActiveOptions]="{ exact: false }">
+              <svg class="bottom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 @switch (item.icon) {
-                  @case ('grid') {
-                    <rect x="3" y="3" width="7" height="7"/>
-                    <rect x="14" y="3" width="7" height="7"/>
-                    <rect x="14" y="14" width="7" height="7"/>
-                    <rect x="3" y="14" width="7" height="7"/>
-                  }
-                  @case ('list') {
-                    <line x1="8" y1="6" x2="21" y2="6"/>
-                    <line x1="8" y1="12" x2="21" y2="12"/>
-                    <line x1="8" y1="18" x2="21" y2="18"/>
-                    <line x1="3" y1="6" x2="3.01" y2="6"/>
-                    <line x1="3" y1="12" x2="3.01" y2="12"/>
-                    <line x1="3" y1="18" x2="3.01" y2="18"/>
-                  }
-                  @case ('clock') {
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                  }
-                  @case ('settings') {
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                  }
-                  @case ('star') {
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                  }
-                  @case ('credit-card') {
-                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-                    <line x1="1" y1="10" x2="23" y2="10"/>
-                  }
-                  @case ('users') {
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  }
-                  @case ('message') {
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  }
+                  @case ('grid') { <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/> }
+                  @case ('list') { <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/> }
+                  @case ('clock') { <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/> }
+                  @case ('message') { <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/> }
                 }
               </svg>
               <span class="bottom-label">{{ item.label }}</span>
             </a>
+          }
+          <!-- Más -->
+          <button class="bottom-item" [class.bottom-item--active]="moreMenuOpen()"
+                  (click)="moreMenuOpen.update(v => !v)" style="border:none;background:none;cursor:pointer;font-family:inherit">
+            <svg class="bottom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
+            </svg>
+            <span class="bottom-label">Más</span>
+          </button>
+
+          <!-- More sheet -->
+          @if (moreMenuOpen()) {
+            <div style="position:fixed;inset:0;z-index:149" (click)="moreMenuOpen.set(false)"></div>
+            <div class="more-sheet">
+              <!-- Notificaciones -->
+              <button class="more-item" style="border:none;background:none;cursor:pointer;font-family:inherit;width:100%;text-align:left"
+                      (click)="moreMenuOpen.set(false); notifPanelOpen.set(true)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                <span style="flex:1">Notificaciones</span>
+                @if (unreadCount() > 0) {
+                  <span style="background:#f43f5e;color:white;border-radius:99px;font-size:10px;font-weight:700;padding:1px 6px;min-width:16px;text-align:center">
+                    {{ unreadCount() }}
+                  </span>
+                }
+              </button>
+              @for (item of extraNavItems; track item.route) {
+                <a class="more-item" [routerLink]="item.route" (click)="moreMenuOpen.set(false)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    @switch (item.icon) {
+                      @case ('settings') { <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/> }
+                      @case ('users') { <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/> }
+                      @case ('star') { <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/> }
+                      @case ('credit-card') { <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/> }
+                    }
+                  </svg>
+                  {{ item.label }}
+                </a>
+              }
+            </div>
           }
         </nav>
 
@@ -486,6 +523,11 @@ interface NavItem {
       animation: fadeInUp 0.35s ease 0.1s backwards;
     }
 
+    /* ── Mobile header (hidden on desktop) ─────────────────────── */
+    .mobile-header {
+      display: none;
+    }
+
     /* ── Bottom bar (mobile only) ───────────────────────────────── */
     .bottom-bar {
       display: none;
@@ -499,6 +541,40 @@ interface NavItem {
 
       .shell {
         flex-direction: column;
+      }
+
+      .mobile-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 16px;
+        height: 60px;
+        background: white;
+        border-bottom: 1px solid #f0ebff;
+        box-shadow: 0 2px 12px rgba(0,0,0,.06);
+        flex-shrink: 0;
+      }
+
+      .mh-icon-btn {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        border: 1.5px solid #e5e7eb;
+        background: none;
+        display: flex; align-items: center; justify-content: center;
+        color: #888;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .mh-icon-btn:hover { border-color: var(--purple); color: var(--purple); }
+
+      .mh-avatar {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        background: var(--gradient);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb),.25);
+        text-decoration: none;
       }
 
       .content {
@@ -549,6 +625,34 @@ interface NavItem {
         letter-spacing: 0.01em;
         white-space: nowrap;
       }
+
+      .more-sheet {
+        position: fixed;
+        bottom: 68px;
+        right: 8px;
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 8px 32px rgba(0,0,0,.14);
+        z-index: 150;
+        overflow: hidden;
+        min-width: 180px;
+        border: 1px solid #f0ebff;
+      }
+
+      .more-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 18px;
+        text-decoration: none;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+        border-bottom: 1px solid #f7f5ff;
+        transition: background .12s;
+      }
+      .more-item:last-child { border-bottom: none; }
+      .more-item:hover { background: #faf8ff; color: var(--purple); }
     }
   `],
 })
@@ -561,6 +665,7 @@ export class CompanyShellComponent implements OnDestroy {
 
   sub              = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' } | null>(null);
   notifPanelOpen   = signal(false);
+  moreMenuOpen     = signal(false);
   notifications    = signal<AppNotification[]>([]);
   unreadCount      = computed(() => this.notifications().filter(n => !n.read).length);
 
@@ -654,6 +759,21 @@ export class CompanyShellComponent implements OnDestroy {
     { label: 'Equipo',      route: '/empresa/equipo',      icon: 'users'       },
     { label: 'Reseñas',     route: '/empresa/resenas',     icon: 'star'        },
     { label: 'Mensajes',    route: '/empresa/mensajes',    icon: 'message'     },
+    { label: 'Facturación', route: '/empresa/facturacion', icon: 'credit-card' },
+  ];
+
+  // Bottom bar mobile: 4 main + "Más"
+  readonly mainNavItems: NavItem[] = [
+    { label: 'Dashboard', route: '/empresa/dashboard', icon: 'grid'    },
+    { label: 'Servicios', route: '/empresa/servicios', icon: 'list'    },
+    { label: 'Horarios',  route: '/empresa/horarios',  icon: 'clock'   },
+    { label: 'Mensajes',  route: '/empresa/mensajes',  icon: 'message' },
+  ];
+
+  readonly extraNavItems: NavItem[] = [
+    { label: 'Perfil',      route: '/empresa/perfil',      icon: 'settings'    },
+    { label: 'Equipo',      route: '/empresa/equipo',      icon: 'users'       },
+    { label: 'Reseñas',     route: '/empresa/resenas',     icon: 'star'        },
     { label: 'Facturación', route: '/empresa/facturacion', icon: 'credit-card' },
   ];
 }

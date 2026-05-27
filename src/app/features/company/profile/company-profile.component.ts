@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { CompanyService } from '../../../core/services/company.service';
+import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
 
 const PRESET_ICONS: { key: string; label: string; path: string }[] = [
   { key: 'scissors', label: 'Tijeras',    path: 'M6 3v12M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9v12M18 3L6 15' },
@@ -20,7 +21,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
 @Component({
   selector: 'app-company-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ThemeSwitcherComponent],
   styles: [`
     .profile-page { max-width: 620px; margin: 0 auto; padding-bottom: 40px; animation: fadeInUp .3s ease; }
     @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -353,6 +354,23 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
             </div>
           </div>
         </label>
+      </div>
+
+      <!-- ── Apariencia ── -->
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          Apariencia
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Tema de la interfaz</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">Claro u oscuro</div>
+          </div>
+          <app-theme-switcher />
+        </div>
       </div>
 
       <!-- Acciones -->

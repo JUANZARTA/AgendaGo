@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeSwitcherComponent } from './theme-switcher.component';
@@ -8,15 +8,14 @@ import { NotificationBellComponent } from './notification-bell.component';
 @Component({
   selector: 'app-public-nav',
   standalone: true,
-  imports: [RouterLink, ThemeSwitcherComponent, NotificationBellComponent],
+  imports: [RouterLink, RouterLinkActive, ThemeSwitcherComponent, NotificationBellComponent],
   styles: [`
     .nav-actions { display: flex; align-items: center; gap: 16px; }
     .nav-hamburger {
       display: none;
       align-items: center;
       justify-content: center;
-      width: 40px;
-      height: 40px;
+      width: 40px; height: 40px;
       border: none;
       background: #f5f0ff;
       border-radius: 10px;
@@ -29,9 +28,7 @@ import { NotificationBellComponent } from './notification-bell.component';
       flex-direction: column;
       gap: 8px;
       position: absolute;
-      top: 64px;
-      left: 0;
-      right: 0;
+      top: 64px; left: 0; right: 0;
       background: white;
       border-bottom: 1.5px solid #f0ebff;
       box-shadow: 0 8px 24px rgba(var(--primary-rgb),.12);
@@ -39,9 +36,57 @@ import { NotificationBellComponent } from './notification-bell.component';
       z-index: 49;
     }
     .nav-dropdown.open { display: flex; }
-    @media (max-width: 640px) {
+
+    /* Client mobile bottom nav */
+    .client-bottom-nav { display: none; }
+
+    @media (max-width: 768px) {
       .nav-actions { display: none !important; }
+      /* Only show hamburger for non-client users */
       .nav-hamburger { display: flex !important; }
+      .hide-on-mobile { display: none !important; }
+
+      .client-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 64px;
+        background: white;
+        border-top: 1px solid #f0ebff;
+        box-shadow: 0 -2px 16px rgba(0,0,0,.07);
+        z-index: 100;
+        padding: 0 4px;
+      }
+      .bn-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        text-decoration: none;
+        color: #aaa;
+        font-size: 0.65rem;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: color .15s;
+      }
+      .bn-item:hover { color: var(--purple); }
+      .bn-item--active { color: var(--purple); }
+      .bn-item--search { color: var(--purple); }
+    }
+
+    /* Active state for client nav links */
+    .pn-nav--active {
+      background: var(--gradient) !important;
+      color: white !important;
+      box-shadow: 0 4px 12px rgba(var(--primary-rgb),.2);
+    }
+
+    /* Hide mobile-only client header icons on desktop */
+    .mobile-client-icons { display: none; }
+    @media (max-width: 768px) {
+      .mobile-client-icons { display: flex !important; }
     }
   `],
   template: `
@@ -60,52 +105,115 @@ import { NotificationBellComponent } from './notification-bell.component';
 
         <div style="flex:1"></div>
 
-        <!-- Botón hamburguesa (solo mobile) -->
-        <button class="nav-hamburger" (click)="menuOpen.set(!menuOpen())" [attr.aria-expanded]="menuOpen()">
-          @if (menuOpen()) {
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          } @else {
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-          }
-        </button>
-
-        <!-- Acciones desktop -->
-        <div class="nav-actions">
-          @if (auth.isLoggedIn()) {
-            @if (auth.role() === 'client') {
-              <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
-              <a routerLink="/cliente/citas"
-                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
-                 onmouseover="this.style.background='var(--btn-secondary-hover)'"
-                 onmouseout="this.style.background='var(--btn-secondary-bg)'">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                Mis citas
-              </a>
+        <!-- Hamburger: solo para NO-clientes en mobile -->
+        @if (!(auth.isLoggedIn() && auth.role() === 'client')) {
+          <button class="nav-hamburger" (click)="menuOpen.set(!menuOpen())" [attr.aria-expanded]="menuOpen()">
+            @if (menuOpen()) {
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            } @else {
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             }
-            <!-- Avatar → perfil -->
-            <a [routerLink]="settingsRoute()"
-               style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;text-decoration:none"
-               [title]="auth.displayName()">
+          </button>
+        }
+
+        <!-- Header icons para cliente logueado en mobile -->
+        @if (auth.isLoggedIn() && auth.role() === 'client') {
+          <div class="mobile-client-icons" style="align-items:center;gap:8px">
+            <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
+            <button (click)="logout()"
+              style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#888;background:none;border:1.5px solid #e5e7eb;cursor:pointer;flex-shrink:0"
+              title="Cerrar sesión">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+            <a routerLink="/cliente/perfil"
+               style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;text-decoration:none">
               @if (auth.profile()?.photoUrl) {
                 <img [src]="auth.profile()!.photoUrl!" style="width:100%;height:100%;object-fit:cover" alt="foto" />
               } @else {
                 <span style="font-size:15px;color:white;font-weight:800">{{ initials() }}</span>
               }
             </a>
-            <button (click)="logout()"
-              style="padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:#888;background:none;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit"
-              onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'"
-              onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#888'">
-              Salir
-            </button>
+          </div>
+        }
+
+        <!-- Acciones desktop (siempre visible en ≥641px) -->
+        <div class="nav-actions">
+          @if (auth.isLoggedIn()) {
+            @if (auth.role() === 'client') {
+              <a routerLink="/" [routerLinkActiveOptions]="{exact:true}" routerLinkActive="pn-nav--active"
+                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:white;background:var(--gradient);text-decoration:none;box-shadow:0 4px 12px rgba(var(--primary-rgb),.28);white-space:nowrap">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                Buscar
+              </a>
+              <a routerLink="/cliente/citas" routerLinkActive="pn-nav--active"
+                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
+                 onmouseover="this.style.background='var(--btn-secondary-hover)'"
+                 onmouseout="this.style.background='var(--btn-secondary-bg)'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Mis citas
+              </a>
+              <a routerLink="/cliente/mensajes" routerLinkActive="pn-nav--active"
+                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
+                 onmouseover="this.style.background='var(--btn-secondary-hover)'"
+                 onmouseout="this.style.background='var(--btn-secondary-bg)'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                Mensajes
+              </a>
+              <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
+              <a routerLink="/cliente/perfil"
+                 style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#888;background:none;border:1.5px solid #e5e7eb;text-decoration:none;transition:all .15s;flex-shrink:0"
+                 title="Configuración">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </a>
+              <a routerLink="/cliente/perfil"
+                 style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;text-decoration:none"
+                 [title]="auth.displayName()">
+                @if (auth.profile()?.photoUrl) {
+                  <img [src]="auth.profile()!.photoUrl!" style="width:100%;height:100%;object-fit:cover" alt="foto" />
+                } @else {
+                  <span style="font-size:15px;color:white;font-weight:800">{{ initials() }}</span>
+                }
+              </a>
+              <button (click)="logout()"
+                style="padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:#888;background:none;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit"
+                onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'"
+                onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#888'">
+                Salir
+              </button>
+            } @else {
+              <a [routerLink]="settingsRoute()"
+                 style="width:38px;height:38px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 4px 12px rgba(var(--primary-rgb),.25);flex-shrink:0;text-decoration:none"
+                 [title]="auth.displayName()">
+                @if (auth.profile()?.photoUrl) {
+                  <img [src]="auth.profile()!.photoUrl!" style="width:100%;height:100%;object-fit:cover" alt="foto" />
+                } @else {
+                  <span style="font-size:15px;color:white;font-weight:800">{{ initials() }}</span>
+                }
+              </a>
+              <button (click)="logout()"
+                style="padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:#888;background:none;border:1.5px solid #e5e7eb;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit"
+                onmouseover="this.style.borderColor='var(--purple)';this.style.color='var(--purple)'"
+                onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#888'">
+                Salir
+              </button>
+            }
           } @else {
-            <a routerLink="/auth/register"
-               [queryParams]="{role:'company'}"
+            <a routerLink="/auth/register" [queryParams]="{role:'company'}"
                style="display:flex;align-items:center;gap:8px;background:var(--gradient-soft);border:1.5px solid var(--form-border);border-radius:20px;padding:8px 16px;font-size:13px;font-weight:700;color:var(--purple);text-decoration:none;transition:all .15s;white-space:nowrap"
                onmouseover="this.style.boxShadow='0 4px 14px rgba(var(--primary-rgb),.2)'"
                onmouseout="this.style.boxShadow='none'">
@@ -128,47 +236,72 @@ import { NotificationBellComponent } from './notification-bell.component';
 
       </div>
 
-      <!-- Dropdown mobile -->
-      <nav class="nav-dropdown" [class.open]="menuOpen()">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0 8px;border-bottom:1px solid #f0ebff;margin-bottom:4px">
-          <span style="font-size:12px;font-weight:700;color:#888;letter-spacing:.04em;text-transform:uppercase">Tema</span>
-          <app-theme-switcher/>
-        </div>
-        @if (auth.isLoggedIn()) {
-          @if (auth.role() === 'client') {
-            <a routerLink="/cliente/citas" (click)="menuOpen.set(false)"
-               style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff;display:flex;align-items:center;gap:8px">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Mis citas
+      <!-- Dropdown mobile (solo para NO-clientes) -->
+      @if (!(auth.isLoggedIn() && auth.role() === 'client')) {
+        <nav class="nav-dropdown" [class.open]="menuOpen()">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0 8px;border-bottom:1px solid #f0ebff;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:700;color:#888;letter-spacing:.04em;text-transform:uppercase">Tema</span>
+            <app-theme-switcher/>
+          </div>
+          @if (auth.isLoggedIn()) {
+            <a [routerLink]="settingsRoute()" (click)="menuOpen.set(false)"
+               style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff">
+              Configuración
             </a>
-            <div style="padding:8px 4px">
-              <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
-            </div>
+            <button (click)="logout(); menuOpen.set(false)"
+              style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);background:none;border:none;cursor:pointer;text-align:left">
+              Salir
+            </button>
+          } @else {
+            <a routerLink="/auth/register" [queryParams]="{role:'company'}" (click)="menuOpen.set(false)"
+               style="padding:12px 4px;font-size:14px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff">
+              ¿Tenés un negocio? <span style="color:var(--pink)">Registrate gratis</span>
+            </a>
+            <a routerLink="/auth/login" (click)="menuOpen.set(false)"
+               style="padding:12px 16px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;border-radius:10px;text-align:center">
+              Iniciar sesión
+            </a>
+            <a routerLink="/auth/register" (click)="menuOpen.set(false)"
+               style="padding:12px 16px;font-size:14px;font-weight:700;color:white;background:var(--gradient);text-decoration:none;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(var(--primary-rgb),.3)">
+              Registrate
+            </a>
           }
-          <a [routerLink]="settingsRoute()" (click)="menuOpen.set(false)"
-             style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff">
-            Configuración
-          </a>
-          <button (click)="logout(); menuOpen.set(false)"
-            style="padding:12px 4px;font-size:15px;font-weight:700;color:var(--purple);background:none;border:none;cursor:pointer;text-align:left">
-            Salir
-          </button>
-        } @else {
-          <a routerLink="/auth/register" [queryParams]="{role:'company'}" (click)="menuOpen.set(false)"
-             style="padding:12px 4px;font-size:14px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff">
-            ¿Tenés un negocio? <span style="color:var(--pink)">Registrate gratis</span>
-          </a>
-          <a routerLink="/auth/login" (click)="menuOpen.set(false)"
-             style="padding:12px 16px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;border-radius:10px;text-align:center">
-            Iniciar sesión
-          </a>
-          <a routerLink="/auth/register" (click)="menuOpen.set(false)"
-             style="padding:12px 16px;font-size:14px;font-weight:700;color:white;background:var(--gradient);text-decoration:none;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(var(--primary-rgb),.3)">
-            Registrate
-          </a>
-        }
-      </nav>
+        </nav>
+      }
     </header>
+
+    <!-- Bottom nav mobile solo para clientes logueados -->
+    @if (auth.isLoggedIn() && auth.role() === 'client') {
+      <nav class="client-bottom-nav">
+        <a routerLink="/" class="bn-item bn-item--search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Buscar</span>
+        </a>
+        <a routerLink="/cliente/citas" routerLinkActive="bn-item--active" class="bn-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span>Mis citas</span>
+        </a>
+        <a routerLink="/cliente/mensajes" routerLinkActive="bn-item--active" class="bn-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>Mensajes</span>
+        </a>
+        <a routerLink="/cliente/perfil" routerLinkActive="bn-item--active" class="bn-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span>Perfil</span>
+        </a>
+      </nav>
+    }
   `,
 })
 export class PublicNavComponent {
