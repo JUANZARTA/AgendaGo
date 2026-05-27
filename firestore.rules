@@ -105,11 +105,24 @@ service cloud.firestore {
         (request.resource.data.senderRole == 'client'  && request.resource.data.clientId == request.auth.uid) ||
         (request.resource.data.senderRole == 'company' && isCompanyOwner(request.resource.data.companyId))
       );
-      // Marcar como leído
       allow update: if isAuth() && (
+        // Marcar como leído
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
+         (resource.data.clientId == request.auth.uid || isCompanyOwner(resource.data.companyId))) ||
+        // Editar mensaje propio (solo texto)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited', 'editedAt']) &&
+         ((resource.data.senderRole == 'client'  && resource.data.clientId == request.auth.uid) ||
+          (resource.data.senderRole == 'company' && isCompanyOwner(resource.data.companyId)))) ||
+        // Borrar mensaje propio (soft delete)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'text']) &&
+         ((resource.data.senderRole == 'client'  && resource.data.clientId == request.auth.uid) ||
+          (resource.data.senderRole == 'company' && isCompanyOwner(resource.data.companyId))))
+      );
+      // Hard delete (para borrar conversación completa)
+      allow delete: if isAuth() && (
         resource.data.clientId == request.auth.uid ||
         isCompanyOwner(resource.data.companyId)
-      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      );
     }
   }
 }

@@ -2,6 +2,7 @@ import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { MessageService } from '../../core/services/message.service';
+import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { ClientOnboardingComponent } from './onboarding/client-onboarding.component';
 import { Subscription } from 'rxjs';
 
@@ -13,7 +14,7 @@ import { Subscription } from 'rxjs';
     @if (authSvc.profileLoaded() && !authSvc.profile()?.profileComplete) {
       <app-client-onboarding />
     } @else {
-    <div class="shell">
+    <div class="shell" (click)="notifPanelOpen.set(false)">
 
       <header class="header">
         <div class="header-inner">
@@ -70,6 +71,50 @@ import { Subscription } from 'rxjs';
             @if (unreadCount() > 0) {
               <span class="msg-badge">{{ unreadCount() }}</span>
             }
+          </a>
+
+          <!-- Notificaciones -->
+          <div style="position:relative">
+            <button class="icon-btn" title="Notificaciones" (click)="$event.stopPropagation(); toggleNotifPanel()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              @if (unreadNotifCount() > 0) {
+                <span class="notif-badge">{{ unreadNotifCount() }}</span>
+              }
+            </button>
+
+            @if (notifPanelOpen()) {
+              <div class="notif-panel" (click)="$event.stopPropagation()">
+                <div class="notif-panel-header">
+                  <span>Notificaciones</span>
+                  @if (unreadNotifCount() > 0) {
+                    <button class="notif-mark-all" (click)="markAllRead()">Marcar todas leídas</button>
+                  }
+                </div>
+                @if (notifications().length === 0) {
+                  <div class="notif-empty">Sin notificaciones</div>
+                }
+                @for (n of notifications(); track n.id) {
+                  <div class="notif-item" [class.unread]="!n.read" (click)="openNotif(n)">
+                    <div class="notif-title">{{ n.title }}</div>
+                    <div class="notif-body">{{ n.body }}</div>
+                    <div class="notif-time">{{ formatTime(n.createdAt) }}</div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Configuración -->
+          <a routerLink="/cliente/perfil" class="icon-btn" title="Configuración">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
           </a>
 
           <!-- Avatar → perfil -->
@@ -215,6 +260,82 @@ import { Subscription } from 'rxjs';
     }
     .action-btn--exit:hover { border-color: var(--purple); color: var(--purple); }
 
+    .icon-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #888;
+      background: none;
+      border: 1.5px solid #e5e7eb;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all .15s;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .icon-btn:hover { border-color: var(--purple); color: var(--purple); }
+
+    .notif-badge {
+      position: absolute;
+      top: -3px; right: -3px;
+      background: #ef4444;
+      color: white;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 5px;
+      min-width: 16px;
+      text-align: center;
+    }
+
+    .notif-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 320px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.14);
+      z-index: 500;
+      overflow: hidden;
+      border: 1px solid #f0ebff;
+    }
+    .notif-panel-header {
+      padding: 14px 16px;
+      font-weight: 800;
+      font-size: 14px;
+      border-bottom: 1px solid #f0ebff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .notif-mark-all {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--purple);
+      font-weight: 600;
+    }
+    .notif-empty {
+      padding: 24px;
+      text-align: center;
+      color: #aaa;
+      font-size: 13px;
+    }
+    .notif-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f7f5ff;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .notif-item:hover { background: #faf8ff; }
+    .notif-item.unread { background: #f5f0ff; }
+    .notif-item.unread:hover { background: #ede9fe; }
+    .notif-title { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 2px; }
+    .notif-body  { font-size: 12px; color: #555; margin-bottom: 4px; }
+    .notif-time  { font-size: 11px; color: #aaa; }
+
     .avatar-btn {
       width: 38px; height: 38px;
       border-radius: 50%;
@@ -245,11 +366,16 @@ import { Subscription } from 'rxjs';
 })
 export class ClientShellComponent implements OnDestroy {
   readonly authSvc = inject(AuthService);
-  private msgSvc = inject(MessageService);
-  private router = inject(Router);
+  private msgSvc  = inject(MessageService);
+  private notifSvc = inject(NotificationService);
+  private router  = inject(Router);
 
-  unreadCount = signal(0);
-  private msgSub: Subscription | null = null;
+  unreadCount      = signal(0);
+  unreadNotifCount = signal(0);
+  notifications    = signal<AppNotification[]>([]);
+  notifPanelOpen   = signal(false);
+  private msgSub:   Subscription | null = null;
+  private notifSub: Subscription | null = null;
 
   initials = computed(() => {
     const name = this.authSvc.displayName() || this.authSvc.profile()?.email || '?';
@@ -257,7 +383,6 @@ export class ClientShellComponent implements OnDestroy {
   });
 
   constructor() {
-    // Watch unread messages from companies
     const uid = this.authSvc.currentUser()?.uid;
     if (uid) {
       this.msgSub = this.msgSvc.watchByClient(uid).subscribe({
@@ -266,12 +391,43 @@ export class ClientShellComponent implements OnDestroy {
         },
         error: () => {},
       });
+      this.notifSub = this.notifSvc.watch(uid).subscribe({
+        next: (notifs) => {
+          this.notifications.set(notifs);
+          this.unreadNotifCount.set(notifs.filter(n => !n.read).length);
+        },
+        error: () => {},
+      });
     }
+  }
+
+  toggleNotifPanel() {
+    this.notifPanelOpen.update(v => !v);
+  }
+
+  async openNotif(n: AppNotification) {
+    if (!n.read && n.id) await this.notifSvc.markRead(n.id);
+    this.notifPanelOpen.set(false);
+    if (n.link) this.router.navigateByUrl(n.link);
+  }
+
+  async markAllRead() {
+    const uid = this.authSvc.currentUser()?.uid;
+    if (uid) await this.notifSvc.markAllRead(uid);
+  }
+
+  formatTime(ts: any): string {
+    if (!ts) return '';
+    const d: Date = ts?.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   }
 
   logout() {
     this.authSvc.logout().subscribe({ complete: () => this.router.navigate(['/']) });
   }
 
-  ngOnDestroy() { this.msgSub?.unsubscribe(); }
+  ngOnDestroy() {
+    this.msgSub?.unsubscribe();
+    this.notifSub?.unsubscribe();
+  }
 }
