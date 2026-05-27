@@ -63,3 +63,29 @@ Reducir la fricción de los nuevos usuarios sin necesidad de documentación exte
 npm install driver.js
 ```
 Crear un `TourService` que encapsule los pasos y sea invocado desde cada shell component (`ClientShellComponent`, `CompanyShellComponent`) en el primer login.
+
+---
+
+## Expiración de citas pendientes sin confirmar
+
+**Problema**
+Si una cita queda en estado `pending` y llega o pasa la hora acordada sin que la empresa la confirme, el estado queda inconsistente — la cita "ocurrió" pero nunca fue gestionada.
+
+**Decisión actual (MVP)**
+No se cancela automáticamente. Las citas vencidas se muestran visualmente diferenciadas (badge "Vencida" o grisadas) pero el estado en Firestore no cambia. Implementación: comparar `appointment.date + appointment.time` con `Date.now()` al renderizar.
+
+**Solución post-MVP recomendada: Ventana de confirmación (Opción B)**
+Dar a la empresa un plazo para confirmar (ej. hasta 1h antes del turno). Si no confirma, una Cloud Function con cron cancela la cita automáticamente y notifica al cliente.
+
+**Opciones evaluadas**
+
+| Opción | Descripción | Requiere |
+|--------|-------------|----------|
+| A — Expirar automáticamente | Cron revisa cada X min y cancela pendientes pasadas | Cloud Functions deployadas |
+| B — Ventana de confirmación | Cancela si no confirman X horas antes | Cloud Functions + config por empresa |
+| C — Visual únicamente *(elegida para MVP)* | Badge "Vencida" en UI, sin tocar Firestore | Solo frontend |
+
+**Condición para activar Opción B**
+- Cloud Functions deployadas y estables en producción
+- Definir ventana por empresa (campo `confirmationWindowHours` en Firestore)
+- Notificación al cliente: "Tu cita no fue confirmada a tiempo y fue cancelada automáticamente"

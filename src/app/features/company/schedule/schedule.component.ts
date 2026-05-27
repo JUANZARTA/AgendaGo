@@ -459,12 +459,14 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
                         type="time"
                         [value]="range.open"
                         (change)="updateRange(day.key, i, 'open', $any($event.target).value)" />
+                      <span style="font-size:10px;font-weight:700;color:#888;min-width:20px">{{ ampm(range.open) }}</span>
                       <span class="time-sep">—</span>
                       <input
                         class="time-input"
                         type="time"
                         [value]="range.close"
                         (change)="updateRange(day.key, i, 'close', $any($event.target).value)" />
+                      <span style="font-size:10px;font-weight:700;color:#888;min-width:20px">{{ ampm(range.close) }}</span>
 
                       @if (day.ranges.length > 1) {
                         <button
@@ -598,6 +600,12 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
 export class ScheduleComponent {
   private companyStore = inject(CompanyStore);
   private companySvc   = inject(CompanyService);
+
+  ampm(t: string): string {
+    if (!t) return '';
+    const [h] = t.split(':').map(Number);
+    return h < 12 ? 'AM' : 'PM';
+  }
 
   readonly durations = SLOT_DURATIONS;
 
