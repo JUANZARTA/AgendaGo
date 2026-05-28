@@ -81,8 +81,8 @@ interface AdminSub {
                   <td style="padding:12px;font-weight:600">{{ s.companyName }}</td>
                   <td style="padding:12px;color:#555;font-size:13px">{{ s.ownerEmail }}</td>
                   <td style="padding:12px">
-                    <span class="badge" [class]="STATUS_CLASS[s.status] ?? 'badge-blue'">
-                      {{ STATUS_LABEL[s.status] ?? s.status }}
+                    <span class="badge" [class]="STATUS_CLASS[s.status] || 'badge-blue'">
+                      {{ STATUS_LABEL[s.status] || s.status }}
                     </span>
                   </td>
                   <td style="padding:12px;color:#555;font-size:13px">{{ s.periodEndLabel || s.trialEndLabel }}</td>

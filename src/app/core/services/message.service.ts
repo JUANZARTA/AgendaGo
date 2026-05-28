@@ -12,6 +12,7 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  writeBatch,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 
@@ -93,6 +94,20 @@ export class MessageService {
         (err) => observer.error(err),
       );
     });
+  }
+
+  async markRead(companyId: string, clientId: string, readerRole: 'client' | 'company'): Promise<void> {
+    const otherRole = readerRole === 'company' ? 'client' : 'company';
+    const q = query(this.col, where('companyId', '==', companyId), where('clientId', '==', clientId));
+    const snap = await getDocs(q);
+    const unread = snap.docs.filter(d => {
+      const m = d.data() as Message;
+      return m.senderRole === otherRole && !m.read;
+    });
+    if (!unread.length) return;
+    const batch = writeBatch(this.firestore);
+    unread.forEach(d => batch.update(d.ref, { read: true }));
+    await batch.commit();
   }
 
   watchConversations(companyId: string): Observable<Message[]> {

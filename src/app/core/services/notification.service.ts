@@ -8,7 +8,7 @@ import { Observable } from 'rxjs';
 export interface AppNotification {
   id?: string;
   recipientId: string;
-  type: 'new_appointment' | 'appointment_confirmed' | 'appointment_cancelled' | 'new_review' | 'new_company' | 'plan_changed' | 'payment_initiated';
+  type: 'new_appointment' | 'appointment_confirmed' | 'appointment_cancelled' | 'new_review' | 'new_company' | 'plan_changed' | 'payment_initiated' | 'new_message';
   title: string;
   body: string;
   read: boolean;

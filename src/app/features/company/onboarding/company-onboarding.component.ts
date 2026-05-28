@@ -667,13 +667,13 @@ const SLOT_OPTIONS = [
 
               <div class="grid-2" style="margin-bottom:10px">
                 <div>
-                  <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px">Duración</label>
-                  <select [(ngModel)]="newSvc.duration"
-                    style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%222%22%3E%3Cpolyline points=%226 9 12 15 18 9%22/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer">
-                    @for (opt of slotOptions; track opt.value) {
-                      <option [ngValue]="opt.value">{{ opt.label }}</option>
-                    }
-                  </select>
+                  <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px">Duración (minutos)</label>
+                  <div style="display:flex;align-items:center;border:1.5px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                    <input type="number" [(ngModel)]="newSvc.duration" min="5" step="5"
+                      style="flex:1;border:none;padding:10px 13px;font-size:13px;font-family:inherit;outline:none;width:100%;box-sizing:border-box" />
+                    <span style="padding:10px 11px;background:#f9f5ff;border-left:1.5px solid #e5e7eb;font-size:12px;color:#888;flex-shrink:0;user-select:none">min</span>
+                  </div>
+                  <p style="font-size:11px;color:#aaa;margin:4px 0 0">Recomendamos múltiplos de 15 (15, 30, 45, 60, 90, 120…)</p>
                 </div>
                 <div>
                   <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:5px">Precio</label>

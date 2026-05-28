@@ -199,6 +199,17 @@ interface NavItem {
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                         <polyline points="9 22 9 12 15 12 15 22"/>
                       }
+                      @case ('plan_changed') {
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                        <line x1="1" y1="10" x2="23" y2="10"/>
+                      }
+                      @case ('payment_initiated') {
+                        <line x1="12" y1="1" x2="12" y2="23"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      }
+                      @case ('new_message') {
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      }
                     }
                   </svg>
                 </div>
@@ -502,6 +513,9 @@ export class AdminShellComponent implements OnDestroy {
       appointment_cancelled: 'icon-cancelled',
       new_review:            'icon-review',
       new_company:           'icon-company',
+      plan_changed:          'icon-company',
+      payment_initiated:     'icon-appointment',
+      new_message:           'icon-appointment',
     } as any)[type] ?? 'icon-appointment';
   }
 

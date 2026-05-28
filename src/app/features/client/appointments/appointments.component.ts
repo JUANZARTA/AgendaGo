@@ -28,18 +28,28 @@ const STATUS_CLASS: Record<string, string> = {
   template: `
     <!-- Hero -->
     <div class="hero" style="margin-bottom:0;padding:32px 20px 28px">
-      <div style="position:relative;z-index:1;max-width:640px;margin:0 auto">
-        <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:4px;color:white">Mis citas</h1>
-        <p style="font-size:0.95rem;opacity:.85;color:white;margin-bottom:16px">Historial de citas agendadas</p>
-        <a routerLink="/"
-           style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-size:14px;font-weight:700;color:white;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);text-decoration:none;transition:all .15s;backdrop-filter:blur(4px)"
+      <div style="position:relative;z-index:1;max-width:640px;margin:0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div>
+          <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:4px;color:white">Mis citas</h1>
+          <p style="font-size:0.95rem;opacity:.85;color:white;margin-bottom:16px">Historial de citas agendadas</p>
+          <a routerLink="/"
+             style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-size:14px;font-weight:700;color:white;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);text-decoration:none;transition:all .15s;backdrop-filter:blur(4px)"
+             onmouseover="this.style.background='rgba(255,255,255,.28)'"
+             onmouseout="this.style.background='rgba(255,255,255,.18)'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            Buscar negocios
+          </a>
+        </div>
+        <a routerLink="/cliente/mensajes" title="Mensajes"
+           style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);color:white;text-decoration:none;flex-shrink:0;backdrop-filter:blur(4px);transition:background .15s"
            onmouseover="this.style.background='rgba(255,255,255,.28)'"
            onmouseout="this.style.background='rgba(255,255,255,.18)'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          Buscar negocios
         </a>
       </div>
     </div>
@@ -57,6 +67,24 @@ const STATUS_CLASS: Record<string, string> = {
             </button>
           }
         </div>
+
+        <!-- Borrado masivo -->
+        @if (count('cancelled') > 0 || count('completed') > 0) {
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            @if (count('cancelled') > 0) {
+              <button class="bulk-btn" (click)="bulkDeleteTarget.set('cancelled')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+                Borrar canceladas ({{ count('cancelled') }})
+              </button>
+            }
+            @if (count('completed') > 0) {
+              <button class="bulk-btn" (click)="bulkDeleteTarget.set('completed')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+                Borrar completadas ({{ count('completed') }})
+              </button>
+            }
+          </div>
+        }
 
         <!-- Cargando -->
         @if (loading()) {
@@ -127,7 +155,7 @@ const STATUS_CLASS: Record<string, string> = {
                       Mensaje
                     </a>
                   }
-                  <!-- Cancelar -->
+                  <!-- Cancelar (pending/scheduled) -->
                   @if (appt.status === 'pending' || appt.status === 'scheduled') {
                     @if (confirmCancelId() === appt.id) {
                       <span style="font-size:13px;color:#555">¿Cancelar?</span>
@@ -138,6 +166,21 @@ const STATUS_CLASS: Record<string, string> = {
                     } @else {
                       <button class="cancel-link" (click)="confirmCancelId.set(appt.id!)">
                         Cancelar cita
+                      </button>
+                    }
+                  }
+                  <!-- Eliminar (cancelled/completed) -->
+                  @if (appt.status === 'cancelled' || appt.status === 'completed') {
+                    @if (confirmDeleteId() === appt.id) {
+                      <span style="font-size:13px;color:#555">¿Eliminar?</span>
+                      <button class="btn btn-danger btn-sm" (click)="doDelete(appt.id!)" [disabled]="deleting()">
+                        @if (deleting()) { ... } @else { Sí }
+                      </button>
+                      <button class="btn btn-secondary btn-sm" (click)="confirmDeleteId.set(null)">No</button>
+                    } @else {
+                      <button class="delete-link" (click)="confirmDeleteId.set(appt.id!)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+                        Eliminar
                       </button>
                     }
                   }
@@ -162,6 +205,22 @@ const STATUS_CLASS: Record<string, string> = {
 
       </div>
     </div>
+
+    <!-- Modal confirmación borrado masivo -->
+    @if (bulkDeleteTarget()) {
+      <div class="confirm-overlay" (click)="bulkDeleteTarget.set(null)">
+        <div class="confirm-card" (click)="$event.stopPropagation()">
+          <h3>¿Borrar todas las {{ bulkDeleteTarget() === 'cancelled' ? 'canceladas' : 'completadas' }}?</h3>
+          <p>Se eliminarán {{ count(bulkDeleteTarget()!) }} citas permanentemente. Esta acción no se puede deshacer.</p>
+          <div class="confirm-actions">
+            <button class="btn btn-secondary btn-sm" (click)="bulkDeleteTarget.set(null)" [disabled]="bulkDeleting()">Cancelar</button>
+            <button class="btn btn-danger btn-sm" (click)="doBulkDelete()" [disabled]="bulkDeleting()">
+              @if (bulkDeleting()) { Borrando... } @else { Sí, borrar }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     :host { display: block; }
@@ -250,18 +309,54 @@ const STATUS_CLASS: Record<string, string> = {
       color: var(--purple);
     }
 
-    /* Cancel link */
-    .cancel-link {
+    /* Cancel / Delete links */
+    .cancel-link, .delete-link {
       background: none;
       border: none;
       cursor: pointer;
       font-family: inherit;
       font-size: 13px;
       font-weight: 700;
-      color: var(--purple);
       padding: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
+    .cancel-link { color: var(--purple); }
     .cancel-link:hover { text-decoration: underline; }
+    .delete-link { color: #dc2626; }
+    .delete-link:hover { text-decoration: underline; }
+
+    /* Bulk delete buttons */
+    .bulk-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1.5px solid #fecaca;
+      background: #fff5f5;
+      color: #dc2626;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .bulk-btn:hover { background: #fee2e2; border-color: #f87171; }
+
+    /* Modal */
+    .confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      z-index: 999; display: flex; align-items: center; justify-content: center;
+    }
+    .confirm-card {
+      background: white; border-radius: 16px; padding: 28px 24px;
+      max-width: 360px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,.15);
+    }
+    .confirm-card h3 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 800; }
+    .confirm-card p  { margin: 0 0 20px; font-size: 13px; color: #666; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
     /* Empty */
     .empty-state {
@@ -294,12 +389,16 @@ export class AppointmentsComponent implements OnDestroy {
   STATUS_CLASS = STATUS_CLASS;
   STATUS_LABEL = STATUS_LABEL;
 
-  appointments = signal<Appointment[]>([]);
-  activeFilter = signal<string>('all');
-  loading = signal(true);
-  error = signal('');
-  confirmCancelId = signal<string | null>(null);
-  cancelling = signal(false);
+  appointments     = signal<Appointment[]>([]);
+  activeFilter     = signal<string>('all');
+  loading          = signal(true);
+  error            = signal('');
+  confirmCancelId  = signal<string | null>(null);
+  cancelling       = signal(false);
+  confirmDeleteId  = signal<string | null>(null);
+  deleting         = signal(false);
+  bulkDeleteTarget = signal<'cancelled' | 'completed' | null>(null);
+  bulkDeleting     = signal(false);
 
   private sub: Subscription | null = null;
 
@@ -375,6 +474,33 @@ export class AppointmentsComponent implements OnDestroy {
       this.error.set('No se pudo cancelar. Intentá de nuevo.');
     } finally {
       this.cancelling.set(false);
+    }
+  }
+
+  async doDelete(id: string) {
+    this.deleting.set(true);
+    try {
+      await this.aptSvc.deleteAppointment(id);
+      this.confirmDeleteId.set(null);
+    } catch {
+      this.error.set('No se pudo eliminar. Intentá de nuevo.');
+    } finally {
+      this.deleting.set(false);
+    }
+  }
+
+  async doBulkDelete() {
+    const status = this.bulkDeleteTarget();
+    if (!status) return;
+    const targets = this.appointments().filter(a => a.status === status);
+    this.bulkDeleting.set(true);
+    try {
+      await Promise.all(targets.map(a => this.aptSvc.deleteAppointment(a.id!)));
+      this.bulkDeleteTarget.set(null);
+    } catch {
+      this.error.set('Error al borrar algunas citas. Intentá de nuevo.');
+    } finally {
+      this.bulkDeleting.set(false);
     }
   }
 

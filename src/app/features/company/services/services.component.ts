@@ -141,14 +141,6 @@ const EMPTY: Omit<ServiceItem, 'id'> = { name: '', description: '', duration: 30
             </div>
           </div>
 
-          <div class="form-group">
-            <label>Profesionales que atienden este servicio</label>
-            <select [(ngModel)]="draft.staffCount">
-              @for (n of [1,2,3,4,5,6,7,8]; track n) {
-                <option [ngValue]="n">{{ n }} {{ n === 1 ? 'profesional' : 'profesionales' }}</option>
-              }
-            </select>
-          </div>
 
           <div style="display:flex;gap:10px;margin-top:8px">
             <button class="btn btn-primary" style="flex:1" (click)="save()" [disabled]="!draft.name || saving()">

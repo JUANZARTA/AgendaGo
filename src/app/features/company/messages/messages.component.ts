@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MessageService, Message } from '../../../core/services/message.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { Subscription } from 'rxjs';
 
 interface Conversation {
@@ -19,28 +20,28 @@ interface Conversation {
   standalone: true,
   imports: [CommonModule, FormsModule],
   styles: [`
-    .msg-layout { display: flex; height: calc(100vh - 120px); gap: 0; background: white; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
-    .conv-list { width: 300px; flex-shrink: 0; border-right: 1.5px solid #f0ebff; overflow-y: auto; }
-    .conv-header { padding: 20px; font-size: 1rem; font-weight: 800; border-bottom: 1.5px solid #f0ebff; }
-    .conv-item { padding: 16px 20px; cursor: pointer; border-bottom: 1px solid #f7f5ff; transition: background .15s; position: relative; }
+    .msg-layout { display: flex; height: min(580px, calc(100vh - 180px)); gap: 0; background: white; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+    .conv-list { width: 280px; flex-shrink: 0; border-right: 1.5px solid #f0ebff; overflow-y: auto; }
+    .conv-header { padding: 16px 20px; font-size: 1rem; font-weight: 800; border-bottom: 1.5px solid #f0ebff; }
+    .conv-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f7f5ff; transition: background .15s; position: relative; }
     .conv-item:hover { background: #faf8ff; }
     .conv-item.active { background: #f5f0ff; }
-    .conv-name { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 3px; }
+    .conv-name { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 2px; }
     .conv-preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .conv-badge { background: var(--purple); color: white; border-radius: 20px; font-size: 11px; font-weight: 700; padding: 2px 8px; }
     .conv-delete-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #ccc; padding: 4px; border-radius: 6px; opacity: 0; transition: opacity .15s, color .15s; }
     .conv-item:hover .conv-delete-btn { opacity: 1; }
     .conv-delete-btn:hover { color: #ef4444; }
     .chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    .chat-header { padding: 18px 24px; border-bottom: 1.5px solid #f0ebff; font-weight: 800; font-size: 15px; }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    .chat-header { padding: 14px 20px; border-bottom: 1.5px solid #f0ebff; font-weight: 800; font-size: 15px; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; }
     .msg-row { display: flex; flex-direction: column; position: relative; }
     .msg-row.company { align-items: flex-end; }
     .msg-row.client  { align-items: flex-start; }
-    .msg-wrapper { position: relative; display: flex; align-items: center; gap: 4px; }
+    .msg-wrapper { position: relative; display: flex; align-items: center; gap: 4px; max-width: 72%; }
     .msg-wrapper.company { flex-direction: row-reverse; }
-    .msg-bubble { max-width: 70%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; }
-    .msg-bubble.client  { background: #f5f0ff; color: #1a1a2e; border-bottom-left-radius: 4px; }
+    .msg-bubble { padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; }
+    .msg-bubble.client  { background: #f0f4ff; color: #1a1a2e; border-bottom-left-radius: 4px; }
     .msg-bubble.company { background: var(--gradient); color: white; border-bottom-right-radius: 4px; }
     .msg-bubble.deleted { background: #f3f4f6; color: #9ca3af; font-style: italic; }
     .msg-meta { font-size: 11px; color: #aaa; margin-top: 2px; display: flex; gap: 6px; align-items: center; }
@@ -55,10 +56,10 @@ interface Conversation {
     .msg-dropdown button:hover { background: #f9fafb; }
     .msg-dropdown button.danger { color: #ef4444; }
     .msg-dropdown button.danger:hover { background: #fef2f2; }
-    .edit-input { padding: 8px 12px; border: 1.5px solid var(--purple); border-radius: 10px; font-size: 14px; font-family: inherit; outline: none; width: 260px; max-width: 70vw; }
+    .edit-input { padding: 8px 12px; border: 1.5px solid var(--purple); border-radius: 10px; font-size: 14px; font-family: inherit; outline: none; width: 240px; max-width: 65vw; }
     .edit-actions { display: flex; gap: 6px; margin-top: 4px; }
-    .chat-input-row { padding: 16px 20px; border-top: 1.5px solid #f0ebff; display: flex; gap: 10px; }
-    .chat-input { flex: 1; padding: 12px 16px; border: 1.5px solid #ede9fe; border-radius: 12px; font-size: 14px; outline: none; font-family: inherit; }
+    .chat-input-row { padding: 12px 16px; border-top: 1.5px solid #f0ebff; display: flex; gap: 10px; }
+    .chat-input { flex: 1; padding: 11px 16px; border: 1.5px solid #ede9fe; border-radius: 24px; font-size: 14px; outline: none; font-family: inherit; }
     .chat-input:focus { border-color: var(--purple); }
     .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #aaa; gap: 12px; }
     .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 999; display: flex; align-items: center; justify-content: center; }
@@ -67,8 +68,9 @@ interface Conversation {
     .confirm-card p { margin: 0 0 20px; font-size: 14px; color: #666; }
     .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
     @media (max-width: 640px) {
-      .msg-layout { flex-direction: column; height: auto; }
-      .conv-list { width: 100%; border-right: none; border-bottom: 1.5px solid #f0ebff; max-height: 200px; }
+      .msg-layout { flex-direction: column; height: auto; min-height: 400px; }
+      .conv-list { width: 100%; border-right: none; border-bottom: 1.5px solid #f0ebff; max-height: 180px; }
+      .msg-wrapper { max-width: 85%; }
     }
   `],
   template: `
@@ -180,9 +182,10 @@ interface Conversation {
   `,
 })
 export class MessagesComponent implements OnDestroy {
-  private msgService = inject(MessageService);
+  private msgService   = inject(MessageService);
   private companyStore = inject(CompanyStore);
-  private auth = inject(AuthService);
+  private auth         = inject(AuthService);
+  private notifSvc     = inject(NotificationService);
 
   conversations    = signal<Conversation[]>([]);
   selectedClientId = signal<string | null>(null);
@@ -247,6 +250,8 @@ export class MessagesComponent implements OnDestroy {
     );
     this.closeMenu();
     this.cancelEdit();
+    const companyId = this.companyStore.companyId();
+    if (companyId) this.msgService.markRead(companyId, c.clientId, 'company').catch(() => {});
   }
 
   async sendReply() {
@@ -266,6 +271,14 @@ export class MessagesComponent implements OnDestroy {
         senderRole: 'company',
         text,
       });
+      const companyName = this.companyStore.company()?.name ?? 'Empresa';
+      this.notifSvc.create({
+        recipientId: clientId,
+        type: 'new_message',
+        title: `${companyName} te escribió`,
+        body: text.length > 80 ? text.slice(0, 80) + '…' : text,
+        link: `/cliente/mensajes?companyId=${companyId}&companyName=${encodeURIComponent(companyName)}`,
+      }).catch(() => {});
     } catch {
       this.replyText = text;
     } finally {

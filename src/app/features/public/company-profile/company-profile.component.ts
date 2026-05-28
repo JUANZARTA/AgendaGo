@@ -46,6 +46,7 @@ function buildDays(n: number) {
     @media (max-width: 640px) {
       input, select, textarea { font-size: 16px !important; }
       .step-dot { width: 22px !important; height: 22px !important; font-size: 11px !important; }
+      .step-label { display: none !important; }
     }
 
     @media (max-width: 480px) {
@@ -183,7 +184,7 @@ function buildDays(n: number) {
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   } @else { {{ step.n }} }
                 </div>
-                <span style="font-size:11px;font-weight:600;margin-left:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                <span class="step-label" style="font-size:11px;font-weight:600;margin-left:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
                       [style.color]="currentStep() >= step.n ? 'var(--purple)' : '#c4b5fd'">
                   {{ step.label }}
                 </span>

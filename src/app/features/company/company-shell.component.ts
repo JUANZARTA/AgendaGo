@@ -12,7 +12,7 @@ import { NotificationService, AppNotification } from '../../core/services/notifi
 interface NavItem {
   label: string;
   route: string;
-  icon: 'grid' | 'list' | 'clock' | 'settings' | 'star' | 'credit-card' | 'users' | 'message';
+  icon: 'grid' | 'list' | 'clock' | 'settings' | 'star' | 'credit-card' | 'users' | 'message' | 'bar-chart';
 }
 
 @Component({
@@ -104,6 +104,11 @@ interface NavItem {
                     }
                     @case ('message') {
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    }
+                    @case ('bar-chart') {
+                      <line x1="18" y1="20" x2="18" y2="10"/>
+                      <line x1="12" y1="20" x2="12" y2="4"/>
+                      <line x1="6" y1="20" x2="6" y2="14"/>
                     }
                   }
                 </svg>
@@ -245,6 +250,7 @@ interface NavItem {
                       @case ('users') { <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/> }
                       @case ('star') { <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/> }
                       @case ('credit-card') { <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/> }
+                      @case ('bar-chart') { <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/> }
                     }
                   </svg>
                   {{ item.label }}
@@ -302,6 +308,17 @@ interface NavItem {
                         @case ('new_company') {
                           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                           <polyline points="9 22 9 12 15 12 15 22"/>
+                        }
+                        @case ('plan_changed') {
+                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                          <line x1="1" y1="10" x2="23" y2="10"/>
+                        }
+                        @case ('payment_initiated') {
+                          <line x1="12" y1="1" x2="12" y2="23"/>
+                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        }
+                        @case ('new_message') {
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         }
                       }
                     </svg>
@@ -798,6 +815,9 @@ export class CompanyShellComponent implements OnDestroy {
       appointment_cancelled: 'icon-cancelled',
       new_review:            'icon-review',
       new_company:           'icon-company',
+      plan_changed:          'icon-company',
+      payment_initiated:     'icon-appointment',
+      new_message:           'icon-appointment',
     } as any)[type] ?? 'icon-appointment';
   }
 
@@ -822,8 +842,9 @@ export class CompanyShellComponent implements OnDestroy {
     { label: 'Perfil',      route: '/empresa/perfil',      icon: 'settings'    },
     { label: 'Equipo',      route: '/empresa/equipo',      icon: 'users'       },
     { label: 'Reseñas',     route: '/empresa/resenas',     icon: 'star'        },
-    { label: 'Mensajes',    route: '/empresa/mensajes',    icon: 'message'     },
-    { label: 'Facturación', route: '/empresa/facturacion', icon: 'credit-card' },
+    { label: 'Mensajes',      route: '/empresa/mensajes',      icon: 'message'     },
+    { label: 'Estadísticas',  route: '/empresa/estadisticas',  icon: 'bar-chart'   },
+    { label: 'Facturación',   route: '/empresa/facturacion',   icon: 'credit-card' },
   ];
 
   // Bottom bar mobile: 4 main + "Más"
@@ -837,7 +858,8 @@ export class CompanyShellComponent implements OnDestroy {
   readonly extraNavItems: NavItem[] = [
     { label: 'Perfil',      route: '/empresa/perfil',      icon: 'settings'    },
     { label: 'Equipo',      route: '/empresa/equipo',      icon: 'users'       },
-    { label: 'Reseñas',     route: '/empresa/resenas',     icon: 'star'        },
-    { label: 'Facturación', route: '/empresa/facturacion', icon: 'credit-card' },
+    { label: 'Reseñas',       route: '/empresa/resenas',       icon: 'star'        },
+    { label: 'Estadísticas',  route: '/empresa/estadisticas',  icon: 'bar-chart'   },
+    { label: 'Facturación',   route: '/empresa/facturacion',   icon: 'credit-card' },
   ];
 }
