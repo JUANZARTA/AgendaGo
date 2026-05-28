@@ -473,20 +473,20 @@ export class BillingComponent implements OnDestroy {
     });
   }
 
-  private wompiCheckout(plan: string, amountInCents: number): void {
-    const companyId = this.companyStore.companyId() ?? 'unknown';
-    const ref = `${plan}-${companyId}-${Date.now()}`;
-    const url = `https://checkout.wompi.co/p/?public-key=${environment.wompiPublicKey}&currency=COP&amount-in-cents=${amountInCents}&reference=${ref}`;
-    window.open(url, '_blank');
-  }
 
   payMonthly(): void {
-    this.wompiCheckout('mensual', 2900000);
+    const companyId = this.companyStore.companyId() ?? 'unknown';
+    const ref = `mensual-${companyId}-${Date.now()}`;
+    const url = `https://checkout.wompi.co/l/6btIw2?reference=${ref}`;
+    window.open(url, '_blank');
     this.notifyAdminPayment('Mensual', '$29.000');
   }
 
   paySemestral(): void {
-    this.wompiCheckout('semestral', 15660000);
+    const companyId = this.companyStore.companyId() ?? 'unknown';
+    const ref = `semestral-${companyId}-${Date.now()}`;
+    const url = `https://checkout.wompi.co/l/3pQr9V?reference=${ref}`;
+    window.open(url, '_blank');
     this.notifyAdminPayment('Semestral', '$156.600');
   }
 

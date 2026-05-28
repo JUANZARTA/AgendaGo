@@ -11,7 +11,6 @@ import {
   where,
   orderBy,
 } from '@angular/fire/firestore';
-import { Storage, ref, uploadBytes, getDownloadURL } from '@angular/fire/storage';
 
 export interface StaffDaySchedule {
   enabled: boolean;
@@ -32,7 +31,6 @@ export interface StaffMember {
 @Injectable({ providedIn: 'root' })
 export class StaffService {
   private firestore = inject(Firestore);
-  private storage   = inject(Storage);
 
   private ref(companyId: string) {
     return collection(this.firestore, 'companies', companyId, 'staff');
@@ -75,9 +73,4 @@ export class StaffService {
     await deleteDoc(doc(this.ref(companyId), staffId));
   }
 
-  async uploadPhoto(companyId: string, staffId: string, file: File): Promise<string> {
-    const storageRef = ref(this.storage, `staff/${companyId}/${staffId}`);
-    await uploadBytes(storageRef, file);
-    return getDownloadURL(storageRef);
-  }
 }

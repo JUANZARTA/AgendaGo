@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Fotos de perfil de empresa
+    match /companies/{companyId}/{fileName} {
+      allow read:  if true;
+      allow write: if request.auth != null
+                   && request.auth.uid != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Fotos de staff / integrantes
+    match /staff/{companyId}/{staffId} {
+      allow read:  if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Todo lo demás denegado
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -456,8 +456,13 @@ export class StaffComponent {
   onPhotoChange(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    this.photoFile.set(file);
-    this.photoPreview.set(URL.createObjectURL(file));
+    if (file.size > 2 * 1024 * 1024) { alert('La imagen supera los 2MB.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.photoPreview.set(reader.result as string);
+      this.photoFile.set(file);
+    };
+    reader.readAsDataURL(file);
   }
 
   readonly dayOrder  = DAY_ORDER;
@@ -495,13 +500,8 @@ export class StaffComponent {
     this.saving.set(true);
     try {
       const id = this.editId();
-      // Determine the staffId to use for photo upload (existing or temporary new one)
-      const draftId = id ?? `new_${Date.now()}`;
-      let photoURL = this.draft.photoURL;
-
-      if (this.photoFile()) {
-        photoURL = await this.staffSvc.uploadPhoto(cid, id ?? draftId, this.photoFile()!);
-      }
+      // Foto: se guarda como base64 en Firestore (igual que empresa)
+      const photoURL = this.photoPreview() ?? this.draft.photoURL;
 
       const hasServices = this.draft.serviceIds.length > 0;
       const payload: Omit<StaffMember, 'id'> = {

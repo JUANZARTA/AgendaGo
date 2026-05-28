@@ -22,15 +22,7 @@ interface NavItem {
 
         <!-- Branding -->
         <div class="logo">
-          <svg class="logo-icon" viewBox="0 0 24 24" fill="none"
-               stroke="white" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="6" cy="6" r="3"/>
-            <circle cx="18" cy="6" r="3"/>
-            <line x1="8.5" y1="8.5" x2="18" y2="18"/>
-            <line x1="5.5" y1="8.5" x2="15" y2="18"/>
-            <line x1="12" y1="16" x2="12" y2="22"/>
-          </svg>
+          <img src="images/logo.png" alt="Agenda Co" style="height:44px;width:auto;object-fit:contain" />
           <div class="logo-text-group">
             <span class="logo-text">Agenda Co</span>
             <span class="logo-sub">Admin Panel</span>

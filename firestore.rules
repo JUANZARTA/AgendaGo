@@ -4,7 +4,6 @@ service cloud.firestore {
 
     function isAuth() { return request.auth != null; }
 
-    // Roles viven en Firestore users/{uid}.role, no en custom claims
     function userRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
@@ -28,9 +27,9 @@ service cloud.firestore {
 
     // COMPANIES
     match /companies/{companyId} {
+      // Quitado isCompanyOwner() redundante — ya cubierto por la condición anterior (get() extra innecesario)
       allow read: if resource.data.isPublic == true
                   || (isAuth() && request.auth.uid == resource.data.ownerId)
-                  || isCompanyOwner(companyId)
                   || isSuperAdmin();
       allow create: if isCompany() || isSuperAdmin();
       allow update: if isCompanyOwner(companyId) || isSuperAdmin() ||
@@ -62,14 +61,15 @@ service cloud.firestore {
         isCompanyOwner(resource.data.companyId) ||
         isSuperAdmin()
       );
-      allow delete: if isSuperAdmin();
+      // Clientes pueden borrar sus propias citas (canceladas/completadas)
+      allow delete: if isSuperAdmin() ||
+        (isAuth() && resource.data.clientId == request.auth.uid);
     }
 
     // REVIEWS
     match /reviews/{reviewId} {
       allow read:   if true;
       allow create: if isAuth() && request.resource.data.clientId == request.auth.uid;
-      // empresa responde (solo campos reply y replyAt)
       allow update: if isSuperAdmin() ||
         (isAuth() &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply', 'replyAt']) &&
@@ -88,7 +88,8 @@ service cloud.firestore {
       allow read: if isAuth() && (
         resource.data.recipientId == request.auth.uid || isSuperAdmin()
       );
-      allow create: if true;
+      // Requiere autenticación — evita spam de notificaciones anónimas
+      allow create: if isAuth();
       allow update: if isAuth() && (
         resource.data.recipientId == request.auth.uid || isSuperAdmin()
       );
@@ -118,7 +119,6 @@ service cloud.firestore {
          ((resource.data.senderRole == 'client'  && resource.data.clientId == request.auth.uid) ||
           (resource.data.senderRole == 'company' && isCompanyOwner(resource.data.companyId))))
       );
-      // Hard delete (para borrar conversación completa)
       allow delete: if isAuth() && (
         resource.data.clientId == request.auth.uid ||
         isCompanyOwner(resource.data.companyId)

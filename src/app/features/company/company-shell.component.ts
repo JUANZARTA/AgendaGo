@@ -42,15 +42,7 @@ interface NavItem {
 
           <!-- Logo -->
           <div class="logo">
-            <svg class="logo-icon" viewBox="0 0 24 24" fill="none"
-                 stroke="white" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="6" cy="6" r="3"/>
-              <circle cx="18" cy="6" r="3"/>
-              <line x1="8.5" y1="8.5" x2="18" y2="18"/>
-              <line x1="5.5" y1="8.5" x2="15" y2="18"/>
-              <line x1="12" y1="16" x2="12" y2="22"/>
-            </svg>
+            <img src="images/logo.png" alt="Agenda Co" style="height:44px;width:auto;object-fit:contain" />
             <span class="logo-text">Agenda Co</span>
           </div>
 
@@ -160,9 +152,7 @@ interface NavItem {
 
         <!-- ── MOBILE HEADER (hidden on desktop) ────────────────────── -->
         <header class="mobile-header">
-          <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(var(--primary-rgb),.3);flex-shrink:0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>
-          </div>
+          <img src="images/logo.png" alt="Agenda Co" style="height:40px;width:auto;object-fit:contain" />
           <span style="font-weight:900;font-size:1.05rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Agenda Co</span>
           <div style="flex:1"></div>
           <!-- Campana -->

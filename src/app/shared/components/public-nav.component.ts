@@ -95,9 +95,7 @@ import { NotificationBellComponent } from './notification-bell.component';
 
         <!-- Logo -->
         <a routerLink="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0">
-          <div style="width:36px;height:36px;border-radius:10px;background:var(--gradient);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(var(--primary-rgb),.3)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>
-          </div>
+          <img src="images/logo.png" alt="Agenda Co" style="height:44px;width:auto;object-fit:contain" />
           <span style="font-weight:900;font-size:1.1rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
             Agenda Co
           </span>
