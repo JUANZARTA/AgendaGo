@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
 import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
+import { TourService } from '../../../core/services/tour.service';
 
 type OpenSection = 'none' | 'data' | 'photo';
 
@@ -362,6 +363,22 @@ type OpenSection = 'none' | 'data' | 'photo';
           <app-theme-switcher />
         </div>
 
+        <!-- TOUR -->
+        <button class="s-row" (click)="startTour()">
+          <div class="row-icon" style="background:#fef3c7">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div class="row-text">
+            <div class="row-label">Tour de la app</div>
+            <div class="row-sub">Volvé a ver el recorrido guiado</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+
       </div>
 
       <!-- ── CUENTA ─────────────────────────────────────── -->
@@ -410,10 +427,11 @@ type OpenSection = 'none' | 'data' | 'photo';
   `,
 })
 export class ClientProfileComponent {
-  readonly auth = inject(AuthService);
-  private aptSvc = inject(AppointmentService);
-  private router = inject(Router);
-  private fb = inject(FormBuilder);
+  readonly auth   = inject(AuthService);
+  private aptSvc  = inject(AppointmentService);
+  private router  = inject(Router);
+  private fb      = inject(FormBuilder);
+  private tourSvc = inject(TourService);
 
   openSection = signal<OpenSection>('none');
 
@@ -528,6 +546,8 @@ export class ClientProfileComponent {
     const [y, m, d] = date.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
   }
+
+  startTour() { this.tourSvc.restartClientTour(); }
 
   goBack() { this.router.navigate(['/cliente/citas']); }
 

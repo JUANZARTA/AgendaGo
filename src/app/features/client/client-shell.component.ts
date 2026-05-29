@@ -4,6 +4,7 @@ import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { AuthService } from '../../core/services/auth.service';
 import { MessageService } from '../../core/services/message.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
+import { TourService } from '../../core/services/tour.service';
 import { ClientOnboardingComponent } from './onboarding/client-onboarding.component';
 import { Subscription } from 'rxjs';
 
@@ -21,7 +22,7 @@ import { Subscription } from 'rxjs';
       <header class="header">
         <div class="header-inner">
 
-          <a routerLink="/" class="header-brand">
+          <a id="ctour-brand" routerLink="/" class="header-brand">
             <div class="brand-icon-wrap">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white"
                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -39,13 +40,13 @@ import { Subscription } from 'rxjs';
 
           <!-- Desktop nav -->
           <div class="header-actions desktop-only">
-            <a routerLink="/" class="action-btn action-btn--primary">
+            <a id="ctour-search-desktop" routerLink="/" class="action-btn action-btn--primary">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
               Buscar
             </a>
-            <a routerLink="/cliente/citas" routerLinkActive="action-nav--active" class="action-btn action-btn--nav">
+            <a id="ctour-citas-desktop" routerLink="/cliente/citas" routerLinkActive="action-nav--active" class="action-btn action-btn--nav">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
@@ -53,7 +54,7 @@ import { Subscription } from 'rxjs';
               </svg>
               Mis citas
             </a>
-            <a routerLink="/cliente/mensajes" routerLinkActive="action-nav--active"
+            <a id="ctour-mensajes-desktop" routerLink="/cliente/mensajes" routerLinkActive="action-nav--active"
                class="action-btn action-btn--nav" style="position:relative">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -66,7 +67,7 @@ import { Subscription } from 'rxjs';
           <!-- Bell + gear + avatar (always visible) -->
           <div class="header-icons">
             <div style="position:relative">
-              <button class="icon-btn" title="Notificaciones" (click)="$event.stopPropagation(); toggleNotifPanel()">
+              <button id="ctour-notif" class="icon-btn" title="Notificaciones" (click)="$event.stopPropagation(); toggleNotifPanel()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                   <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -111,7 +112,7 @@ import { Subscription } from 'rxjs';
               </svg>
             </a>
 
-            <a routerLink="/cliente/perfil" class="avatar-btn" [title]="authSvc.displayName()">
+            <a id="ctour-avatar" routerLink="/cliente/perfil" class="avatar-btn" [title]="authSvc.displayName()">
               @if (authSvc.profile()?.photoUrl) {
                 <img class="avatar-img" [src]="authSvc.profile()!.photoUrl!" alt="foto" />
               } @else {
@@ -163,13 +164,13 @@ import { Subscription } from 'rxjs';
 
       <!-- ── BOTTOM NAV (mobile) ───────────────────────── -->
       <nav class="bottom-nav">
-        <a routerLink="/" class="bn-item">
+        <a id="ctour-buscar-mobile" routerLink="/" class="bn-item">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <span>Buscar</span>
         </a>
-        <a routerLink="/cliente/citas" routerLinkActive="bn-item--active" class="bn-item">
+        <a id="ctour-citas-mobile" routerLink="/cliente/citas" routerLinkActive="bn-item--active" class="bn-item">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
             <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
@@ -177,14 +178,14 @@ import { Subscription } from 'rxjs';
           </svg>
           <span>Mis citas</span>
         </a>
-        <a routerLink="/cliente/mensajes" routerLinkActive="bn-item--active" class="bn-item" style="position:relative">
+        <a id="ctour-mensajes-mobile" routerLink="/cliente/mensajes" routerLinkActive="bn-item--active" class="bn-item" style="position:relative">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
           @if (unreadCount() > 0) { <span class="bn-badge">{{ unreadCount() }}</span> }
           <span>Mensajes</span>
         </a>
-        <a routerLink="/cliente/perfil" routerLinkActive="bn-item--active" class="bn-item">
+        <a id="ctour-perfil-mobile" routerLink="/cliente/perfil" routerLinkActive="bn-item--active" class="bn-item">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
             <circle cx="12" cy="7" r="4"/>
@@ -466,6 +467,7 @@ export class ClientShellComponent implements OnDestroy {
   private notifSvc  = inject(NotificationService);
   private firestore = inject(Firestore);
   private router    = inject(Router);
+  private tourSvc   = inject(TourService);
 
   isBlocked         = signal(false);
   unreadCount       = signal(0);
@@ -482,6 +484,7 @@ export class ClientShellComponent implements OnDestroy {
   });
 
   constructor() {
+    this.tourSvc.startClientTour();
     const uid = this.authSvc.currentUser()?.uid;
     if (uid) {
       this.unsubDoc = onSnapshot(doc(this.firestore, 'users', uid), snap => {

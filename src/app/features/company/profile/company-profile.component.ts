@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
+import { TourService } from '../../../core/services/tour.service';
 
 const PRESET_ICONS: { key: string; label: string; path: string }[] = [
   { key: 'scissors', label: 'Tijeras',    path: 'M6 3v12M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9v12M18 3L6 15' },
@@ -387,6 +388,22 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
       </div>
     </div>
 
+    <!-- ── Tour de la app ── -->
+    <div class="card" style="display:flex;align-items:center;gap:16px">
+      <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;color:#1a1a2e">Tour de la app</div>
+        <div style="font-size:12px;color:#888;margin-top:2px">Volvé a ver el recorrido guiado por el panel</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" (click)="startTour()">Ver tour</button>
+    </div>
+
     @if (saved()) {
       <div class="toast">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -400,6 +417,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
 export class CompanyProfileComponent {
   private companyStore = inject(CompanyStore);
   private companySvc   = inject(CompanyService);
+  private tourSvc      = inject(TourService);
 
   readonly presetIcons = PRESET_ICONS;
   readonly presetColors = PRESET_COLORS;
@@ -411,6 +429,8 @@ export class CompanyProfileComponent {
   get shareUrl(): string {
     return `${window.location.origin}/negocio/${this.companyStore.companyId() ?? ''}`;
   }
+
+  startTour(): void { this.tourSvc.restartCompanyTour(); }
 
   async copyLink(): Promise<void> {
     await navigator.clipboard.writeText(this.shareUrl);

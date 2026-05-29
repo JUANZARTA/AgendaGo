@@ -8,6 +8,7 @@ import { CompanyOnboardingComponent } from './onboarding/company-onboarding.comp
 import { AuthService } from '../../core/services/auth.service';
 import { SubscriptionService } from '../../core/services/subscription.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
+import { TourService } from '../../core/services/tour.service';
 
 interface NavItem {
   label: string;
@@ -51,6 +52,7 @@ interface NavItem {
             @for (item of navItems; track item.route) {
               <a
                 class="nav-item"
+                [id]="'cnav-' + item.icon"
                 [routerLink]="item.route"
                 routerLinkActive="nav-item--active"
                 [routerLinkActiveOptions]="{ exact: false }"
@@ -191,7 +193,7 @@ interface NavItem {
         <nav class="bottom-bar">
           <!-- 4 main items -->
           @for (item of mainNavItems; track item.route) {
-            <a class="bottom-item" [routerLink]="item.route"
+            <a class="bottom-item" [id]="'cnav-m-' + item.icon" [routerLink]="item.route"
                routerLinkActive="bottom-item--active"
                [routerLinkActiveOptions]="{ exact: false }">
               <svg class="bottom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -206,7 +208,7 @@ interface NavItem {
             </a>
           }
           <!-- Más -->
-          <button class="bottom-item" [class.bottom-item--active]="moreMenuOpen()"
+          <button id="cnav-m-more" class="bottom-item" [class.bottom-item--active]="moreMenuOpen()"
                   (click)="moreMenuOpen.update(v => !v)" style="border:none;background:none;cursor:pointer;font-family:inherit">
             <svg class="bottom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
@@ -727,6 +729,7 @@ export class CompanyShellComponent implements OnDestroy {
   private subscriptionService  = inject(SubscriptionService);
   private router               = inject(Router);
   private notifSvc             = inject(NotificationService);
+  private tourSvc              = inject(TourService);
 
   sub              = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' | 'free' } | null>(null);
   notifPanelOpen   = signal(false);
@@ -753,6 +756,11 @@ export class CompanyShellComponent implements OnDestroy {
   private notifSub: RxSubscription | null = null;
 
   constructor() {
+    effect(() => {
+      const company = this.companyStore.company();
+      if (company) this.tourSvc.startCompanyTour();
+    });
+
     effect(() => {
       const companyId = this.companyStore.companyId();
       if (!companyId) return;
