@@ -3,6 +3,10 @@
 # Firebase service account (NUNCA subir al repo)
 service-account.json
 
+# Variables de entorno con secrets (NUNCA subir)
+functions/.env
+functions/.env.*
+
 # Compiled output
 /dist
 /tmp

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   Firestore, collection, query, where, onSnapshot,
-  addDoc, doc, updateDoc,
+  addDoc, doc, updateDoc, deleteDoc,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 
@@ -14,6 +14,8 @@ export interface Review {
   rating: number;
   comment: string;
   createdAt: number;
+  updatedAt?: number;
+  appointmentId?: string;
   reply?: string;
   replyAt?: number;
 }
@@ -55,6 +57,30 @@ export class ReviewService {
     await updateDoc(doc(this.firestore, 'companies', review.companyId), {
       averageRating: Math.round(avg * 10) / 10,
       reviewCount: all.length,
+    });
+  }
+
+  async updateReview(reviewId: string, rating: number, comment: string, review: Review, allReviews: Review[]): Promise<void> {
+    await updateDoc(doc(this.firestore, 'reviews', reviewId), {
+      rating,
+      comment: comment.trim(),
+      updatedAt: Date.now(),
+    });
+    const updated = allReviews.map(r => r.id === reviewId ? { ...r, rating } : r);
+    const avg = updated.reduce((s, r) => s + r.rating, 0) / updated.length;
+    await updateDoc(doc(this.firestore, 'companies', review.companyId), {
+      averageRating: Math.round(avg * 10) / 10,
+    });
+  }
+
+  async deleteReview(reviewId: string, review: Review, allReviews: Review[]): Promise<void> {
+    await deleteDoc(doc(this.firestore, 'reviews', reviewId));
+    const remaining = allReviews.filter(r => r.id !== reviewId);
+    await updateDoc(doc(this.firestore, 'companies', review.companyId), {
+      averageRating: remaining.length
+        ? Math.round(remaining.reduce((s, r) => s + r.rating, 0) / remaining.length * 10) / 10
+        : 0,
+      reviewCount: remaining.length,
     });
   }
 }

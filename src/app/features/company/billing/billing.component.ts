@@ -1,16 +1,20 @@
 import { Component, OnDestroy, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription as RxSubscription } from 'rxjs';
+import {
+  Firestore, collection, query, where, orderBy, onSnapshot,
+} from '@angular/fire/firestore';
 import { SubscriptionService, Subscription } from '../../../core/services/subscription.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { environment } from '../../../../environments/environment';
 
 interface Payment {
-  date: string;
   plan: string;
   amount: number;
-  status: 'paid' | 'pending' | 'failed';
+  status: 'approved' | 'pending' | 'failed';
+  createdAt: any;
+  periodEnd: any;
 }
 
 interface SubViewModel {
@@ -20,8 +24,6 @@ interface SubViewModel {
   daysLeft: number;
   trialUsed: boolean;
 }
-
-const MOCK_PAYMENTS: Payment[] = [];
 
 @Component({
   selector: 'app-billing',
@@ -378,32 +380,33 @@ const MOCK_PAYMENTS: Payment[] = [];
         <p class="history-title">Historial de pagos</p>
       </div>
 
-      @if (payments.length > 0) {
+      @if (payments().length > 0) {
         <table class="history-table">
           <thead>
             <tr>
               <th>Fecha</th>
               <th>Plan</th>
               <th>Valor</th>
+              <th>Válido hasta</th>
               <th>Estado</th>
             </tr>
           </thead>
           <tbody>
-            @for (p of payments; track p.date) {
+            @for (p of payments(); track $index) {
               <tr>
-                <td style="color:#666">{{ formatDate(p.date) }}</td>
-                <td style="font-weight:600">{{ p.plan }}</td>
+                <td style="color:#666">{{ formatTimestampShort(p.createdAt) }}</td>
+                <td style="font-weight:600;text-transform:capitalize">{{ p.plan }}</td>
                 <td style="font-weight:700">{{ p.amount | number }} COP</td>
+                <td style="color:#666">{{ formatTimestampShort(p.periodEnd) }}</td>
                 <td>
-                  <span class="status-chip"
-                        [class.chip-paid]="p.status === 'paid'"
+                  <span class="status-chip" [class.chip-paid]="p.status === 'approved'"
                         [class.chip-pending]="p.status === 'pending'"
                         [class.chip-failed]="p.status === 'failed'">
                     <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>
                     @switch (p.status) {
-                      @case ('paid')    { Pagado }
-                      @case ('pending') { Pendiente }
-                      @case ('failed')  { Fallido }
+                      @case ('approved') { Aprobado }
+                      @case ('pending')  { Pendiente }
+                      @case ('failed')   { Fallido }
                     }
                   </span>
                 </td>
@@ -414,7 +417,7 @@ const MOCK_PAYMENTS: Payment[] = [];
       } @else {
         <div class="empty-history">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          <p>Historial de pagos próximamente.</p>
+          <p>Sin pagos registrados aún.</p>
         </div>
       }
 
@@ -425,9 +428,10 @@ export class BillingComponent implements OnDestroy {
   private subscriptionService = inject(SubscriptionService);
   private companyStore        = inject(CompanyStore);
   private notifSvc            = inject(NotificationService);
+  private firestore           = inject(Firestore);
 
   loading  = signal(true);
-  payments = MOCK_PAYMENTS;
+  payments = signal<Payment[]>([]);
 
   sub = signal<SubViewModel>({
     status:    'trial',
@@ -438,6 +442,7 @@ export class BillingComponent implements OnDestroy {
   });
 
   private rxSub: RxSubscription | null = null;
+  private unsubPayments?: () => void;
 
   constructor() {
     effect(() => {
@@ -469,6 +474,17 @@ export class BillingComponent implements OnDestroy {
         });
 
         this.loading.set(false);
+      });
+
+      // Cargar historial de pagos real
+      this.unsubPayments?.();
+      const q = query(
+        collection(this.firestore, 'payments'),
+        where('companyId', '==', companyId),
+        orderBy('createdAt', 'desc'),
+      );
+      this.unsubPayments = onSnapshot(q, snap => {
+        this.payments.set(snap.docs.map(d => d.data() as Payment));
       });
     });
   }
@@ -503,6 +519,7 @@ export class BillingComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.rxSub?.unsubscribe();
+    this.unsubPayments?.();
   }
 
   private formatTimestamp(ts: any): string {
@@ -512,9 +529,7 @@ export class BillingComponent implements OnDestroy {
     return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   }
 
-  formatDate(iso: string): string {
-    const [y, m, d] = iso.split('-');
-    const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    return `${d} ${months[+m - 1]} ${y}`;
+  formatTimestampShort(ts: any): string {
+    return this.formatTimestamp(ts);
   }
 }

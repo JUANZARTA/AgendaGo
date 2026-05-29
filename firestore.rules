@@ -73,13 +73,23 @@ service cloud.firestore {
       allow update: if isSuperAdmin() ||
         (isAuth() &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply', 'replyAt']) &&
-         isCompanyOwner(resource.data.companyId));
-      allow delete: if isSuperAdmin();
+         isCompanyOwner(resource.data.companyId)) ||
+        (isAuth() &&
+         resource.data.clientId == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'updatedAt']));
+      allow delete: if isSuperAdmin() ||
+        (isAuth() && resource.data.clientId == request.auth.uid);
     }
 
     // SUBSCRIPTIONS
     match /subscriptions/{companyId} {
       allow read:  if isCompanyOwner(companyId) || isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // PAYMENTS
+    match /payments/{paymentId} {
+      allow read:  if isSuperAdmin() || (isAuth() && isCompanyOwner(resource.data.companyId));
       allow write: if isSuperAdmin();
     }
 
