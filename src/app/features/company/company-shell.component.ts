@@ -459,7 +459,14 @@ interface NavItem {
       flex-direction: column;
       gap: 4px;
       flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
     }
+    .nav::-webkit-scrollbar { width: 4px; }
+    .nav::-webkit-scrollbar-track { background: transparent; }
+    .nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 
     .nav-item {
       display: flex;

@@ -27,6 +27,12 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .splash-card img { width: min(200px, 55vw); }
     .splash-sub { font-size: 13px; color: #aaa; font-weight: 600; letter-spacing: .04em; }
+    .splash-spinner {
+      width: 28px; height: 28px; margin-top: 8px;
+      border: 3px solid #ede9fe; border-top-color: #7c3aed;
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    @keyframes spin        { to  { transform: rotate(360deg); } }
     @keyframes popIn      { from { opacity:0; transform:scale(.88); } to { opacity:1; transform:scale(1); } }
     @keyframes backdropOut { to  { opacity:0; pointer-events:none; } }
   `],
