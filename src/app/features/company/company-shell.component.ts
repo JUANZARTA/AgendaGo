@@ -253,7 +253,7 @@ interface NavItem {
         <!-- ── NOTIFICATION DRAWER ────────────────────────────────── -->
         @if (notifPanelOpen()) {
           <div style="position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:150" (click)="notifPanelOpen.set(false)"></div>
-          <div style="position:fixed;top:0;right:0;height:100vh;width:360px;max-width:100vw;background:white;box-shadow:-8px 0 32px rgba(0,0,0,.15);z-index:151;display:flex;flex-direction:column;animation:slideInRight .25s ease">
+          <div style="position:fixed;top:0;right:0;bottom:0;width:360px;max-width:100vw;background:white;box-shadow:-8px 0 32px rgba(0,0,0,.15);z-index:151;display:flex;flex-direction:column;animation:slideInRight .25s ease">
             <!-- Header -->
             <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 14px;border-bottom:1px solid #f0e8ff">
               <h3 style="margin:0;font-size:16px;font-weight:800;color:#1a1a2e">Notificaciones</h3>
@@ -270,7 +270,7 @@ interface NavItem {
               </div>
             </div>
             <!-- Lista -->
-            <div style="flex:1;overflow-y:auto">
+            <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
               @if (notifications().length === 0) {
                 <div style="padding:48px 20px;text-align:center;color:#aaa;font-size:13px">Sin notificaciones aún</div>
               }
@@ -331,7 +331,7 @@ interface NavItem {
 
       <!-- ── Modal: empresa deshabilitada ──────────────────────────── -->
       @if (showDisabledModal()) {
-        <div style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(2px)">
+        <div style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)">
           <div style="max-width:440px;width:100%;background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 16px 60px rgba(0,0,0,.2);border-top:4px solid #ef4444">
             <div style="width:64px;height:64px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -411,6 +411,7 @@ interface NavItem {
     .shell {
       display: flex;
       height: 100vh;
+      height: 100dvh;
       overflow: hidden;
     }
 
@@ -642,7 +643,7 @@ interface NavItem {
 
       .content {
         flex: 1;
-        padding-bottom: 72px;
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
       }
 
       .bottom-bar {
@@ -654,8 +655,9 @@ interface NavItem {
         background: #ffffff;
         box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.08);
         z-index: 100;
-        height: 64px;
+        height: calc(64px + env(safe-area-inset-bottom));
         padding: 0 8px;
+        padding-bottom: env(safe-area-inset-bottom);
       }
 
       .bottom-item {
@@ -691,7 +693,7 @@ interface NavItem {
 
       .more-sheet {
         position: fixed;
-        bottom: 68px;
+        bottom: calc(68px + env(safe-area-inset-bottom));
         right: 8px;
         background: white;
         border-radius: 14px;

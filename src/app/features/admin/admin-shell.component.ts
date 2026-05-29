@@ -147,7 +147,7 @@ interface NavItem {
       <!-- ── NOTIFICATION DRAWER ────────────────────────────────── -->
       @if (notifPanelOpen()) {
         <div style="position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:150" (click)="notifPanelOpen.set(false)"></div>
-        <div style="position:fixed;top:0;right:0;height:100vh;width:360px;max-width:100vw;background:white;box-shadow:-8px 0 32px rgba(0,0,0,.15);z-index:151;display:flex;flex-direction:column;animation:slideInRight .25s ease">
+        <div style="position:fixed;top:0;right:0;bottom:0;width:360px;max-width:100vw;background:white;box-shadow:-8px 0 32px rgba(0,0,0,.15);z-index:151;display:flex;flex-direction:column;animation:slideInRight .25s ease">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 14px;border-bottom:1px solid #e0e7ff">
             <h3 style="margin:0;font-size:16px;font-weight:800;color:#1a1a2e">Notificaciones</h3>
             <div style="display:flex;gap:8px;align-items:center">
@@ -162,7 +162,7 @@ interface NavItem {
               </button>
             </div>
           </div>
-          <div style="flex:1;overflow-y:auto">
+          <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
             @if (notifications().length === 0) {
               <div style="padding:48px 20px;text-align:center;color:#aaa;font-size:13px">Sin notificaciones aún</div>
             }
@@ -248,6 +248,7 @@ interface NavItem {
     .shell {
       display: flex;
       height: 100vh;
+      height: 100dvh;
       overflow: hidden;
     }
 
@@ -419,7 +420,7 @@ interface NavItem {
 
       .content {
         flex: 1;
-        padding-bottom: 72px;
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
       }
 
       .bottom-bar {
@@ -431,8 +432,9 @@ interface NavItem {
         background: #ffffff;
         box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.08);
         z-index: 100;
-        height: 64px;
+        height: calc(64px + env(safe-area-inset-bottom));
         padding: 0 8px;
+        padding-bottom: env(safe-area-inset-bottom);
       }
 
       .bottom-item {

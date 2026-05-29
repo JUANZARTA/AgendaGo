@@ -132,7 +132,7 @@ import { Subscription } from 'rxjs';
 
       <!-- ── Modal: cuenta suspendida ──────────────────── -->
       @if (isBlocked()) {
-        <div style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(2px)">
+        <div style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)">
           <div style="max-width:400px;width:100%;background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 16px 60px rgba(0,0,0,.2);border-top:4px solid #ef4444">
             <div style="width:64px;height:64px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -197,12 +197,13 @@ import { Subscription } from 'rxjs';
     }
   `,
   styles: [`
-    :host { display: block; height: 100vh; overflow: hidden; }
+    :host { display: block; height: 100vh; height: 100dvh; overflow: hidden; }
 
     .shell {
       display: flex;
       flex-direction: column;
       height: 100vh;
+      height: 100dvh;
       background: var(--body-bg);
     }
 
@@ -413,18 +414,19 @@ import { Subscription } from 'rxjs';
         width: auto;
       }
 
-      .content { padding-bottom: 68px; }
+      .content { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
 
       .bottom-nav {
         display: flex;
         position: fixed;
         bottom: 0; left: 0; right: 0;
-        height: 64px;
+        height: calc(64px + env(safe-area-inset-bottom));
         background: white;
         border-top: 1px solid #f0ebff;
         box-shadow: 0 -2px 16px rgba(0,0,0,.07);
         z-index: 100;
         padding: 0 4px;
+        padding-bottom: env(safe-area-inset-bottom);
       }
 
       .bn-item {

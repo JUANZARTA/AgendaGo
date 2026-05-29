@@ -37,6 +37,7 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: var(--body-bg);
   min-height: 100vh;
+  min-height: 100dvh;
   color: #1a1a2e;
   font-size: 15px;
 }
@@ -303,6 +304,7 @@ a { color: inherit; text-decoration: none; }
 .auth-split {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Left brand panel ──────────────────────────── */
@@ -360,6 +362,7 @@ a { color: inherit; text-decoration: none; }
 .auth-brand-icon {
   width: 88px; height: 88px;
   background: rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border: 2px solid rgba(255, 255, 255, 0.35);
   border-radius: 28px;
@@ -401,6 +404,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   gap: 12px;
   background: rgba(255,255,255,0.15);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 12px;
@@ -423,6 +427,7 @@ a { color: inherit; text-decoration: none; }
 
 .auth-stat {
   background: rgba(255,255,255,0.18);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 14px;
@@ -443,6 +448,7 @@ a { color: inherit; text-decoration: none; }
   padding: 32px 24px;
   background: var(--body-bg);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   position: relative;
 }
 
