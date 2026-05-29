@@ -33,6 +33,17 @@ import { AuthService } from '../../../core/services/auth.service';
       border-radius: 50%; animation: spin .7s linear infinite;
     }
     @keyframes spin        { to  { transform: rotate(360deg); } }
+    .guest-btn {
+      display: none;
+      align-items: center; justify-content: center; gap: 8px;
+      margin-top: 16px; width: 100%; padding: 13px 16px;
+      border-radius: 14px; border: 1.5px solid #e5e7eb;
+      background: none; color: #7c3aed;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      transition: background .15s;
+    }
+    .guest-btn:hover { background: #f5f0ff; }
+    @media (max-width: 768px) { .guest-btn { display: flex; } }
     @keyframes popIn      { from { opacity:0; transform:scale(.88); } to { opacity:1; transform:scale(1); } }
     @keyframes backdropOut { to  { opacity:0; pointer-events:none; } }
   `],

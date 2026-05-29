@@ -1,7 +1,13 @@
 @if (showSplash()) {
   <div class="splash-backdrop">
     <div class="splash-card">
-      <img src="images/logo-light.png" alt="Agenda Co" />
+      <svg width="80" height="80" viewBox="0 0 100 100" fill="none" style="margin-bottom:8px">
+        <rect width="100" height="100" rx="22" fill="#7c3aed"/>
+        <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
+        <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
+        <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
       <span class="splash-sub">Agenda Co</span>
       <div class="splash-spinner"></div>
       <span style="font-size:13px;color:#a0a0b8;font-weight:600;margin-top:4px">Iniciando sesión...</span>
@@ -19,7 +25,12 @@
     <div class="auth-blob auth-blob-4"></div>
 
     <div class="auth-brand-content">
-      <img src="images/logo2.png" alt="Agenda Co" style="height:216px;width:auto;object-fit:contain;margin-bottom:4px" />
+      <svg width="160" height="160" viewBox="0 0 100 100" fill="none" style="margin-bottom:4px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.25))">
+        <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
+        <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
+        <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
       <h1 class="auth-brand-title">Agenda Co</h1>
       <p class="auth-brand-tagline">Bienvenido de vuelta</p>
 
@@ -52,6 +63,17 @@
           <span>calificación</span>
         </div>
       </div>
+
+      <a routerLink="/"
+        style="display:inline-flex;align-items:center;gap:8px;margin-top:28px;padding:12px 24px;border-radius:14px;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);color:white;font-size:14px;font-weight:600;text-decoration:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:background .18s"
+        onmouseover="this.style.background='rgba(255,255,255,0.22)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        Continuar como cliente sin iniciar sesión
+      </a>
+
     </div>
   </div>
 
@@ -153,6 +175,13 @@
         ¿No tenés cuenta?
         <a routerLink="/auth/register" style="color:#7c3aed;font-weight:800;margin-left:4px">Registrate gratis</a>
       </p>
+
+      <a routerLink="/" class="guest-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        Continuar como cliente sin iniciar sesión
+      </a>
     </div>
   </div>
 </div>

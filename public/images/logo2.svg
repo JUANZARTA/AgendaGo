@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <!-- Aro superior -->
+  <circle cx="34" cy="38" r="17" fill="none" stroke="white" stroke-width="7" stroke-opacity="0.92"/>
+  <!-- Aro inferior -->
+  <circle cx="34" cy="82" r="17" fill="none" stroke="white" stroke-width="7" stroke-opacity="0.92"/>
+  <!-- Pivot central -->
+  <circle cx="60" cy="60" r="6" fill="white"/>
+  <!-- Hoja superior -->
+  <line x1="60" y1="60" x2="99" y2="21" stroke="white" stroke-width="7" stroke-linecap="round" stroke-opacity="0.92"/>
+  <!-- Hoja inferior -->
+  <line x1="60" y1="60" x2="99" y2="99" stroke="white" stroke-width="7" stroke-linecap="round" stroke-opacity="0.92"/>
+  <!-- Caño superior -->
+  <line x1="49" y1="50" x2="60" y2="60" stroke="white" stroke-width="7" stroke-linecap="round" stroke-opacity="0.92"/>
+  <!-- Caño inferior -->
+  <line x1="49" y1="70" x2="60" y2="60" stroke="white" stroke-width="7" stroke-linecap="round" stroke-opacity="0.92"/>
+</svg>
