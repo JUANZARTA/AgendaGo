@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, Injector, computed, inject, runInInjectionContext, signal } from '@angular/core';
 import {
   Auth,
   GoogleAuthProvider,
@@ -35,6 +35,7 @@ export interface UserProfile {
 export class AuthService {
   private auth = inject(Auth, { optional: true });
   private firestore = inject(Firestore, { optional: true });
+  private injector = inject(Injector);
 
   private _user          = signal<User | null>(null);
   private _role          = signal<string>('client');
@@ -51,20 +52,24 @@ export class AuthService {
 
   constructor() {
     if (!this.auth) return;
-    this.auth.onAuthStateChanged(async (user) => {
-      this._profileLoaded.set(false);
-      this._user.set(user);
-      if (user && this.firestore) {
-        const profile = await this._loadProfile(user.uid);
-        this._role.set(profile?.role ?? 'client');
-        this._displayName.set(profile?.displayName ?? '');
-        this._profile.set(profile);
-      } else {
-        this._role.set('client');
-        this._profile.set(null);
-      }
-      this._profileLoaded.set(true);
-    });
+    this.auth.onAuthStateChanged((user) =>
+      runInInjectionContext(this.injector, () => this._handleAuthStateChanged(user))
+    );
+  }
+
+  private async _handleAuthStateChanged(user: User | null): Promise<void> {
+    this._profileLoaded.set(false);
+    this._user.set(user);
+    if (user && this.firestore) {
+      const profile = await this._loadProfile(user.uid);
+      this._role.set(profile?.role ?? 'client');
+      this._displayName.set(profile?.displayName ?? '');
+      this._profile.set(profile);
+    } else {
+      this._role.set('client');
+      this._profile.set(null);
+    }
+    this._profileLoaded.set(true);
   }
 
   waitForProfile(timeoutMs = 5000): Promise<void> {

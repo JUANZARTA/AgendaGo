@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, Injector, computed, inject, runInInjectionContext, signal } from '@angular/core';
 import { Auth } from '@angular/fire/auth';
 import { Company, CompanyService } from './company.service';
 
@@ -6,6 +6,7 @@ import { Company, CompanyService } from './company.service';
 export class CompanyStore {
   private auth = inject(Auth, { optional: true });
   private svc  = inject(CompanyService);
+  private injector = inject(Injector);
 
   company   = signal<Company | null>(null);
   loading   = signal(true);
@@ -18,7 +19,7 @@ export class CompanyStore {
     }
     this.auth.onAuthStateChanged(user => {
       if (user) {
-        this._load(user.uid);
+        runInInjectionContext(this.injector, () => this._load(user.uid));
       } else {
         this._initialLoadDone = false;
         this.company.set(null);
