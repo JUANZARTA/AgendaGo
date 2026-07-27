@@ -257,7 +257,7 @@ interface SubViewModel {
                 @case ('trial')   { Plan gratuito · Vence el {{ sub().trialEnd }} · Renovar antes de que expire para no perder tu agenda }
                 @case ('active')  { {{ sub().plan }} · Próxima renovación el {{ sub().trialEnd }} }
                 @case ('expired') { Tu suscripción venció. Elegí un plan para reactivar tu cuenta }
-                @case ('free')    { Fuiste seleccionado como beneficiario de Agenda Co. Tenés acceso ilimitado y gratuito a todas las funciones de la plataforma. }
+                @case ('free')    { Fuiste seleccionado como beneficiario de AgendaZco. Tenés acceso ilimitado y gratuito a todas las funciones de la plataforma. }
               }
             </p>
           </div>
@@ -276,7 +276,7 @@ interface SubViewModel {
         <div style="border-radius:16px;padding:28px 32px;background:linear-gradient(135deg,#f5f3ff,#fdf4ff);border:2px solid #e9d5ff;display:flex;align-items:center;gap:20px;margin-bottom:8px">
           <div style="font-size:40px;flex-shrink:0">⭐</div>
           <div>
-            <div style="font-size:1rem;font-weight:800;color:#6d28d9;margin-bottom:4px">¡Sos beneficiario de Agenda Co!</div>
+            <div style="font-size:1rem;font-weight:800;color:#6d28d9;margin-bottom:4px">¡Sos beneficiario de AgendaZco!</div>
             <div style="font-size:13px;color:#7c3aed;line-height:1.6">Tenés acceso <strong>gratuito e ilimitado</strong> a todas las funciones de la plataforma. No necesitás pagar ni renovar ningún plan.</div>
           </div>
         </div>

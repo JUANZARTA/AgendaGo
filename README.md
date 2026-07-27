@@ -1,4 +1,4 @@
-# Agenda Co
+# AgendaZco
 
 PWA de agendamiento de turnos para negocios de belleza en Colombia. Clientes reservan citas en segundos; negocios gestionan su agenda en tiempo real.
 

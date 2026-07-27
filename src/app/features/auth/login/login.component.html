@@ -1,14 +1,20 @@
 @if (showSplash()) {
   <div class="splash-backdrop">
     <div class="splash-card">
-      <svg width="80" height="80" viewBox="0 0 100 100" fill="none" style="margin-bottom:8px">
+      <svg class="scissors-svg" width="80" height="80" viewBox="0 0 100 100" fill="none" style="margin-bottom:8px">
         <rect width="100" height="100" rx="22" fill="#7c3aed"/>
-        <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-        <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-        <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Brazo superior: rota hacia arriba al "cortar" -->
+        <g class="blade-top">
+          <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
+          <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <!-- Brazo inferior: rota en sentido contrario -->
+        <g class="blade-bottom">
+          <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
+          <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
       </svg>
-      <span class="splash-sub">Agenda Co</span>
+      <span class="splash-sub">AgendaZco</span>
       <div class="splash-spinner"></div>
       <span style="font-size:13px;color:#a0a0b8;font-weight:600;margin-top:4px">Iniciando sesión...</span>
     </div>
@@ -31,7 +37,7 @@
         <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
         <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <h1 class="auth-brand-title">Agenda Co</h1>
+      <h1 class="auth-brand-title">AgendaZco</h1>
       <p class="auth-brand-tagline">Bienvenido de vuelta</p>
 
       <div class="auth-feature-list">
@@ -95,7 +101,7 @@
 
       <div style="text-align:center;margin-bottom:28px">
         <h2 style="font-size:1.5rem;font-weight:800;color:#1a1a2e;margin-bottom:6px">Iniciar sesión</h2>
-        <p style="color:#a0a0b8;font-size:14px">Ingresá con tu cuenta de Agenda Co</p>
+        <p style="color:#a0a0b8;font-size:14px">Ingresá con tu cuenta de AgendaZco</p>
       </div>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()">

@@ -243,7 +243,7 @@ import { AuthService } from '../../../core/services/auth.service';
             <line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
         </div>
-        <span class="ob-brand-text">Agenda Co</span>
+        <span class="ob-brand-text">AgendaZco</span>
       </div>
 
       <div class="ob-card">

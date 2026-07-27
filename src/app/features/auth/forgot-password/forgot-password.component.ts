@@ -97,7 +97,7 @@ import { AuthService } from '../../../core/services/auth.service';
         <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
 
-      <h1 class="auth-brand-title">Agenda Co</h1>
+      <h1 class="auth-brand-title">AgendaZco</h1>
       <p class="auth-brand-tagline">Sin contraseña, sin problema</p>
 
       <div class="auth-feature-list">

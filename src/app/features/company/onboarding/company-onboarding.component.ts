@@ -267,7 +267,7 @@ const SLOT_OPTIONS = [
             <line x1="12" y1="16" x2="12" y2="22"/>
           </svg>
         </div>
-        <span class="ob-logo-text">Agenda Co</span>
+        <span class="ob-logo-text">AgendaZco</span>
       </div>
 
       <div class="ob-card">
