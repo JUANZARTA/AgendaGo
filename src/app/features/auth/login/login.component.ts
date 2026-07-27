@@ -33,6 +33,16 @@ import { AuthService } from '../../../core/services/auth.service';
       border-radius: 50%; animation: spin .7s linear infinite;
     }
     @keyframes spin        { to  { transform: rotate(360deg); } }
+    .scissors-svg { animation: scaleIn .4s cubic-bezier(.34,1.56,.64,1) both; }
+    .blade-top    { transform-origin: 50px 51px; animation: snip 1s ease-in-out infinite; }
+    .blade-bottom { transform-origin: 50px 51px; animation: snip 1s ease-in-out infinite reverse; }
+    @keyframes scaleIn { from { opacity:0; transform:scale(.6); } to { opacity:1; transform:scale(1); } }
+    @keyframes snip {
+      0%   { transform: rotate(0deg);   }
+      40%  { transform: rotate(-18deg); }
+      60%  { transform: rotate(-18deg); }
+      100% { transform: rotate(0deg);   }
+    }
     .guest-btn {
       display: none;
       align-items: center; justify-content: center; gap: 8px;

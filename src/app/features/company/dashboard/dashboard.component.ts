@@ -1,6 +1,7 @@
-import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
@@ -820,12 +821,13 @@ interface DaySlot {
     }
   `,
 })
-export class DashboardComponent implements OnDestroy {
+export class DashboardComponent implements OnInit, OnDestroy {
   readonly companyStore  = inject(CompanyStore);
   private aptSvc         = inject(AppointmentService);
   private catalogSvc     = inject(ServiceCatalogService);
   private staffSvc       = inject(StaffService);
   private notifSvc       = inject(NotificationService);
+  private route          = inject(ActivatedRoute);
 
   private readonly _today = new Date().toISOString().split('T')[0];
   selectedDate = signal(this._today);
@@ -931,6 +933,13 @@ export class DashboardComponent implements OnDestroy {
         if (svcs.length && !this.newServiceId) this.newServiceId = svcs[0].id!;
       });
     });
+  }
+
+  ngOnInit() {
+    const date = this.route.snapshot.queryParamMap.get('date');
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      this.selectedDate.set(date);
+    }
   }
 
   ngOnDestroy() {

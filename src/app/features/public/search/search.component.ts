@@ -204,7 +204,7 @@ const CATEGORIES = [
                   }
                 </div>
                 <span class="badge" [class]="company.slots > 0 ? 'badge-green' : 'badge-red'">
-                  {{ company.slots > 0 ? company.slots + ' turnos' : 'Sin turnos' }}
+                  {{ company.slots > 0 ? company.slots + ' turnos' : 'Sin turnos hoy' }}
                 </span>
               </div>
               <h3 style="margin-top:12px;font-size:1.05rem;font-weight:800">{{ company.name }}</h3>

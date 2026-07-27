@@ -821,7 +821,7 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
           type: 'new_appointment',
           title: 'Nueva cita',
           body: `${this.clientName} · ${svc2.name} · ${day2.label} ${day2.sub} ${slot2}`,
-          link: '/empresa/dashboard',
+          link: `/empresa/dashboard?date=${day2.date}`,
         }).catch(() => {});
       }
 
