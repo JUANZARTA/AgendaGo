@@ -5,5 +5,6 @@ export { onAppointmentCreated } from './notifications/on-appointment-created';
 export { onAppointmentStatusChanged } from './notifications/on-appointment-confirmed';
 export { sendAppointmentReminders } from './notifications/send-appointment-reminders';
 export { checkExpiredSubscriptions } from './subscriptions/check-expired';
+export { onCompanyCreated } from './subscriptions/on-company-created';
 export { sendSubscriptionReminder } from './subscriptions/send-reminder';
 export { validatePayment } from './payments/validate-payment';
