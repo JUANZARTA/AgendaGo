@@ -65,8 +65,10 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     .logo-tab.active { background:var(--purple); color:white; }
 
     .upload-area {
-      border:2px dashed #d4bbff; border-radius:12px; padding:24px;
-      text-align:center; cursor:pointer; transition:all .15s; background:#fdfbff;
+      /* <label> es inline por defecto: sin display el borde se parte alrededor de cada línea */
+      display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%;
+      border:2px dashed rgba(var(--primary-rgb), .35); border-radius:12px; padding:24px;
+      text-align:center; cursor:pointer; transition:all .15s; background:rgba(var(--primary-rgb), .03);
     }
     .upload-area:hover { border-color:var(--purple); background:var(--btn-secondary-bg); }
     .upload-area input[type=file] { display:none; }
@@ -217,7 +219,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         @if (logoMode() === 'upload') {
           <label class="upload-area" for="logo-file-input">
             <input id="logo-file-input" type="file" accept="image/*" (change)="onFileChange($event)" />
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;color:var(--purple);opacity:.5">
               <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
               <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
             </svg>

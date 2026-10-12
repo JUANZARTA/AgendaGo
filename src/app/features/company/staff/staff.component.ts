@@ -1,7 +1,8 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { StaffMember, StaffDaySchedule, StaffService } from '../../../core/services/staff.service';
+import { StaffMember, StaffDaySchedule, StaffService, hasOwnSchedule } from '../../../core/services/staff.service';
+import { toMin } from '../../../core/domain/scheduling';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
 
@@ -363,6 +364,12 @@ const EMPTY_DRAFT: StaffDraft = {
             }
           </div>
 
+          @if (scheduleError()) {
+            <div style="font-size:12px;font-weight:600;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px;margin-top:8px">
+              {{ scheduleError() }}
+            </div>
+          }
+
           <div style="display:flex;gap:10px;margin-top:8px">
             <button
               class="btn btn-primary"
@@ -467,6 +474,7 @@ export class StaffComponent {
 
   readonly dayOrder  = DAY_ORDER;
   readonly dayLabels = DAY_LABELS;
+  scheduleError = signal('');
 
   openNew(): void {
     this.editId.set(null);
@@ -478,7 +486,7 @@ export class StaffComponent {
 
   openEdit(member: StaffMember): void {
     this.editId.set(member.id!);
-    const hasCustom = !!(member.schedule && Object.keys(member.schedule).length > 0);
+    const hasCustom = hasOwnSchedule(member);
     this.draft = {
       name:              member.name,
       phone:             member.phone     ?? '',
@@ -496,6 +504,18 @@ export class StaffComponent {
   async save(): Promise<void> {
     const cid = this.companyStore.companyId();
     if (!cid || !this.draft.name.trim()) return;
+
+    if (this.draft.useCustomSchedule) {
+      const bad = DAY_ORDER.find(d => {
+        const s = this.draft.schedule[d];
+        return s?.enabled && (!s.open || !s.close || toMin(s.close) <= toMin(s.open));
+      });
+      if (bad) {
+        this.scheduleError.set(`${DAY_LABELS[bad]}: la hora de salida debe ser posterior a la de entrada (12:00 AM es medianoche).`);
+        return;
+      }
+    }
+    this.scheduleError.set('');
 
     this.saving.set(true);
     try {

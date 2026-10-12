@@ -1,4 +1,5 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { toMin, toTime } from '../../../core/domain/scheduling';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CompanyStore } from '../../../core/services/company-store.service';
@@ -178,6 +179,12 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
       width: 96px;
       transition: border-color 0.15s;
       cursor: pointer;
+    }
+    .time-input.time-invalid { border-color: #ef4444; background: #fef2f2; }
+    .range-error {
+      font-size: 12px; font-weight: 600; color: #b91c1c;
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+      padding: 8px 10px; margin: 2px 0 8px;
     }
     .time-input:focus { outline: none; border-color: var(--purple); }
 
@@ -457,6 +464,7 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
                       <input
                         class="time-input"
                         type="time"
+                        [class.time-invalid]="isRangeInvalid(range)"
                         [value]="range.open"
                         (change)="updateRange(day.key, i, 'open', $any($event.target).value)" />
                       <span style="font-size:10px;font-weight:700;color:#888;min-width:20px">{{ ampm(range.open) }}</span>
@@ -464,6 +472,7 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
                       <input
                         class="time-input"
                         type="time"
+                        [class.time-invalid]="isRangeInvalid(range)"
                         [value]="range.close"
                         (change)="updateRange(day.key, i, 'close', $any($event.target).value)" />
                       <span style="font-size:10px;font-weight:700;color:#888;min-width:20px">{{ ampm(range.close) }}</span>
@@ -479,6 +488,10 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
                         </button>
                       }
                     </div>
+                  }
+
+                  @if (dayErrors()[day.key]; as err) {
+                    <div class="range-error">{{ err }}</div>
                   }
 
                   <button class="add-range-btn" (click)="addRange(day.key)">
@@ -576,6 +589,9 @@ const SLOT_DURATIONS = [15, 20, 30, 45, 60] as const;
 
       <!-- Guardar -->
       <div class="save-bar">
+        @if (saveError()) {
+          <div class="range-error" style="margin:0 auto 10px 0">{{ saveError() }}</div>
+        }
         <button class="btn btn-primary" style="gap:8px" (click)="save()" [disabled]="saving()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -616,6 +632,28 @@ export class ScheduleComponent {
   blockedDates  = signal<BlockedDate[]>([]);
   saved         = signal(false);
   saving        = signal(false);
+  saveError     = signal('');
+
+  /** Errores por día activo: franja con cierre <= apertura (ej. "12:00 AM" = medianoche) o franjas solapadas. */
+  dayErrors = computed(() => {
+    const errors: Record<string, string> = {};
+    for (const day of this.schedule()) {
+      if (!day.enabled) continue;
+      if (day.ranges.some(r => this.isRangeInvalid(r))) {
+        errors[day.key] = 'La hora de cierre debe ser posterior a la de apertura. Ojo: 12:00 AM es medianoche; para mediodía usá 12:00 PM.';
+        continue;
+      }
+      const sorted = [...day.ranges].sort((a, b) => toMin(a.open) - toMin(b.open));
+      if (sorted.some((r, i) => i > 0 && toMin(r.open) < toMin(sorted[i - 1].close))) {
+        errors[day.key] = 'Las franjas de este día se superponen.';
+      }
+    }
+    return errors;
+  });
+
+  isRangeInvalid(r: { open: string; close: string }): boolean {
+    return !r.open || !r.close || toMin(r.close) <= toMin(r.open);
+  }
 
   newBlockDate   = '';
   newBlockReason = '';
@@ -667,7 +705,9 @@ export class ScheduleComponent {
       days.map(d => {
         if (d.key !== dayKey) return d;
         const last = d.ranges[d.ranges.length - 1];
-        return { ...d, ranges: [...d.ranges, { open: last.close, close: last.close }] };
+        // Nueva franja de 1 h a continuación de la última (antes se creaba con largo cero)
+        const close = toTime(Math.min(toMin(last.close) + 60, 23 * 60 + 59));
+        return { ...d, ranges: [...d.ranges, { open: last.close, close }] };
       })
     );
   }
@@ -742,6 +782,11 @@ export class ScheduleComponent {
   async save(): Promise<void> {
     const cid = this.companyStore.companyId();
     if (!cid) return;
+    if (Object.keys(this.dayErrors()).length > 0) {
+      this.saveError.set('Revisá los horarios marcados en rojo antes de guardar.');
+      return;
+    }
+    this.saveError.set('');
     this.saving.set(true);
     try {
       await this.companySvc.updateCompany(cid, {
@@ -753,6 +798,9 @@ export class ScheduleComponent {
       await this.companyStore.refresh();
       this.saved.set(true);
       setTimeout(() => this.saved.set(false), 2000);
+    } catch (e) {
+      console.error('[Schedule] Error al guardar', e);
+      this.saveError.set('No se pudieron guardar los cambios. Intentá de nuevo.');
     } finally {
       this.saving.set(false);
     }

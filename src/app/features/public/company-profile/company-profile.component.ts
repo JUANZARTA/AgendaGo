@@ -6,15 +6,15 @@ import { Subscription } from 'rxjs';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
-import { AppointmentService } from '../../../core/services/appointment.service';
+import { DAY_KEYS, rangesOverlap, toMin } from '../../../core/domain/scheduling';
+import { toLocalDateKey } from '../../../core/utils/date.utils';
+import { AppointmentService, SlotLockEntry } from '../../../core/services/appointment.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { StaffService, StaffMember } from '../../../core/services/staff.service';
+import { StaffService, StaffMember, hasOwnSchedule } from '../../../core/services/staff.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { MessageService, Message } from '../../../core/services/message.service';
 
 const PAYMENT_METHODS = ['Efectivo', 'Nequi', 'Daviplata', 'Transferencia bancaria', 'Tarjeta débito/crédito'];
-
-const DAY_KEYS = ['dom','lun','mar','mie','jue','vie','sab'];
 
 function buildDays(n: number) {
   const days = [];
@@ -24,7 +24,7 @@ function buildDays(n: number) {
   for (let i = 0; i < n; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const iso = toLocalDateKey(d);
     days.push({
       date: iso,
       dateObj: d,
@@ -42,6 +42,25 @@ function buildDays(n: number) {
   imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent],
   styles: [`
     :host { display: block; }
+
+    .service-btn {
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:16px; border-radius:12px; border:2px solid var(--form-border); background:white;
+      cursor:pointer; text-align:left; width:100%; transition:all .18s;
+    }
+    .service-btn:hover { border-color:rgba(var(--primary-rgb), .5); background:var(--form-bg); }
+    .service-btn:focus-visible { outline:3px solid rgba(var(--primary-rgb), .3); outline-offset:2px; }
+    .service-btn:focus:not(:focus-visible) { outline:none; }
+    .service-btn.selected {
+      border-color:var(--purple); background:rgba(var(--primary-rgb), .07);
+      box-shadow:0 0 0 3px rgba(var(--primary-rgb), .15);
+    }
+    .service-check {
+      width:22px; height:22px; border-radius:50%; flex-shrink:0;
+      border:2px solid var(--form-border); display:inline-flex; align-items:center; justify-content:center;
+      color:white; transition:all .18s;
+    }
+    .service-btn.selected .service-check { background:var(--purple); border-color:var(--purple); }
 
     @media (max-width: 640px) {
       input, select, textarea { font-size: 16px !important; }
@@ -208,13 +227,15 @@ function buildDays(n: number) {
             } @else {
               <div style="display:flex;flex-direction:column;gap:10px">
                 @for (s of services(); track s.id) {
-                  <button class="service-btn" (click)="selectService(s)"
-                    style="display:flex;align-items:center;justify-content:space-between;padding:16px;border-radius:12px;border:2px solid var(--form-border);background:white;cursor:pointer;text-align:left;width:100%;transition:all .18s"
-                    [style.borderColor]="selectedService()?.id === s.id ? 'var(--purple)' : 'var(--form-border)'"
-                    [style.background]="selectedService()?.id === s.id ? 'var(--form-bg)' : 'white'"
-                    onmouseover="this.style.borderColor='var(--purple)';this.style.background='var(--form-bg)'"
-                    onmouseout="if(!this.getAttribute('data-selected')){this.style.borderColor='var(--form-border)';this.style.background='white'}">
-                    <div>
+                  <button type="button" class="service-btn" (click)="selectService(s)"
+                    [class.selected]="selectedService()?.id === s.id"
+                    [attr.aria-pressed]="selectedService()?.id === s.id">
+                    <span class="service-check" aria-hidden="true">
+                      @if (selectedService()?.id === s.id) {
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      }
+                    </span>
+                    <div style="flex:1;min-width:0">
                       <div style="font-weight:700;font-size:15px;color:#1a1a2e">{{ s.name }}</div>
                       <div style="color:#888;font-size:13px;margin-top:3px">{{ s.description }}</div>
                       <div style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;color:#a0a0b8;font-size:12px">
@@ -222,7 +243,7 @@ function buildDays(n: number) {
                         {{ s.duration }} min
                       </div>
                     </div>
-                    <div style="text-align:right;flex-shrink:0;margin-left:16px">
+                    <div style="text-align:right;flex-shrink:0;margin-left:4px">
                       <div style="font-weight:800;font-size:17px;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
                         $ {{ (s.price ?? 0) | number }}
                       </div>
@@ -279,13 +300,6 @@ function buildDays(n: number) {
                 } @else {
                   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px">
                     @for (slot of allSlots(); track slot) {
-                      @if (isTaken(slot)) {
-                        <button (click)="alertUnavailable()"
-                          style="padding:10px;border-radius:10px;border:2px solid #fee2e2;background:#fff5f5;color:#fca5a5;font-weight:600;font-size:13px;cursor:not-allowed;font-family:inherit">
-                          {{ slot }}
-                          <div style="font-size:10px;font-weight:700;color:#f87171;margin-top:2px">Sin cupo</div>
-                        </button>
-                      } @else {
                         <button (click)="selectSlot(slot)"
                           style="padding:10px;border-radius:10px;border:2px solid;cursor:pointer;font-weight:700;font-size:13px;transition:all .18s;font-family:inherit"
                           [style.borderColor]="selectedSlot()===slot ? 'transparent' : 'var(--form-border)'"
@@ -295,7 +309,6 @@ function buildDays(n: number) {
                           [style.transform]="selectedSlot()===slot ? 'scale(1.05)' : 'scale(1)'">
                           {{ slot }}
                         </button>
-                      }
                     }
                   </div>
 
@@ -313,7 +326,7 @@ function buildDays(n: number) {
               }
 
               @if (selectedDay() && selectedSlot()) {
-                <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="staffList().length > 0 ? currentStep.set(3) : currentStep.set(4)">
+                <button class="btn btn-primary" style="width:100%;margin-top:20px" (click)="goToStaffStep()">
                   Continuar — {{ selectedDay()!.label }} {{ selectedDay()!.sub }} a las {{ selectedSlot() }}
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
@@ -336,7 +349,7 @@ function buildDays(n: number) {
             </div>
 
             <!-- Cualquier profesional -->
-            <button (click)="selectedStaff.set(null)"
+            <button (click)="selectStaff(null)"
               style="display:flex;align-items:center;gap:14px;width:100%;padding:14px;border-radius:12px;border:2px solid;cursor:pointer;text-align:left;margin-bottom:8px;transition:all .18s;font-family:inherit;background:white"
               [style.borderColor]="selectedStaff() === null ? 'var(--purple)' : 'var(--form-border)'"
               [style.background]="selectedStaff() === null ? 'var(--form-bg)' : 'white'">
@@ -355,8 +368,8 @@ function buildDays(n: number) {
             </button>
 
             <!-- Lista de staff -->
-            @for (s of staffList(); track s.id) {
-              <button (click)="selectedStaff.set(s)"
+            @for (s of availableStaff(); track s.id) {
+              <button (click)="selectStaff(s)"
                 style="display:flex;align-items:center;gap:14px;width:100%;padding:14px;border-radius:12px;border:2px solid;cursor:pointer;text-align:left;margin-bottom:8px;transition:all .18s;font-family:inherit"
                 [style.borderColor]="selectedStaff()?.id === s.id ? 'var(--purple)' : 'var(--form-border)'"
                 [style.background]="selectedStaff()?.id === s.id ? 'var(--form-bg)' : 'white'">
@@ -598,7 +611,7 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
   loadingSlots     = signal(false);
   booking          = signal(false);
   bookingError     = signal('');
-  existingApts     = signal<any[]>([]);
+  existingApts     = signal<SlotLockEntry[]>([]);
   staffList        = signal<StaffMember[]>([]);
   selectedStaff    = signal<StaffMember | null>(null);
   loadingStaff     = signal(false);
@@ -620,13 +633,16 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
     const interval      = company.slotInterval ?? 30;
     const duration      = svc.duration ?? interval;
     const selectedStaff = this.selectedStaff();
-    const apts          = selectedStaff
-      ? this.existingApts().filter(a => a.staffId === selectedStaff.id)
-      : this.existingApts();
-    const staffCount = selectedStaff ? 1 : (svc.staffCount ?? 1);
+    // Todas las citas del día cuentan: las "cualquier profesional" (sin staffId) también consumen capacidad
+    const apts          = this.existingApts();
+    const staffCount    = svc.staffCount ?? 1;
+
+    // Día bloqueado o slots deshabilitados por la empresa
+    if (company.blockedDates?.some(b => b.date === day.date)) return [];
+    const disabled = company.disabledSlots ?? {};
 
     let ranges: { open: string; close: string }[];
-    if (selectedStaff?.schedule) {
+    if (hasOwnSchedule(selectedStaff)) {
       const staffDay = selectedStaff.schedule[key];
       if (!staffDay?.enabled) return [];
       ranges = [{ open: staffDay.open, close: staffDay.close }];
@@ -640,23 +656,68 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
     const slots: string[] = [];
     for (const range of ranges) {
       slots.push(...this.aptSvc.calculateAvailableSlots(
-        range.open, range.close, interval, duration, staffCount, apts
+        range.open, range.close, interval, duration, staffCount, apts, selectedStaff?.id ?? null
       ));
     }
 
-    // Para el día de hoy, filtrar slots que ya pasaron (con 10 min de buffer)
-    const todayIso = new Date().toISOString().split('T')[0];
-    if (day.date === todayIso) {
+    let result = slots.filter(s => !disabled[`${key}-${s}`]);
+
+    // "Cualquier profesional" con staff asignado al servicio: el horario sólo sirve si queda alguien libre.
+    // Libres = trabajan a esa hora y no tienen cita propia, menos las citas "cualquiera" que ya se solapan.
+    const staff = this.staffList();
+    if (!selectedStaff && staff.length > 0) {
+      result = result.filter(s => {
+        const start = toMin(s);
+        const end   = start + duration;
+        const free  = staff.filter(m => this.isStaffFree(m, key, start, end, apts)).length;
+        const anyBusy = apts.filter(a =>
+          !a.staffId && rangesOverlap(start, end, toMin(a.startTime), toMin(a.endTime))
+        ).length;
+        return free - anyBusy > 0;
+      });
+    }
+
+    // Para el día de hoy (hora LOCAL), filtrar slots que ya pasaron (con 10 min de buffer)
+    if (day.date === toLocalDateKey()) {
       const now    = new Date();
       const nowMin = now.getHours() * 60 + now.getMinutes();
-      return slots.filter(s => {
+      result = result.filter(s => {
         const [h, m] = s.split(':').map(Number);
         return h * 60 + m + 10 > nowMin;
       });
     }
 
-    return slots;
+    return result;
   });
+
+  /**
+   * Profesionales que pueden atender en el día y hora elegidos:
+   * trabajan ese día (horario propio, o el de la empresa si no tienen),
+   * el servicio entra completo en su horario y no tienen otra cita que se solape.
+   */
+  availableStaff = computed(() => {
+    const day  = this.selectedDay();
+    const slot = this.selectedSlot();
+    const svc  = this.selectedService();
+    if (!day || !slot || !svc) return this.staffList();
+
+    const key   = DAY_KEYS[day.dayOfWeek];
+    const start = toMin(slot);
+    const end   = start + (svc.duration ?? this.company()?.slotInterval ?? 30);
+    const apts  = this.existingApts();
+    return this.staffList().filter(s => this.isStaffFree(s, key, start, end, apts));
+  });
+
+  private isStaffFree(s: StaffMember, dayKey: string, start: number, end: number, apts: SlotLockEntry[]): boolean {
+    if (hasOwnSchedule(s)) {
+      const staffDay = s.schedule[dayKey];
+      if (!staffDay?.enabled) return false;
+      if (start < toMin(staffDay.open) || end > toMin(staffDay.close)) return false;
+    }
+    return !apts.some(a =>
+      a.staffId === s.id && rangesOverlap(start, end, toMin(a.startTime), toMin(a.endTime))
+    );
+  }
 
   steps = [
     { n: 1, label: 'Servicio' },
@@ -707,41 +768,73 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
     return 'idle';
   }
 
-  isTaken(_slot: string): boolean { return false; }
-
   alertUnavailable() {
     this.showUnavailable.set(true);
     setTimeout(() => this.showUnavailable.set(false), 3000);
   }
 
+  private serviceSeq = 0;
+  private daySeq     = 0;
+
   selectService(s: ServiceItem) {
+    const seq = ++this.serviceSeq;
     this.selectedService.set(s);
+    // Cambió el servicio (duración/capacidad): el slot elegido ya no es válido
+    this.selectedSlot.set(null);
     this.staffList.set([]);
     this.selectedStaff.set(null);
     const cid = this.company()?.id;
     if (cid) {
-      this.staffSvc.getStaffForService(cid, s.id!).then(staff => this.staffList.set(staff));
+      this.staffSvc.getStaffForService(cid, s.id!)
+        .then(staff => { if (seq === this.serviceSeq) this.staffList.set(staff); })
+        .catch(() => {});
+    }
+  }
+
+  /** Cambia el profesional y revalida el slot elegido contra los slots recalculados. */
+  selectStaff(staff: StaffMember | null) {
+    this.selectedStaff.set(staff);
+    const slot = this.selectedSlot();
+    if (slot && !this.allSlots().includes(slot)) {
+      this.selectedSlot.set(null);
+      this.currentStep.set(2);
+      this.alertUnavailable();
     }
   }
 
   async selectDay(day: any) {
+    const seq = ++this.daySeq;
     this.selectedDay.set(day);
     this.selectedSlot.set(null);
     const cid = this.company()?.id;
     if (!cid) return;
     this.loadingSlots.set(true);
     try {
-      const apts = await this.aptSvc.getByCompanyAndDate(cid, day.date);
-      this.existingApts.set(apts);
+      const apts = await this.aptSvc.getDayOccupancy(cid, day.date);
+      // Respuesta obsoleta (el usuario ya eligió otro día): se descarta
+      if (seq === this.daySeq) this.existingApts.set(apts);
+    } catch (e) {
+      // Sin ocupación visible: la transacción de reserva igual valida el cupo contra el lock
+      console.error('[CompanyProfile] No se pudo leer la ocupación del día:', e);
+      if (seq === this.daySeq) this.existingApts.set([]);
     } finally {
-      this.loadingSlots.set(false);
+      if (seq === this.daySeq) this.loadingSlots.set(false);
     }
   }
 
   selectSlot(slot: string) { this.selectedSlot.set(slot); }
+
+  /** Paso 2 → 3. Si nadie puede atender en ese horario, se salta directo a Datos con "cualquier profesional". */
+  goToStaffStep() {
+    const current = this.selectedStaff();
+    // El profesional elegido antes ya no está disponible en el nuevo día/hora
+    if (current && !this.availableStaff().some(s => s.id === current.id)) this.selectedStaff.set(null);
+    this.currentStep.set(this.availableStaff().length > 0 ? 3 : 4);
+  }
+
   goBack() {
     const s = this.currentStep();
-    if (s === 4 && this.staffList().length === 0) {
+    if (s === 4 && this.availableStaff().length === 0) {
       this.currentStep.set(2);
     } else {
       this.currentStep.update(n => n - 1);
@@ -777,6 +870,14 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
     const slot = this.selectedSlot();
     if (!cid || !svc || !day || !slot) return;
 
+    // Revalidar el slot contra la disponibilidad actual (servicio/profesional/bloqueos)
+    if (!this.allSlots().includes(slot)) {
+      this.selectedSlot.set(null);
+      this.currentStep.set(2);
+      this.alertUnavailable();
+      return;
+    }
+
     this.booking.set(true);
     this.bookingError.set('');
     try {
@@ -806,7 +907,11 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
         staffId:         staffMember?.id,
         staffName:       staffMember?.name,
         source:          'app',
-      }, staffMember ? 1 : (svc.staffCount ?? 1), this.company()?.autoConfirm ?? false);
+      }, svc.staffCount ?? 1, this.company()?.autoConfirm ?? false, {
+        slotInterval:  this.company()?.slotInterval ?? 30,
+        blockedDates:  this.company()?.blockedDates,
+        disabledSlots: this.company()?.disabledSlots,
+      });
 
       this.currentStep.set(5);
 
@@ -829,11 +934,13 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
         setTimeout(() => window.open(this.whatsappUrl(), '_blank'), 400);
       }
     } catch (e: any) {
-      if (e.message === 'SLOT_TAKEN') {
-        this.bookingError.set('Ese turno ya fue tomado. Por favor elegí otro horario.');
+      if (e.message === 'SLOT_TAKEN' || e.message === 'DATE_BLOCKED' || e.message === 'SLOT_DISABLED') {
+        this.bookingError.set(e.message === 'SLOT_TAKEN'
+          ? 'Ese turno ya fue tomado. Por favor elegí otro horario.'
+          : 'Ese horario ya no está disponible. Por favor elegí otro.');
         const day = this.selectedDay();
         if (day) {
-          this.aptSvc.getByCompanyAndDate(cid, day.date).then(apts => this.existingApts.set(apts));
+          this.aptSvc.getDayOccupancy(cid, day.date).then(apts => this.existingApts.set(apts)).catch(() => {});
         }
         this.selectedSlot.set(null);
         this.currentStep.set(2);
