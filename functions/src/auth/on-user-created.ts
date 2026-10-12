@@ -17,6 +17,7 @@ export const onUserCreated = beforeUserCreated(async (event) => {
   });
 });
 
+// NO EXPORTAR: inseguro, cualquier usuario autenticado se asigna el rol
 export const setCompanyRole = onCall(async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sin sesión');
   await getAuth().setCustomUserClaims(request.auth.uid, { role: 'company' });
