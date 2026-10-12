@@ -779,8 +779,9 @@ export class CompanyShellComponent implements OnDestroy {
 
       this.rxSub?.unsubscribe();
 
-      this.rxSub = this.subscriptionService.watchStatus(companyId).subscribe((subscription) => {
-        this.sub.set(subscription);
+      this.rxSub = this.subscriptionService.watchStatus(companyId).subscribe({
+        next: (subscription) => this.sub.set(subscription),
+        error: (err) => console.error('[CompanyShell] watchStatus error', err),
       });
     });
 

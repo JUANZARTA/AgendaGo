@@ -2,8 +2,9 @@ import { Component, signal, computed, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  Firestore, collection, onSnapshot, getDocs, updateDoc, doc, setDoc, serverTimestamp,
+  Firestore, collection, onSnapshot, getDocs, updateDoc, doc, writeBatch, serverTimestamp,
 } from '@angular/fire/firestore';
+import { parseLocalDateEndOfDay } from '../../../core/utils/date.utils';
 import { NotificationService } from '../../../core/services/notification.service';
 
 const CAT_LABEL: Record<string, string> = {
@@ -357,35 +358,60 @@ export class CompaniesComponent implements OnDestroy {
       data['adminNote'] = (this.editPlanNote.trim() || '') + ' [Cuenta gratuita otorgada por admin]';
     } else {
       if (this.editPlanPeriodEnd) {
-        data['currentPeriodEnd'] = new Date(this.editPlanPeriodEnd);
+        // En trial la fecha que leen daysRemaining y el cron es trialEndDate
+        const field = this.editPlanStatus === 'trial' ? 'trialEndDate' : 'currentPeriodEnd';
+        data[field] = parseLocalDateEndOfDay(this.editPlanPeriodEnd);
         if (this.editPlanStatus === 'active') data['lastPaymentDate'] = serverTimestamp();
       }
       if (this.editPlanNote.trim()) data['adminNote'] = this.editPlanNote.trim();
     }
 
-    await setDoc(doc(this.firestore, 'subscriptions', target.id), data, { merge: true });
+    // Sincronizar companies.isActive con el estado de la suscripción
+    const isActive = ['active', 'trial', 'free'].includes(this.editPlanStatus);
 
-    const statusLabels: Record<string, string> = {
-      trial: 'Trial', active: 'Plan activo', expired: 'Vencida',
-      disabled: 'Deshabilitada', free: 'Gratuita (Beneficiario)',
-    };
-    if (target.ownerId) {
-      await this.notifSvc.create({
-        recipientId: target.ownerId,
-        type:        'plan_changed',
-        title:       'Tu plan fue actualizado',
-        body:        `El administrador cambió tu suscripción a: ${statusLabels[this.editPlanStatus] ?? this.editPlanStatus}.`,
-        link:        '/empresa/facturacion',
-      });
+    try {
+      const batch = writeBatch(this.firestore);
+      batch.set(doc(this.firestore, 'subscriptions', target.id), data, { merge: true });
+      batch.update(doc(this.firestore, 'companies', target.id), { isActive });
+      await batch.commit();
+
+      // Reflejar el cambio localmente (subsMap se carga una sola vez)
+      this.subsMap.update(m => ({ ...m, [target.id]: { ...(m[target.id] ?? {}), ...data } }));
+
+      const statusLabels: Record<string, string> = {
+        trial: 'Trial', active: 'Plan activo', expired: 'Vencida',
+        disabled: 'Deshabilitada', free: 'Gratuita (Beneficiario)',
+      };
+      if (target.ownerId) {
+        try {
+          await this.notifSvc.create({
+            recipientId: target.ownerId,
+            type:        'plan_changed',
+            title:       'Tu plan fue actualizado',
+            body:        `El administrador cambió tu suscripción a: ${statusLabels[this.editPlanStatus] ?? this.editPlanStatus}.`,
+            link:        '/empresa/facturacion',
+          });
+        } catch (err) {
+          console.error('[AdminCompanies] Error notificando cambio de plan:', err);
+        }
+      }
+      this.planTarget.set(null);
+    } catch (err) {
+      console.error('[AdminCompanies] Error guardando plan:', err);
+      alert('No se pudo guardar el plan. Intenta de nuevo.');
+    } finally {
+      this.savingPlan.set(false);
     }
-
-    this.savingPlan.set(false);
-    this.planTarget.set(null);
   }
 
   async doToggle(target: { id: string; isActive: boolean }) {
     this.confirmTarget.set(null);
-    await updateDoc(doc(this.firestore, 'companies', target.id), { isActive: !target.isActive });
+    try {
+      await updateDoc(doc(this.firestore, 'companies', target.id), { isActive: !target.isActive });
+    } catch (err) {
+      console.error('[AdminCompanies] Error cambiando estado de empresa:', err);
+      alert('No se pudo cambiar el estado de la empresa.');
+    }
   }
 
   private formatTs(ts: any): string {

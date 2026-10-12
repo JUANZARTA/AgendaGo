@@ -32,7 +32,7 @@ admin.initializeApp({
 const auth      = admin.auth();
 const firestore = admin.firestore();
 
-const ADMIN_EMAIL    = 'develop@gmail.com';
+const ADMIN_EMAIL    = 'admin@gmail.com';
 const ADMIN_PASSWORD = '123456';
 const ADMIN_NAME     = 'Super Admin';
 
@@ -43,7 +43,8 @@ async function run() {
   try {
     const existing = await auth.getUserByEmail(ADMIN_EMAIL);
     uid = existing.uid;
-    console.log(`ℹ️  El usuario ya existe en Auth (uid: ${uid}). Continuando...`);
+    await auth.updateUser(uid, { password: ADMIN_PASSWORD });
+    console.log(`ℹ️  El usuario ya existe en Auth (uid: ${uid}). Contraseña reseteada.`);
   } catch (err) {
     if (err.code === 'auth/user-not-found') {
       const created = await auth.createUser({

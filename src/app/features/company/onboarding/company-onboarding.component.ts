@@ -5,6 +5,7 @@ import { CompanyStore } from '../../../core/services/company-store.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { StaffService } from '../../../core/services/staff.service';
+import { SubscriptionService } from '../../../core/services/subscription.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 
 const DEFAULT_SCHEDULE = [
@@ -725,6 +726,7 @@ export class CompanyOnboardingComponent {
   private authSvc           = inject(AuthService);
   private staffSvc          = inject(StaffService);
   private serviceCatalogSvc = inject(ServiceCatalogService);
+  private subscriptionSvc   = inject(SubscriptionService);
 
   readonly categories     = CATEGORIES;
   readonly socialPlatforms = SOCIAL_PLATFORMS;
@@ -822,6 +824,11 @@ export class CompanyOnboardingComponent {
     this.newSvcPriceDisplay = '';
   }
 
+  // Idempotencia: si createCompany ya tuvo éxito, un reintento reutiliza el mismo companyId
+  private createdCompanyId: string | null = null;
+  private staffCreatedCount = 0;
+  private servicesCreatedCount = 0;
+
   async doCreate() {
     if (!this.form.name.trim() || !this.selectedCat()) return;
     this.creating.set(true);
@@ -839,7 +846,7 @@ export class CompanyOnboardingComponent {
         return s.enabled && s.handle.trim() ? s.handle.trim() : undefined;
       };
 
-      const companyId = await this.companySvc.createCompany({
+      const companyId = this.createdCompanyId ?? await this.companySvc.createCompany({
         name:         this.form.name.trim(),
         slug,
         category:     this.selectedCat() as any,
@@ -861,17 +868,31 @@ export class CompanyOnboardingComponent {
         disabledSlots: {},
       });
 
-      for (const m of this.pendingStaff) {
+      this.createdCompanyId = companyId;
+
+      // Sin Cloud Functions (plan Spark): el trial se crea desde el cliente. Idempotente (transacción);
+      // si falla no bloquea el onboarding: el backfill/admin lo cubre y el guard no bloquea sin doc.
+      try {
+        await this.subscriptionSvc.createTrialIfMissing(companyId);
+      } catch (subErr) {
+        console.error('[Onboarding] No se pudo crear el trial (se reparará con backfill-subscriptions):', subErr);
+      }
+
+      // Los contadores evitan duplicar staff/servicios ya creados en un intento previo
+      while (this.staffCreatedCount < this.pendingStaff.length) {
+        const m = this.pendingStaff[this.staffCreatedCount];
         await this.staffSvc.createStaff(companyId, {
           name:       m.name,
           phone:      m.phone || undefined,
           serviceIds: [],
           isActive:   true,
         });
+        this.staffCreatedCount++;
       }
 
-      for (const s of this.pendingServices) {
-        await this.serviceCatalogSvc.createService(companyId, s);
+      while (this.servicesCreatedCount < this.pendingServices.length) {
+        await this.serviceCatalogSvc.createService(companyId, this.pendingServices[this.servicesCreatedCount]);
+        this.servicesCreatedCount++;
       }
 
       await this.companyStore.refresh();

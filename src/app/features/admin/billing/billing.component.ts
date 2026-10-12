@@ -2,8 +2,10 @@ import { Component, signal, computed, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  Firestore, collection, onSnapshot, getDocs, updateDoc, doc, serverTimestamp,
+  Firestore, collection, onSnapshot, getDocs, writeBatch, doc, serverTimestamp,
 } from '@angular/fire/firestore';
+import { parseLocalDateEndOfDay } from '../../../core/utils/date.utils';
+import { SubscriptionService, OverdueSub } from '../../../core/services/subscription.service';
 
 const STATUS_LABEL: Record<string, string> = {
   trial: 'Trial', active: 'Activa', expired: 'Vencida', disabled: 'Deshabilitada', free: 'Gratuita',
@@ -20,6 +22,7 @@ interface AdminSub {
   trialEndLabel: string;
   periodEndLabel: string;
   lastPaymentLabel: string;
+  periodEndMs: number | null;
 }
 
 @Component({
@@ -28,10 +31,28 @@ interface AdminSub {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="page">
-      <div style="margin-bottom:24px">
-        <h1 style="font-size:1.4rem;margin:0 0 4px">Facturación</h1>
-        <p style="color:#888;font-size:13px;margin:0">Gestión de suscripciones y pagos por empresa</p>
+      <div style="margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <h1 style="font-size:1.4rem;margin:0 0 4px">Facturación</h1>
+          <p style="color:#888;font-size:13px;margin:0">Gestión de suscripciones y pagos por empresa</p>
+        </div>
+        <button class="btn btn-sm btn-primary" (click)="startExpiryReview()" [disabled]="reviewing()">
+          {{ reviewing() ? 'Revisando...' : 'Revisar vencimientos' }}
+        </button>
       </div>
+
+      @if (pendingOverdueCount() > 0) {
+        <div style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;font-weight:600">
+          Hay {{ pendingOverdueCount() }} suscripción(es) con fecha vencida que siguen como Trial/Activa. Usá "Revisar vencimientos" para marcarlas como vencidas.
+        </div>
+      }
+
+      @if (expiryResult()) {
+        <div style="margin-bottom:16px;padding:12px 16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;font-size:13px;color:#166534;font-weight:600;display:flex;justify-content:space-between;gap:12px">
+          <span>{{ expiryResult() }}</span>
+          <button (click)="expiryResult.set('')" style="background:none;border:none;cursor:pointer;color:#166534;font-size:16px;line-height:1">×</button>
+        </div>
+      }
 
       <!-- Resumen -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px">
@@ -103,6 +124,37 @@ interface AdminSub {
         </div>
       }
     </div>
+
+    <!-- Modal confirmación vencimientos -->
+    @if (overdue()) {
+      <div style="position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px">
+        <div style="background:white;border-radius:16px;padding:28px;max-width:460px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.2)">
+          <h3 style="font-size:1rem;font-weight:800;color:#1a1a2e;margin:0 0 10px">Revisar vencimientos</h3>
+          @if (overdue()!.length === 0) {
+            <p style="font-size:13px;color:#666;margin:0 0 20px">No hay suscripciones trial/activas con fecha vencida.</p>
+            <button (click)="overdue.set(null)" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #e5e7eb;background:none;font-size:13px;font-weight:600;color:#888;cursor:pointer;font-family:inherit">Cerrar</button>
+          } @else {
+            <p style="font-size:13px;color:#666;line-height:1.6;margin:0 0 10px">
+              Se marcarán como <strong>vencidas</strong> {{ overdue()!.length }} empresa(s) y se desactivarán (isActive = false):
+            </p>
+            <ul style="max-height:180px;overflow:auto;margin:0 0 20px;padding-left:18px;font-size:13px;color:#444">
+              @for (o of overdue()!; track o.companyId) {
+                <li>{{ nameOf(o.companyId) }} — {{ o.status === 'trial' ? 'trial' : 'activa' }}, venció {{ o.endDate.toLocaleDateString('es-CO') }}</li>
+              }
+            </ul>
+            <div style="display:flex;gap:10px">
+              <button (click)="overdue.set(null)" [disabled]="expiring()"
+                style="flex:1;padding:11px;border-radius:10px;border:1.5px solid #e5e7eb;background:none;font-size:13px;font-weight:600;color:#888;cursor:pointer;font-family:inherit">Cancelar</button>
+              <button (click)="confirmExpiry()" [disabled]="expiring()"
+                style="flex:1;padding:11px;border-radius:10px;border:none;background:#dc2626;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit"
+                [style.opacity]="expiring() ? '0.6' : '1'">
+                {{ expiring() ? 'Procesando...' : 'Sí, marcar vencidas' }}
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    }
 
     <!-- Modal confirmación cuenta gratuita -->
     @if (confirmFree()) {
@@ -202,6 +254,7 @@ export class AdminBillingComponent implements OnDestroy {
   STATUS_LABEL = STATUS_LABEL;
 
   private firestore = inject(Firestore);
+  private subSvc    = inject(SubscriptionService);
 
   private rawSubs    = signal<any[]>([]);
   private companyMap = signal<Record<string, { name: string; ownerEmail: string }>>({});
@@ -213,6 +266,12 @@ export class AdminBillingComponent implements OnDestroy {
 
   selected     = signal<AdminSub | null>(null);
   confirmFree  = signal(false);
+
+  // Vencimientos (sustituye al cron checkExpired, que no corre en plan Spark)
+  reviewing    = signal(false);
+  expiring     = signal(false);
+  overdue      = signal<OverdueSub[] | null>(null);
+  expiryResult = signal('');
   editStatus   = '';
   editPeriodEnd = '';
   editNote     = '';
@@ -231,6 +290,7 @@ export class AdminBillingComponent implements OnDestroy {
         trialEndLabel:    this.fmtTs(s.trialEndDate),
         periodEndLabel:   this.fmtTs(s.currentPeriodEnd),
         lastPaymentLabel: this.fmtTs(s.lastPaymentDate),
+        periodEndMs:      s.currentPeriodEnd?.toDate ? s.currentPeriodEnd.toDate().getTime() : null,
       };
     });
   });
@@ -253,6 +313,52 @@ export class AdminBillingComponent implements OnDestroy {
       { label: 'Vencidas',       value: list.filter(s => s.status === 'expired').length },
     ];
   });
+
+  /**
+   * Aviso pasivo: se calcula sobre el snapshot ya cargado (0 lecturas extra). No se auto-ejecuta
+   * la escritura al abrir la página: mutar N empresas sin acción explícita del admin es riesgoso
+   * (un reloj local mal puesto desactivaría empresas) y duplicaría el snapshot en vivo.
+   */
+  pendingOverdueCount = computed(() => {
+    const now = Date.now();
+    return this.rawSubs().filter(s => {
+      const raw = s.status === 'trial' ? s.trialEndDate : s.status === 'active' ? s.currentPeriodEnd : null;
+      const end = raw?.toDate ? raw.toDate().getTime() : null;
+      return end !== null && end <= now;
+    }).length;
+  });
+
+  nameOf(companyId: string): string {
+    return this.companyMap()[companyId]?.name ?? companyId;
+  }
+
+  async startExpiryReview() {
+    this.reviewing.set(true);
+    this.expiryResult.set('');
+    try {
+      this.overdue.set(await this.subSvc.findOverdue());
+    } catch (err) {
+      console.error('[AdminBilling] Error buscando vencimientos:', err);
+      alert('No se pudieron consultar los vencimientos. Intenta de nuevo.');
+    } finally {
+      this.reviewing.set(false);
+    }
+  }
+
+  async confirmExpiry() {
+    const items = this.overdue();
+    if (!items?.length) return;
+    this.expiring.set(true);
+    try {
+      const { expired, failed } = await this.subSvc.expireOverdue(items);
+      this.expiryResult.set(
+        `Vencimientos procesados: ${expired} marcadas como vencidas` + (failed ? `, ${failed} con error (ver consola)` : '') + '.'
+      );
+      this.overdue.set(null);
+    } finally {
+      this.expiring.set(false);
+    }
+  }
 
   constructor() {
     this.unsub = onSnapshot(collection(this.firestore, 'subscriptions'), snap => {
@@ -309,6 +415,13 @@ export class AdminBillingComponent implements OnDestroy {
     this.saving.set(true);
     this.confirmFree.set(false);
 
+    // Pasar a 'active' sin fecha de fin futura dejaría la suscripción vencida de inmediato
+    if (this.editStatus === 'active' && !this.editPeriodEnd && (s.periodEndMs === null || s.periodEndMs <= Date.now())) {
+      this.saving.set(false);
+      alert('Para activar el plan indicá la fecha de vencimiento del período pagado.');
+      return;
+    }
+
     const update: Record<string, any> = { status: this.editStatus };
 
     if (this.editStatus === 'free') {
@@ -316,7 +429,9 @@ export class AdminBillingComponent implements OnDestroy {
       update['adminNote'] = (this.editNote.trim() || '') + ' [Cuenta gratuita otorgada por admin]';
     } else {
       if (this.editPeriodEnd) {
-        update['currentPeriodEnd'] = new Date(this.editPeriodEnd);
+        // En trial la fecha que leen daysRemaining y el cron es trialEndDate
+        const field = this.editStatus === 'trial' ? 'trialEndDate' : 'currentPeriodEnd';
+        update[field] = parseLocalDateEndOfDay(this.editPeriodEnd);
         if (this.editStatus === 'active') {
           update['lastPaymentDate'] = serverTimestamp();
         }
@@ -326,9 +441,22 @@ export class AdminBillingComponent implements OnDestroy {
       }
     }
 
-    await updateDoc(doc(this.firestore, 'subscriptions', s.companyId), update);
-    this.saving.set(false);
-    this.closeModal();
+    // Sincronizar companies.isActive con el estado de la suscripción
+    const isActive = ['active', 'trial', 'free'].includes(this.editStatus);
+
+    try {
+      const batch = writeBatch(this.firestore);
+      batch.update(doc(this.firestore, 'subscriptions', s.companyId), update);
+      // set+merge tolera que el doc de la empresa no exista
+      batch.set(doc(this.firestore, 'companies', s.companyId), { isActive }, { merge: true });
+      await batch.commit();
+      this.closeModal();
+    } catch (err) {
+      console.error('[AdminBilling] Error guardando suscripción:', err);
+      alert('No se pudo guardar el cambio. Intenta de nuevo.');
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   private fmtTs(ts: any): string {

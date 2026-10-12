@@ -1,4 +1,4 @@
-import { Component, OnDestroy, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription as RxSubscription } from 'rxjs';
 import {
@@ -224,6 +224,20 @@ interface SubViewModel {
         <div class="loading-banner">
           <span class="loading-text">Cargando información de suscripción...</span>
         </div>
+      } @else if (loadError() || noSubscription()) {
+        <!-- ── SIN SUSCRIPCIÓN / ERROR ── -->
+        <div class="status-banner disabled">
+          <div class="status-body">
+            <p class="status-label">
+              {{ loadError() ? 'No pudimos cargar tu suscripción' : 'Todavía no tenés una suscripción registrada' }}
+            </p>
+            <p class="status-desc">
+              {{ loadError()
+                  ? 'Revisá tu conexión y recargá la página. Si el problema continúa, contactá a soporte.'
+                  : 'Podés elegir un plan abajo para activar tu cuenta. Si creés que es un error, contactá a soporte.' }}
+            </p>
+          </div>
+        </div>
       } @else {
         <!-- ── BANNER DE ESTADO ── -->
         <div class="status-banner" [class]="sub().status">
@@ -306,7 +320,9 @@ interface SubViewModel {
             <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Soporte prioritario</li>
           </ul>
           <div class="plan-footer">
-            @if (sub().status === 'trial') {
+            @if (noSubscription() || loadError()) {
+              <div class="plan-used-tag">No disponible</div>
+            } @else if (sub().status === 'trial') {
               <div class="plan-used-tag">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 Trial en curso ({{ sub().daysLeft }} días restantes)
@@ -339,7 +355,7 @@ interface SubViewModel {
             <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Soporte prioritario</li>
           </ul>
           <div class="plan-footer">
-            <button class="btn btn-primary plan-cta" (click)="payMonthly()">
+            <button class="btn btn-primary plan-cta" (click)="payMonthly()" [disabled]="!companyReady()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
               Pagar $29.000
             </button>
@@ -365,7 +381,7 @@ interface SubViewModel {
             <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Soporte prioritario</li>
           </ul>
           <div class="plan-footer">
-            <button class="btn btn-primary plan-cta" (click)="paySemestral()">
+            <button class="btn btn-primary plan-cta" (click)="paySemestral()" [disabled]="!companyReady()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
               Pagar $156.600
             </button>
@@ -431,6 +447,10 @@ export class BillingComponent implements OnDestroy {
   private firestore           = inject(Firestore);
 
   loading  = signal(true);
+  noSubscription = signal(false);
+  loadError      = signal(false);
+  /** Los botones de pago se habilitan solo cuando el companyId ya cargó */
+  companyReady   = computed(() => !!this.companyStore.companyId());
   payments = signal<Payment[]>([]);
 
   sub = signal<SubViewModel>({
@@ -443,37 +463,67 @@ export class BillingComponent implements OnDestroy {
 
   private rxSub: RxSubscription | null = null;
   private unsubPayments?: () => void;
+  private prevStatus: Subscription['status'] | null = null;
 
   constructor() {
     effect(() => {
       const companyId = this.companyStore.companyId();
-      if (!companyId) return;
+      if (!companyId) {
+        // Sin empresa: si el store ya terminó de cargar, no dejar el spinner colgado
+        if (!this.companyStore.loading()) {
+          this.noSubscription.set(true);
+          this.loading.set(false);
+        }
+        return;
+      }
 
       this.rxSub?.unsubscribe();
       this.loading.set(true);
+      this.loadError.set(false);
+      this.noSubscription.set(false);
+      this.prevStatus = null;
 
-      this.rxSub = this.subscriptionService.watchStatus(companyId).subscribe((subscription) => {
-        if (!subscription) {
+      this.rxSub = this.subscriptionService.watchStatus(companyId).subscribe({
+        next: (subscription) => {
+          if (!subscription) {
+            // No existe el doc de suscripción: mostrar estado claro en vez de "trial 0 días"
+            this.noSubscription.set(true);
+            this.loading.set(false);
+            return;
+          }
+          this.noSubscription.set(false);
+
+          // Un trial vencido cuenta como expirado aunque el cron (05:00) aún no lo marcó
+          const status   = this.subscriptionService.effectiveStatus(subscription);
+          const daysLeft = this.subscriptionService.daysRemaining(subscription);
+          const endDate  = subscription.status === 'trial'
+            ? subscription.trialEndDate
+            : subscription.currentPeriodEnd;
+          const trialEnd = this.formatTimestamp(endDate);
+          const plan     = status === 'active' ? 'Plan activo' : 'Gratuito (Trial)';
+
+          this.sub.set({
+            status,
+            plan,
+            trialEnd,
+            daysLeft,
+            trialUsed: status !== 'trial',
+          });
+
+          // Tras un pago aprobado el admin activa el plan: refrescar el CompanyStore
+          if (status === 'active' && this.prevStatus !== null && this.prevStatus !== 'active') {
+            this.companyStore.refresh().catch(err =>
+              console.error('[Billing] Error refrescando CompanyStore:', err));
+          }
+          this.prevStatus = status;
+
           this.loading.set(false);
-          return;
-        }
-
-        const daysLeft = this.subscriptionService.daysRemaining(subscription);
-        const endDate  = subscription.status === 'trial'
-          ? subscription.trialEndDate
-          : subscription.currentPeriodEnd;
-        const trialEnd = this.formatTimestamp(endDate);
-        const plan     = subscription.status === 'active' ? 'Plan activo' : 'Gratuito (Trial)';
-
-        this.sub.set({
-          status:    subscription.status,
-          plan,
-          trialEnd,
-          daysLeft,
-          trialUsed: subscription.status !== 'trial',
-        });
-
-        this.loading.set(false);
+        },
+        error: (err) => {
+          console.error('[Billing] Error cargando suscripción:', err);
+          this.loadError.set(true);
+          this.loading.set(false);
+        },
       });
 
       // Cargar historial de pagos real
@@ -483,15 +533,18 @@ export class BillingComponent implements OnDestroy {
         where('companyId', '==', companyId),
         orderBy('createdAt', 'desc'),
       );
-      this.unsubPayments = onSnapshot(q, snap => {
-        this.payments.set(snap.docs.map(d => d.data() as Payment));
-      });
+      this.unsubPayments = onSnapshot(
+        q,
+        snap => this.payments.set(snap.docs.map(d => d.data() as Payment)),
+        err => console.error('[Billing] Error cargando pagos:', err),
+      );
     });
   }
 
 
   payMonthly(): void {
-    const companyId = this.companyStore.companyId() ?? 'unknown';
+    const companyId = this.companyStore.companyId();
+    if (!companyId) return;
     const ref = `mensual-${companyId}-${Date.now()}`;
     const url = `https://checkout.wompi.co/l/6btIw2?reference=${ref}`;
     window.open(url, '_blank');
@@ -499,7 +552,8 @@ export class BillingComponent implements OnDestroy {
   }
 
   paySemestral(): void {
-    const companyId = this.companyStore.companyId() ?? 'unknown';
+    const companyId = this.companyStore.companyId();
+    if (!companyId) return;
     const ref = `semestral-${companyId}-${Date.now()}`;
     const url = `https://checkout.wompi.co/l/3pQr9V?reference=${ref}`;
     window.open(url, '_blank');

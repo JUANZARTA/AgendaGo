@@ -500,6 +500,8 @@ export class AdminShellComponent implements OnDestroy {
   async markNotifRead(n: AppNotification): Promise<void> {
     if (!n.read && n.id) await this.notifSvc.markRead(n.id);
     this.notifPanelOpen.set(false);
+    // Ej: payment_initiated -> /admin/facturacion para activar el plan manualmente
+    if (n.link?.startsWith('/admin')) this.router.navigateByUrl(n.link);
   }
 
   async markAllRead(): Promise<void> {

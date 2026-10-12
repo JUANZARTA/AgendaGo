@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import { AuthService } from '../../../core/services/auth.service';
 import { environment } from '../../../../environments/environment';
 
@@ -15,6 +16,7 @@ export class RegisterComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
   private fb = inject(FormBuilder);
+  private firestore = inject(Firestore);
 
   form = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2)]],
@@ -36,16 +38,36 @@ export class RegisterComponent {
     this.error.set('');
     this.auth.loginWithGoogle().subscribe({
       next: async (credential) => {
-        await this.auth.saveProfile(credential.user.uid, {
-          uid: credential.user.uid,
-          email: credential.user.email ?? '',
-          displayName: credential.user.displayName ?? '',
-          role: role as 'client' | 'company',
-          createdAt: Date.now(),
-        });
-        await this.auth.waitForProfile();
-        this.loading.set(false);
-        this.router.navigate(role === 'company' ? ['/empresa'] : ['/cliente']);
+        try {
+          const uid = credential.user.uid;
+          // Si el usuario ya existe, NO pisar su perfil/rol: se lo rutea por su rol actual
+          const snap = await getDoc(doc(this.firestore, 'users', uid));
+          const existing = snap.exists() ? (snap.data() as { role?: string }) : null;
+
+          let finalRole: string = role;
+          if (existing?.role) {
+            finalRole = existing.role;
+          } else {
+            await this.auth.saveProfile(uid, {
+              uid,
+              email: credential.user.email ?? '',
+              displayName: credential.user.displayName ?? '',
+              role: role as 'client' | 'company',
+              createdAt: Date.now(),
+            });
+          }
+          await this.auth.waitForProfile();
+          this.router.navigate(
+            finalRole === 'company' ? ['/empresa']
+            : finalRole === 'superadmin' ? ['/admin']
+            : ['/cliente'],
+          );
+        } catch (err) {
+          console.error('[Register] Error en registro con Google:', err);
+          this.error.set('Error al registrarse con Google.');
+        } finally {
+          this.loading.set(false);
+        }
       },
       error: () => {
         this.error.set('Error al registrarse con Google.');
