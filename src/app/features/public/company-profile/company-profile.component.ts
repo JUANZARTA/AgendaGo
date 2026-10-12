@@ -897,6 +897,7 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
         clientName:      this.clientName,
         clientPhone:     this.clientPhone,
         clientEmail:     this.authSvc.profile()?.email,
+        clientPhotoUrl:  uid ? (this.authSvc.profile()?.photoUrl || undefined) : undefined,
         clientId:        uid,
         isGuestClient:   !uid,
         clientNote:      this.clientNote.trim() || undefined,

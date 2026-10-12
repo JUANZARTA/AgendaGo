@@ -616,6 +616,10 @@ interface DaySlot {
           <!-- Sección: Cliente -->
           <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Cliente</p>
           <div style="background:#f9f5ff;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;flex-direction:column;gap:8px">
+            @if (detailApt()!.clientPhotoUrl) {
+              <img [src]="detailApt()!.clientPhotoUrl" alt="Foto del cliente"
+                   style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.08)" />
+            }
             <div style="display:flex;align-items:center;gap:8px;font-size:14px">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               <span style="font-weight:600">{{ detailApt()!.clientName }}</span>

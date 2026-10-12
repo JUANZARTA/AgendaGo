@@ -19,6 +19,8 @@ export interface Appointment {
   clientName: string;
   clientPhone: string;
   clientEmail?: string;
+  /** Copia de la foto del cliente al reservar (la empresa no puede leer users/{uid}). */
+  clientPhotoUrl?: string;
   isGuestClient: boolean;
   date: string;
   startTime: string;

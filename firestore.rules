@@ -172,7 +172,7 @@ service cloud.firestore {
                               'clientName', 'clientPhone', 'isGuestClient', 'date', 'startTime',
                               'endTime', 'status', 'source', 'createdAt'])
           && d.keys().hasOnly(['companyId', 'companyName', 'serviceId', 'serviceName', 'serviceDuration',
-                               'clientId', 'clientName', 'clientPhone', 'clientEmail', 'isGuestClient',
+                               'clientId', 'clientName', 'clientPhone', 'clientEmail', 'clientPhotoUrl', 'isGuestClient',
                                'date', 'startTime', 'endTime', 'price', 'clientNote', 'staffId',
                                'staffName', 'status', 'source', 'createdAt'])
           && d.companyId is string && d.companyName is string && d.companyName.size() <= 200
@@ -181,6 +181,8 @@ service cloud.firestore {
           && d.clientName is string && d.clientName.size() <= 120
           && d.clientPhone is string && d.clientPhone.size() <= 40
           && optString(d, 'clientEmail', 200)
+          // Copia de la foto del cliente (data URL 150x150 o URL de Google): la empresa no puede leer users/{uid}
+          && optString(d, 'clientPhotoUrl', 100000)
           && optString(d, 'clientNote', 1000)
           && optString(d, 'staffId', 128)
           && optString(d, 'staffName', 200)
