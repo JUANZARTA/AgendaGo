@@ -80,7 +80,7 @@ const STATUS_CLASS: Record<string, string> = {
             @if (count('completed') > 0) {
               <button class="bulk-btn" (click)="bulkDeleteTarget.set('completed')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
-                Borrar completadas ({{ count('completed') }})
+                Ocultar completadas ({{ count('completed') }})
               </button>
             }
           </div>
@@ -169,10 +169,10 @@ const STATUS_CLASS: Record<string, string> = {
                       </button>
                     }
                   }
-                  <!-- Eliminar (cancelled/completed) -->
+                  <!-- Eliminar (cancelled) / Ocultar (completed: el negocio conserva el registro) -->
                   @if (appt.status === 'cancelled' || appt.status === 'completed') {
                     @if (confirmDeleteId() === appt.id) {
-                      <span style="font-size:13px;color:#555">¿Eliminar?</span>
+                      <span style="font-size:13px;color:#555">{{ appt.status === 'completed' ? '¿Ocultar?' : '¿Eliminar?' }}</span>
                       <button class="btn btn-danger btn-sm" (click)="doDelete(appt.id!)" [disabled]="deleting()">
                         @if (deleting()) { ... } @else { Sí }
                       </button>
@@ -180,7 +180,7 @@ const STATUS_CLASS: Record<string, string> = {
                     } @else {
                       <button class="delete-link" (click)="confirmDeleteId.set(appt.id!)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
-                        Eliminar
+                        {{ appt.status === 'completed' ? 'Ocultar' : 'Eliminar' }}
                       </button>
                     }
                   }
@@ -210,12 +210,17 @@ const STATUS_CLASS: Record<string, string> = {
     @if (bulkDeleteTarget()) {
       <div class="confirm-overlay" (click)="bulkDeleteTarget.set(null)">
         <div class="confirm-card" (click)="$event.stopPropagation()">
-          <h3>¿Borrar todas las {{ bulkDeleteTarget() === 'cancelled' ? 'canceladas' : 'completadas' }}?</h3>
-          <p>Se eliminarán {{ count(bulkDeleteTarget()!) }} citas permanentemente. Esta acción no se puede deshacer.</p>
+          @if (bulkDeleteTarget() === 'cancelled') {
+            <h3>¿Borrar todas las canceladas?</h3>
+            <p>Se eliminarán {{ count('cancelled') }} citas permanentemente. Esta acción no se puede deshacer.</p>
+          } @else {
+            <h3>¿Ocultar todas las completadas?</h3>
+            <p>Se ocultarán {{ count('completed') }} citas de tu historial. El negocio conserva el registro.</p>
+          }
           <div class="confirm-actions">
             <button class="btn btn-secondary btn-sm" (click)="bulkDeleteTarget.set(null)" [disabled]="bulkDeleting()">Cancelar</button>
             <button class="btn btn-danger btn-sm" (click)="doBulkDelete()" [disabled]="bulkDeleting()">
-              @if (bulkDeleting()) { Borrando... } @else { Sí, borrar }
+              @if (bulkDeleting()) { Procesando... } @else if (bulkDeleteTarget() === 'cancelled') { Sí, borrar } @else { Sí, ocultar }
             </button>
           </div>
         </div>
@@ -438,7 +443,8 @@ export class AppointmentsComponent implements OnDestroy {
 
     this.sub = this.aptSvc.watchByClient(uid).subscribe({
       next: (apts) => {
-        this.appointments.set(apts);
+        // Las ocultadas por el cliente no se muestran (siguen existiendo para la empresa)
+        this.appointments.set(apts.filter(a => !a.hiddenByClient));
         this.loading.set(false);
       },
       error: () => {
@@ -477,10 +483,19 @@ export class AppointmentsComponent implements OnDestroy {
     }
   }
 
+  /** Canceladas: se borran. Completadas: se ocultan (alimentan ingresos/estadísticas del negocio). */
+  private removeForClient(apt: Appointment): Promise<void> {
+    return apt.status === 'completed'
+      ? this.aptSvc.hideForClient(apt.id!)
+      : this.aptSvc.deleteAppointment(apt.id!);
+  }
+
   async doDelete(id: string) {
+    const apt = this.appointments().find(a => a.id === id);
+    if (!apt) return;
     this.deleting.set(true);
     try {
-      await this.aptSvc.deleteAppointment(id);
+      await this.removeForClient(apt);
       this.confirmDeleteId.set(null);
     } catch {
       this.error.set('No se pudo eliminar. Intentá de nuevo.');
@@ -495,7 +510,7 @@ export class AppointmentsComponent implements OnDestroy {
     const targets = this.appointments().filter(a => a.status === status);
     this.bulkDeleting.set(true);
     try {
-      await Promise.all(targets.map(a => this.aptSvc.deleteAppointment(a.id!)));
+      await Promise.all(targets.map(a => this.removeForClient(a)));
       this.bulkDeleteTarget.set(null);
     } catch {
       this.error.set('Error al borrar algunas citas. Intentá de nuevo.');

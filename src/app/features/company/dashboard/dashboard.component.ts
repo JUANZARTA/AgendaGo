@@ -8,6 +8,7 @@ import { ServiceCatalogService, ServiceItem } from '../../../core/services/servi
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { StaffService, StaffMember } from '../../../core/services/staff.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { toLocalDateKey } from '../../../core/utils/date.utils';
 
 const CANCEL_REASONS = [
   'El cliente no se presentó',
@@ -650,6 +651,12 @@ interface DaySlot {
     }
 
 
+    @if (actionError()) {
+      <div style="position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:3000;background:#dc2626;color:white;padding:12px 22px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,.25);max-width:calc(100vw - 32px);text-align:center">
+        {{ actionError() }}
+      </div>
+    }
+
     <!-- ===== MODAL: Nueva cita ===== -->
     @if (showNewModal()) {
       <div class="modal-overlay" (click)="closeNewModal()">
@@ -716,6 +723,12 @@ interface DaySlot {
             <label>Nota interna <span style="font-weight:400;color:#aaa">(opcional)</span></label>
             <textarea [(ngModel)]="newNote" placeholder="Preferencias, indicaciones, etc."></textarea>
           </div>
+
+          @if (formError()) {
+            <div style="background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 14px;margin-top:8px;font-size:13px;font-weight:600">
+              {{ formError() }}
+            </div>
+          }
 
           <div class="modal-footer">
             <button class="btn btn-secondary" (click)="closeNewModal()">Cancelar</button>
@@ -829,7 +842,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private notifSvc       = inject(NotificationService);
   private route          = inject(ActivatedRoute);
 
-  private readonly _today = new Date().toISOString().split('T')[0];
+  private readonly _today = toLocalDateKey();
   selectedDate = signal(this._today);
 
   selectedDateLabel = computed(() => {
@@ -862,6 +875,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   cancelReason = signal('');
   cancelOther  = signal('');
   deleteTarget = signal<Appointment | null>(null);
+  actionError  = signal('');
+  formError    = signal('');
 
   total     = computed(() => this.appointments().length);
   scheduled = computed(() => this.appointments().filter(a => a.status === 'scheduled').length);
@@ -950,7 +965,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const [y, m, d] = this.selectedDate().split('-').map(Number);
     const date = new Date(y, m - 1, d);
     date.setDate(date.getDate() + days);
-    this.selectedDate.set(date.toISOString().split('T')[0]);
+    this.selectedDate.set(toLocalDateKey(date));
   }
 
   goToday() {
@@ -962,8 +977,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (val) this.selectedDate.set(val);
   }
 
+  private showActionError(e: any, fallback: string) {
+    const messages: Record<string, string> = {
+      INVALID_TRANSITION:  'Esta cita ya cambió de estado y no admite esa acción.',
+      FUTURE_APPOINTMENT:  'No podés completar una cita de un día futuro.',
+      NOT_FOUND:           'La cita ya no existe.',
+    };
+    this.actionError.set(messages[e?.message] ?? fallback);
+    setTimeout(() => this.actionError.set(''), 4000);
+  }
+
   async confirmApt(id: string) {
-    await this.aptSvc.confirmAppointment(id);
+    try {
+      await this.aptSvc.confirmAppointment(id);
+    } catch (e) {
+      this.showActionError(e, 'No se pudo confirmar la cita. Intentá de nuevo.');
+      return;
+    }
     const apt = this.appointments().find(a => a.id === id);
     if (apt?.clientId) {
       this.notifSvc.create({
@@ -977,7 +1007,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   async completeApt(id: string) {
-    await this.aptSvc.completeAppointment(id);
+    try {
+      await this.aptSvc.completeAppointment(id);
+    } catch (e) {
+      this.showActionError(e, 'No se pudo completar la cita. Intentá de nuevo.');
+    }
   }
 
   openCancelModal(apt: Appointment) {
@@ -1016,6 +1050,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }).catch(() => {});
       }
       this.cancelTarget.set(null);
+    } catch (e) {
+      this.cancelTarget.set(null);
+      this.showActionError(e, 'No se pudo cancelar la cita. Intentá de nuevo.');
     } finally {
       this.saving.set(false);
     }
@@ -1031,6 +1068,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const staffMember = this.staff().find(s => s.id === this.newStaffId);
     this.saving.set(true);
+    this.formError.set('');
     try {
       await this.aptSvc.createManualAppointment({
         companyId:       cid,
@@ -1049,8 +1087,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
         staffId:         staffMember?.id,
         staffName:       staffMember?.name,
         source:          'manual',
-      });
+      }, svc.staffCount ?? 1, { slotInterval: company?.slotInterval ?? 30 });
       this.closeNewModal();
+    } catch (e: any) {
+      this.formError.set(e?.message === 'SLOT_TAKEN'
+        ? 'Ese horario ya está ocupado (sin cupo para el profesional/servicio). Elegí otro.'
+        : 'No se pudo guardar la cita. Intentá de nuevo.');
     } finally {
       this.saving.set(false);
     }
@@ -1067,6 +1109,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   closeNewModal() {
     this.showNewModal.set(false);
+    this.formError.set('');
     this.newClient    = '';
     this.newPhone     = '';
     this.newServiceId = this.services()[0]?.id ?? '';

@@ -1,7 +1,9 @@
 rules_version = '2';
+// Plan Spark: SIN Cloud Functions. Toda la seguridad vive en estas reglas + el cliente.
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ───────────────────────── Helpers ─────────────────────────
     function isAuth() { return request.auth != null; }
 
     function userRole() {
@@ -11,29 +13,68 @@ service cloud.firestore {
     function isCompany()    { return isAuth() && userRole() == 'company'; }
     function isOwner(uid)   { return isAuth() && request.auth.uid == uid; }
 
+    function companyDoc(companyId) {
+      return get(/databases/$(database)/documents/companies/$(companyId));
+    }
     function isCompanyOwner(companyId) {
-      return isAuth() && get(/databases/$(database)/documents/companies/$(companyId)).data.ownerId == request.auth.uid;
+      return isAuth() && companyDoc(companyId).data.ownerId == request.auth.uid;
     }
 
-    // USERS
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    function optString(d, key, maxLen) {
+      return !(key in d) || (d[key] is string && d[key].size() <= maxLen);
+    }
+    function isDateKey(s) { return s is string && s.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    // endTime puede pasar de 24:00 si el turno termina tarde (p.ej. "24:30")
+    function isHHmm(s)    { return s is string && s.matches('^[0-9]{2}:[0-5][0-9]$'); }
+
+    // ───────────────────────── USERS ─────────────────────────
     match /users/{uid} {
       allow read:   if isOwner(uid) || isSuperAdmin();
-      allow create: if isOwner(uid) && request.resource.data.role in ['client', 'company'];
-      allow update: if isSuperAdmin() ||
-        (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) ||
-        (isOwner(uid) && !resource.data.keys().hasAny(['role']) && request.resource.data.role in ['client', 'company']);
+      allow create: if isOwner(uid)
+                    && request.resource.data.role in ['client', 'company']
+                    && request.resource.data.get('uid', uid) == uid
+                    && request.resource.data.get('isActive', true) == true;
+      // El dueño edita su perfil (displayName, phone, photoUrl, fcmToken, profileComplete, ...)
+      // pero NUNCA role / isActive / uid. Excepción legacy: doc sin role puede fijarlo una vez.
+      allow update: if isSuperAdmin() || (
+        isOwner(uid)
+        && !changedKeys().hasAny(['isActive', 'uid'])
+        && (
+          !changedKeys().hasAny(['role'])
+          || (!('role' in resource.data) && request.resource.data.role in ['client', 'company'])
+        )
+      );
       allow delete: if isSuperAdmin();
     }
 
-    // COMPANIES
+    // ───────────────────────── COMPANIES ─────────────────────────
+    function ratingOnlyUpdate() {
+      let before = resource.data.get('reviewCount', 0);
+      let after  = request.resource.data.get('reviewCount', 0);
+      return changedKeys().hasOnly(['averageRating', 'reviewCount'])
+          && request.resource.data.get('averageRating', 0) is number
+          && request.resource.data.get('averageRating', 0) >= 0
+          && request.resource.data.get('averageRating', 0) <= 5
+          && after is number && after >= 0
+          && math.abs(after - before) <= 1;
+    }
+
     match /companies/{companyId} {
-      // Quitado isCompanyOwner() redundante — ya cubierto por la condición anterior (get() extra innecesario)
       allow read: if resource.data.isPublic == true
                   || (isAuth() && request.auth.uid == resource.data.ownerId)
                   || isSuperAdmin();
-      allow create: if isCompany() || isSuperAdmin();
-      allow update: if isCompanyOwner(companyId) || isSuperAdmin() ||
-        (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['averageRating', 'reviewCount']));
+      allow create: if isSuperAdmin()
+                    || (isCompany() && request.resource.data.ownerId == request.auth.uid);
+      allow update: if
+        // Dueño: todo menos ownerId / isActive (lo maneja superadmin) y el agregado de rating
+        (isAuth() && resource.data.ownerId == request.auth.uid
+          && !changedKeys().hasAny(['ownerId', 'isActive', 'createdAt', 'averageRating', 'reviewCount']))
+        // Cualquier usuario autenticado: SÓLO el agregado de rating, acotado
+        || (isAuth() && ratingOnlyUpdate())
+        || isSuperAdmin();
       allow delete: if isSuperAdmin();
 
       match /services/{serviceId} {
@@ -52,83 +93,323 @@ service cloud.firestore {
       }
     }
 
-    // APPOINTMENTS
+    // ───────────────────────── SLOT LOCKS ─────────────────────────
+    // Ocupación pública SIN PII: slotLocks/{companyId}_{date}
+    //   { companyId, date, entries: [{aptId, staffId|null, startTime, endTime}], updatedAt }
+    // - Agregar: exactamente UNA entry al final, que debe ser una cita creada en la MISMA
+    //   escritura (no existía antes, existe después) con los mismos datos de horario.
+    // - Quitar: exactamente UNA entry, cuya cita queda cancelada o eliminada tras la escritura.
+    // Así sólo quien puede crear/cancelar/borrar la cita puede tocar su entry.
+    function aptPath(aptId) { return /databases/$(database)/documents/appointments/$(aptId); }
+
+    function lockShapeOk(lockId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['companyId', 'date', 'entries', 'updatedAt'])
+          && d.keys().hasAll(['companyId', 'date', 'entries', 'updatedAt'])
+          && d.companyId is string
+          && isDateKey(d.date)
+          && lockId == d.companyId + '_' + d.date
+          && d.entries is list
+          && d.entries.size() <= 300
+          && d.updatedAt == request.time;
+    }
+
+    function entryIsNewApt(e) {
+      let apt = getAfter(aptPath(e.aptId)).data;
+      return e is map
+          && e.keys().hasOnly(['aptId', 'staffId', 'startTime', 'endTime'])
+          && e.keys().hasAll(['aptId', 'staffId', 'startTime', 'endTime'])
+          && e.aptId is string
+          && !exists(aptPath(e.aptId))
+          && apt.companyId == request.resource.data.companyId
+          && apt.date == request.resource.data.date
+          && apt.startTime == e.startTime
+          && apt.endTime == e.endTime
+          && apt.get('staffId', null) == e.staffId
+          && apt.status in ['pending', 'scheduled'];
+    }
+
+    function aptReleased(aptId) {
+      return !existsAfter(aptPath(aptId))
+          || getAfter(aptPath(aptId)).data.status == 'cancelled';
+    }
+
+    function lockAppend() {
+      let before = resource.data.entries;
+      let after  = request.resource.data.entries;
+      return after.size() == before.size() + 1
+          && after == before.concat([after[before.size()]])
+          && entryIsNewApt(after[before.size()]);
+    }
+
+    function lockRemoval() {
+      let before = resource.data.entries;
+      let after  = request.resource.data.entries;
+      let gone   = before.removeAll(after);
+      return after.size() == before.size() - 1
+          && before.hasAll(after)
+          && gone.size() == 1
+          && aptReleased(gone[0].aptId);
+    }
+
+    match /slotLocks/{lockId} {
+      allow read: if true;
+      allow create: if lockShapeOk(lockId)
+                    && request.resource.data.entries.size() == 1
+                    && entryIsNewApt(request.resource.data.entries[0]);
+      allow update: if lockShapeOk(lockId)
+                    && request.resource.data.companyId == resource.data.companyId
+                    && request.resource.data.date == resource.data.date
+                    && (lockAppend() || lockRemoval());
+      allow delete: if isSuperAdmin();
+    }
+
+    // ───────────────────────── APPOINTMENTS ─────────────────────────
+    // Lectura: SÓLO cliente dueño, dueño de la empresa o superadmin (antes: público → PII expuesta).
+    // Las queries del cliente filtran clientId == uid; las de la empresa companyId == su empresa.
+    function aptCreateShapeOk(d) {
+      return d.keys().hasAll(['companyId', 'companyName', 'serviceId', 'serviceName', 'serviceDuration',
+                              'clientName', 'clientPhone', 'isGuestClient', 'date', 'startTime',
+                              'endTime', 'status', 'source', 'createdAt'])
+          && d.keys().hasOnly(['companyId', 'companyName', 'serviceId', 'serviceName', 'serviceDuration',
+                               'clientId', 'clientName', 'clientPhone', 'clientEmail', 'isGuestClient',
+                               'date', 'startTime', 'endTime', 'price', 'clientNote', 'staffId',
+                               'staffName', 'status', 'source', 'createdAt'])
+          && d.companyId is string && d.companyName is string && d.companyName.size() <= 200
+          && d.serviceId is string && d.serviceName is string && d.serviceName.size() <= 200
+          && d.serviceDuration is number && d.serviceDuration > 0 && d.serviceDuration <= 1440
+          && d.clientName is string && d.clientName.size() <= 120
+          && d.clientPhone is string && d.clientPhone.size() <= 40
+          && optString(d, 'clientEmail', 200)
+          && optString(d, 'clientNote', 1000)
+          && optString(d, 'staffId', 128)
+          && optString(d, 'staffName', 200)
+          && (!('price' in d) || (d.price is number && d.price >= 0))
+          && d.isGuestClient is bool
+          && isDateKey(d.date) && isHHmm(d.startTime) && isHHmm(d.endTime)
+          && d.startTime < d.endTime
+          && d.source in ['app', 'manual']
+          && d.createdAt == request.time;
+    }
+
+    // La cita debe registrarse en el lock del día en la MISMA escritura (ocupación pública consistente)
+    function aptHasLock(aptId, d) {
+      let lockPath = /databases/$(database)/documents/slotLocks/$(d.companyId + '_' + d.date);
+      return existsAfter(lockPath)
+          && {'aptId': aptId, 'staffId': d.get('staffId', null),
+              'startTime': d.startTime, 'endTime': d.endTime} in getAfter(lockPath).data.entries;
+    }
+
+    function aptCreateOk(aptId) {
+      let d = request.resource.data;
+      let company = companyDoc(d.companyId).data;
+      return aptCreateShapeOk(d)
+          && company.isActive == true
+          && aptHasLock(aptId, d)
+          && (
+            // Dueño de la empresa: citas manuales o propias, pending/scheduled, sin atribuir a otro cliente
+            (isAuth() && company.ownerId == request.auth.uid
+              && d.status in ['pending', 'scheduled']
+              && (!('clientId' in d) || d.clientId == request.auth.uid))
+            // Cliente logueado o invitado: reserva desde la app
+            || (d.source == 'app'
+              && (d.status == 'pending' || (d.status == 'scheduled' && company.get('autoConfirm', false) == true))
+              && (('clientId' in d)
+                    ? (isAuth() && d.clientId == request.auth.uid && d.isGuestClient == false)
+                    : d.isGuestClient == true))
+          );
+    }
+
+    function ownerAptUpdateOk() {
+      let s0 = resource.data.status;
+      let s1 = request.resource.data.status;
+      return changedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
+          && request.resource.data.get('updatedAt', request.time) == request.time
+          && (s0 == s1
+              || (s0 == 'pending'   && s1 in ['scheduled', 'completed', 'cancelled'])
+              || (s0 == 'scheduled' && s1 in ['completed', 'cancelled']))
+          && (s1 != 'cancelled' || request.resource.data.get('cancelledBy', 'company') in ['company', 'client']);
+    }
+
+    function clientAptUpdateOk() {
+      return request.resource.data.get('updatedAt', request.time) == request.time
+          && (
+            // Cancelar su propia cita activa
+            (changedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
+              && resource.data.status in ['pending', 'scheduled']
+              && request.resource.data.status == 'cancelled'
+              && request.resource.data.cancelledBy == 'client')
+            // Ocultarla de su historial (no se borra: alimenta estadísticas de la empresa)
+            || (changedKeys().hasOnly(['hiddenByClient', 'updatedAt'])
+              && request.resource.data.hiddenByClient == true
+              && resource.data.status in ['completed', 'cancelled'])
+          );
+    }
+
     match /appointments/{appointmentId} {
-      allow read:   if true;
-      allow create: if true;
-      allow update: if isAuth() && (
-        resource.data.clientId == request.auth.uid ||
-        isCompanyOwner(resource.data.companyId) ||
-        isSuperAdmin()
+      allow read: if isAuth() && (
+        resource.data.clientId == request.auth.uid
+        || isCompanyOwner(resource.data.companyId)
+        || isSuperAdmin()
       );
-      // Clientes pueden borrar sus propias citas (canceladas/completadas)
-      allow delete: if isSuperAdmin() ||
-        (isAuth() && resource.data.clientId == request.auth.uid);
+      allow create: if aptCreateOk(appointmentId);
+      allow update: if isAuth() && (
+        (isCompanyOwner(resource.data.companyId) && ownerAptUpdateOk())
+        || (resource.data.get('clientId', null) == request.auth.uid && clientAptUpdateOk())
+        || isSuperAdmin()
+      );
+      allow delete: if isAuth() && (
+        (resource.data.get('clientId', null) == request.auth.uid && resource.data.status == 'cancelled')
+        || isCompanyOwner(resource.data.companyId)
+        || isSuperAdmin()
+      );
     }
 
-    // REVIEWS
+    // ───────────────────────── REVIEWS ─────────────────────────
+    // Una reseña por cita: id del doc == appointmentId; la cita debe ser del cliente y estar completada.
     match /reviews/{reviewId} {
-      allow read:   if true;
-      allow create: if isAuth() && request.resource.data.clientId == request.auth.uid;
-      allow update: if isSuperAdmin() ||
-        (isAuth() &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply', 'replyAt']) &&
-         isCompanyOwner(resource.data.companyId)) ||
-        (isAuth() &&
-         resource.data.clientId == request.auth.uid &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'updatedAt']));
-      allow delete: if isSuperAdmin() ||
-        (isAuth() && resource.data.clientId == request.auth.uid);
+      allow read: if true;
+      allow create: if isAuth()
+        && request.resource.data.keys().hasAll(['companyId', 'clientId', 'clientName', 'rating',
+                                                'comment', 'createdAt', 'appointmentId'])
+        && request.resource.data.keys().hasOnly(['companyId', 'clientId', 'clientName', 'clientPhotoUrl',
+                                                 'rating', 'comment', 'createdAt', 'appointmentId'])
+        && request.resource.data.clientId == request.auth.uid
+        && request.resource.data.companyId is string
+        && request.resource.data.clientName is string && request.resource.data.clientName.size() <= 120
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && request.resource.data.comment is string && request.resource.data.comment.size() <= 2000
+        && request.resource.data.createdAt is number
+        && request.resource.data.appointmentId == reviewId
+        && get(/databases/$(database)/documents/appointments/$(reviewId)).data.clientId == request.auth.uid
+        && get(/databases/$(database)/documents/appointments/$(reviewId)).data.companyId == request.resource.data.companyId
+        && get(/databases/$(database)/documents/appointments/$(reviewId)).data.status == 'completed';
+      allow update: if isSuperAdmin()
+        || (isAuth()
+            && changedKeys().hasOnly(['reply', 'replyAt'])
+            && request.resource.data.reply is string && request.resource.data.reply.size() <= 2000
+            && isCompanyOwner(resource.data.companyId))
+        || (isAuth()
+            && resource.data.clientId == request.auth.uid
+            && changedKeys().hasOnly(['rating', 'comment', 'updatedAt'])
+            && request.resource.data.rating is int
+            && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+            && request.resource.data.comment is string && request.resource.data.comment.size() <= 2000);
+      allow delete: if isSuperAdmin()
+        || (isAuth() && resource.data.clientId == request.auth.uid);
     }
 
-    // SUBSCRIPTIONS
+    // ───────────────────────── SUBSCRIPTIONS ─────────────────────────
+    // Sin Functions el trial lo crea el dueño en el onboarding, UNA vez (create sólo aplica si no existe).
+    // Forma exacta (= functions/src/subscriptions/on-company-created.ts):
+    //   { companyId == docId, status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp }
     match /subscriptions/{companyId} {
-      allow read:  if isCompanyOwner(companyId) || isSuperAdmin();
-      allow write: if isSuperAdmin();
+      allow read:   if isCompanyOwner(companyId) || isSuperAdmin();
+      allow create: if isSuperAdmin() || (
+        isCompanyOwner(companyId)
+        && request.resource.data.keys().hasOnly(['companyId', 'status', 'trialStartDate', 'trialEndDate'])
+        && request.resource.data.keys().hasAll(['companyId', 'status', 'trialStartDate', 'trialEndDate'])
+        && request.resource.data.companyId == companyId
+        && request.resource.data.status == 'trial'
+        && request.resource.data.trialStartDate is timestamp
+        && request.resource.data.trialStartDate > request.time - duration.value(1, 'd')
+        && request.resource.data.trialStartDate < request.time + duration.value(1, 'd')
+        && request.resource.data.trialEndDate is timestamp
+        && request.resource.data.trialEndDate > request.time
+        && request.resource.data.trialEndDate <= request.time + duration.value(63, 'd')
+      );
+      allow update, delete: if isSuperAdmin();
     }
 
-    // PAYMENTS
+    // ───────────────────────── PAYMENTS ─────────────────────────
     match /payments/{paymentId} {
       allow read:  if isSuperAdmin() || (isAuth() && isCompanyOwner(resource.data.companyId));
       allow write: if isSuperAdmin();
     }
 
-    // NOTIFICATIONS
+    // ───────────────────────── NOTIFICATIONS ─────────────────────────
+    // Sólo usuarios autenticados, tipos conocidos, claves fijas y senderId == uid.
+    // (Una reserva de invitado no genera notificación: aceptado.)
     match /notifications/{notifId} {
       allow read: if isAuth() && (
         resource.data.recipientId == request.auth.uid || isSuperAdmin()
       );
-      // Requiere autenticación — evita spam de notificaciones anónimas
-      allow create: if isAuth();
-      allow update: if isAuth() && (
-        resource.data.recipientId == request.auth.uid || isSuperAdmin()
+      allow create: if isAuth()
+        && request.resource.data.keys().hasOnly(['recipientId', 'type', 'title', 'body', 'link',
+                                                 'read', 'createdAt', 'senderId'])
+        && request.resource.data.keys().hasAll(['recipientId', 'type', 'title', 'body',
+                                                'read', 'createdAt', 'senderId'])
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.recipientId is string
+        && request.resource.data.recipientId.size() > 0 && request.resource.data.recipientId.size() <= 128
+        && request.resource.data.type in ['new_appointment', 'appointment_confirmed', 'appointment_cancelled',
+                                          'new_review', 'new_company', 'plan_changed',
+                                          'payment_initiated', 'new_message']
+        // Bandeja 'admin' sólo para avisos de alta de empresa / pago iniciado
+        && ((request.resource.data.recipientId == 'admin')
+              == (request.resource.data.type in ['new_company', 'payment_initiated']))
+        && (request.resource.data.type != 'plan_changed' || isSuperAdmin())
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200
+        && request.resource.data.body is string && request.resource.data.body.size() <= 1000
+        && optString(request.resource.data, 'link', 500)
+        && request.resource.data.read == false
+        && request.resource.data.createdAt == request.time;
+      allow update: if isSuperAdmin() || (
+        isAuth() && resource.data.recipientId == request.auth.uid
+        && changedKeys().hasOnly(['read'])
+        && request.resource.data.read == true
       );
       allow delete: if isSuperAdmin();
     }
 
-    // MESSAGES
+    // ───────────────────────── MESSAGES ─────────────────────────
+    function isMsgAuthor() {
+      return (resource.data.senderRole == 'client'  && resource.data.clientId == request.auth.uid)
+          || (resource.data.senderRole == 'company' && isCompanyOwner(resource.data.companyId));
+    }
+
     match /messages/{messageId} {
       allow read: if isAuth() && (
         resource.data.clientId == request.auth.uid ||
         isCompanyOwner(resource.data.companyId)
       );
-      allow create: if isAuth() && (
-        (request.resource.data.senderRole == 'client'  && request.resource.data.clientId == request.auth.uid) ||
-        (request.resource.data.senderRole == 'company' && isCompanyOwner(request.resource.data.companyId))
-      );
+      allow create: if isAuth()
+        && request.resource.data.keys().hasOnly(['companyId', 'companyName', 'clientId', 'clientName',
+                                                 'senderRole', 'text', 'createdAt', 'read'])
+        && request.resource.data.keys().hasAll(['companyId', 'clientId', 'senderRole', 'text', 'createdAt'])
+        && request.resource.data.companyId is string
+        && request.resource.data.clientId is string
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+        && optString(request.resource.data, 'clientName', 120)
+        && optString(request.resource.data, 'companyName', 200)
+        && request.resource.data.get('read', false) == false
+        && request.resource.data.createdAt == request.time
+        && (
+          (request.resource.data.senderRole == 'client'  && request.resource.data.clientId == request.auth.uid) ||
+          (request.resource.data.senderRole == 'company' && isCompanyOwner(request.resource.data.companyId))
+        );
       allow update: if isAuth() && (
-        // Marcar como leído
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
-         (resource.data.clientId == request.auth.uid || isCompanyOwner(resource.data.companyId))) ||
-        // Editar mensaje propio (solo texto)
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited', 'editedAt']) &&
-         ((resource.data.senderRole == 'client'  && resource.data.clientId == request.auth.uid) ||
-          (resource.data.senderRole == 'company' && isCompanyOwner(resource.data.companyId)))) ||
-        // Borrar mensaje propio (soft delete)
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'text']) &&
-         ((resource.data.senderRole == 'client'  && resource.data.clientId == request.auth.uid) ||
-          (resource.data.senderRole == 'company' && isCompanyOwner(resource.data.companyId))))
+        // Marcar como leído (cualquiera de las dos partes)
+        (changedKeys().hasOnly(['read'])
+          && request.resource.data.read == true
+          && (resource.data.clientId == request.auth.uid || isCompanyOwner(resource.data.companyId)))
+        // Editar mensaje propio no borrado (solo texto)
+        || (changedKeys().hasOnly(['text', 'edited', 'editedAt'])
+          && resource.data.get('deleted', false) != true
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+          && request.resource.data.edited == true
+          && isMsgAuthor())
+        // Borrar mensaje propio (soft delete: deleted=true y texto vacío)
+        || (changedKeys().hasOnly(['deleted', 'text'])
+          && resource.data.get('deleted', false) != true
+          && request.resource.data.deleted == true
+          && request.resource.data.text == ''
+          && isMsgAuthor())
       );
+      // Borrar conversación: cualquiera de las dos partes
       allow delete: if isAuth() && (
         resource.data.clientId == request.auth.uid ||
         isCompanyOwner(resource.data.companyId)

@@ -42,6 +42,7 @@ export class AuthService {
   private _displayName   = signal<string>('');
   private _profile       = signal<UserProfile | null>(null);
   private _profileLoaded = signal(false);
+  private _profileError  = signal(false);
 
   isLoggedIn    = computed(() => !!this._user());
   role          = computed(() => this._role());
@@ -49,6 +50,8 @@ export class AuthService {
   displayName   = computed(() => this._displayName());
   profile       = computed(() => this._profile());
   profileLoaded = computed(() => this._profileLoaded());
+  /** true si el perfil no se pudo leer de Firestore (red/reglas). No se inventa un rol. */
+  profileError  = computed(() => this._profileError());
 
   constructor() {
     if (!this.auth) return;
@@ -59,12 +62,24 @@ export class AuthService {
 
   private async _handleAuthStateChanged(user: User | null): Promise<void> {
     this._profileLoaded.set(false);
+    this._profileError.set(false);
     this._user.set(user);
     if (user && this.firestore) {
-      const profile = await this._loadProfile(user.uid);
-      this._role.set(profile?.role ?? 'client');
-      this._displayName.set(profile?.displayName ?? '');
-      this._profile.set(profile);
+      try {
+        const profile = await this._loadProfile(user.uid);
+        // Sin doc todavía (registro en curso): rol por defecto 'client', igual que antes
+        this._role.set(profile?.role ?? 'client');
+        this._displayName.set(profile?.displayName ?? '');
+        this._profile.set(profile);
+      } catch (err) {
+        // Error de lectura: NO se inventa un rol (antes se usaba localStorage, manipulable).
+        // Rol vacío => roleGuard deniega las zonas protegidas.
+        console.error('[Auth] No se pudo cargar el perfil:', err);
+        this._profileError.set(true);
+        this._role.set('');
+        this._displayName.set('');
+        this._profile.set(null);
+      }
     } else {
       this._role.set('client');
       this._profile.set(null);
@@ -97,22 +112,17 @@ export class AuthService {
     }
   }
 
+  /** Lee users/{uid}. Lanza si falla la lectura (el caller decide; nunca se inventa un rol). */
   private async _loadProfile(uid: string): Promise<UserProfile | null> {
-    if (this.firestore) {
-      try {
-        const snap = await getDoc(doc(this.firestore, 'users', uid));
-        if (snap.exists()) return snap.data() as UserProfile;
-      } catch { /* reglas no configuradas, usamos fallback */ }
-    }
-    const local = localStorage.getItem(`agenda_role_${uid}`);
-    return local ? { role: local } as UserProfile : null;
+    if (!this.firestore) return null;
+    // Limpieza del fallback legacy de rol en localStorage (ya no se usa)
+    try { localStorage.removeItem(`agenda_role_${uid}`); } catch { /* storage bloqueado */ }
+    const snap = await getDoc(doc(this.firestore, 'users', uid));
+    return snap.exists() ? snap.data() as UserProfile : null;
   }
 
   async saveProfile(uid: string, profile: Partial<UserProfile>) {
-    if (profile.role) {
-      localStorage.setItem(`agenda_role_${uid}`, profile.role);
-      this._role.set(profile.role);
-    }
+    if (profile.role) this._role.set(profile.role);
     if (profile.displayName !== undefined) this._displayName.set(profile.displayName);
     this._profile.update(curr => curr ? { ...curr, ...profile } : profile as UserProfile);
     if (!this.firestore) return;
@@ -142,8 +152,6 @@ export class AuthService {
 
   logout() {
     if (!this.auth) return EMPTY;
-    const uid = this._user()?.uid;
-    if (uid) localStorage.removeItem(`agenda_role_${uid}`);
     return from(signOut(this.auth));
   }
 }

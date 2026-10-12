@@ -3,6 +3,7 @@ import {
   Firestore, collection, addDoc, onSnapshot, query, where,
   writeBatch, getDocs, serverTimestamp, doc, updateDoc,
 } from '@angular/fire/firestore';
+import { Auth } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
 
 export interface AppNotification {
@@ -14,15 +15,26 @@ export interface AppNotification {
   read: boolean;
   link?: string;
   createdAt?: any;
+  /** uid del emisor (las reglas exigen == request.auth.uid). */
+  senderId?: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private firestore = inject(Firestore);
+  private auth = inject(Auth, { optional: true });
 
-  async create(data: Omit<AppNotification, 'id' | 'read' | 'createdAt'>): Promise<void> {
+  /**
+   * Crea una notificación. Requiere sesión: las reglas exigen senderId == uid
+   * (un invitado sin login no puede notificar; se omite en silencio).
+   */
+  async create(data: Omit<AppNotification, 'id' | 'read' | 'createdAt' | 'senderId'>): Promise<void> {
+    const senderId = this.auth?.currentUser?.uid;
+    if (!senderId) return;
+    const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
     await addDoc(collection(this.firestore, 'notifications'), {
-      ...data,
+      ...clean,
+      senderId,
       read: false,
       createdAt: serverTimestamp(),
     });

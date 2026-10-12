@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Firestore, collection, getDocs, query, where } from '@angular/fire/firestore';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { Appointment } from '../../../core/services/appointment.service';
+import { toLocalDateKey } from '../../../core/utils/date.utils';
 
 interface DayStat  { label: string; count: number; }
 interface SvcStat  { name: string;  count: number; }
@@ -344,7 +345,7 @@ export class StatisticsComponent {
   filtered = computed(() => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - this.period());
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const cutoffStr = toLocalDateKey(cutoff);
     return this.allApts().filter(a => a.date >= cutoffStr);
   });
 
@@ -369,7 +370,7 @@ export class StatisticsComponent {
     const all        = this.allApts();
     const cutoff     = new Date();
     cutoff.setDate(cutoff.getDate() - this.period());
-    const cutoffStr  = cutoff.toISOString().slice(0, 10);
+    const cutoffStr  = toLocalDateKey(cutoff);
     const uniqueIds  = new Set(filtered.filter(a => a.clientId).map(a => a.clientId!));
     const returning  = [...uniqueIds].filter(id =>
       all.some(a => a.clientId === id && a.date < cutoffStr)
@@ -405,14 +406,14 @@ export class StatisticsComponent {
       return Array.from({ length: 13 }, (_, i) => {
         const end   = new Date(); end.setDate(end.getDate() - (12 - i) * 7);
         const start = new Date(end); start.setDate(end.getDate() - 6);
-        const s = start.toISOString().slice(0, 10);
-        const e = end.toISOString().slice(0, 10);
+        const s = toLocalDateKey(start);
+        const e = toLocalDateKey(end);
         return { label: `S${i + 1}`, count: apts.filter(a => a.date >= s && a.date <= e).length };
       });
     }
     return Array.from({ length: n }, (_, i) => {
       const d = new Date(); d.setDate(d.getDate() - (n - 1 - i));
-      const key   = d.toISOString().slice(0, 10);
+      const key   = toLocalDateKey(d);
       const label = n === 7
         ? d.toLocaleDateString('es-CO', { weekday: 'short' })
         : `${d.getDate()}/${d.getMonth() + 1}`;

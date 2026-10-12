@@ -2,21 +2,29 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Fotos de perfil de empresa
-    match /companies/{companyId}/{fileName} {
-      allow read:  if true;
-      allow write: if request.auth != null
-                   && request.auth.uid != null
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+    // Dueño de la empresa según Firestore (cross-service rules; el primer deploy pide otorgar el permiso IAM)
+    function isCompanyOwner(companyId) {
+      return request.auth != null
+          && firestore.get(/databases/(default)/documents/companies/$(companyId)).data.ownerId == request.auth.uid;
+    }
+
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024
+          && request.resource.contentType.matches('image/(png|jpeg|webp|gif)');
+    }
+
+    // Fotos de perfil de empresa (y cualquier subruta de la empresa)
+    match /companies/{companyId}/{allPaths=**} {
+      allow read:   if true;
+      allow create, update: if isCompanyOwner(companyId) && isValidImage();
+      allow delete: if isCompanyOwner(companyId);
     }
 
     // Fotos de staff / integrantes
     match /staff/{companyId}/{staffId} {
-      allow read:  if true;
-      allow write: if request.auth != null
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+      allow read:   if true;
+      allow create, update: if isCompanyOwner(companyId) && isValidImage();
+      allow delete: if isCompanyOwner(companyId);
     }
 
     // Todo lo demás denegado

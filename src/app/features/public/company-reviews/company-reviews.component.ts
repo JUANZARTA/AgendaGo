@@ -453,7 +453,8 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
       error: () => this.loadingReviews.set(false),
     });
 
-    // Cargar turnos completados del cliente en este negocio
+    // Cargar turnos completados del cliente en este negocio (esperar auth para que F5 funcione)
+    try { await this.authSvc.waitForAuth(); } catch {}
     const uid = this.authSvc.profile()?.uid;
     if (uid) {
       try {
@@ -481,13 +482,14 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
     if (!uid || !this.companyId()) return;
     this.showConfirm.set(false);
     this.submittingReview.set(true);
+    const rating = this.reviewRating(); // capturar antes de resetear
     try {
       await this.reviewSvc.addReview({
         companyId:      this.companyId(),
         clientId:       uid,
         clientName:     name,
         clientPhotoUrl: this.authSvc.profile()?.photoUrl,
-        rating:         this.reviewRating(),
+        rating,
         comment:        this.reviewComment.trim(),
         createdAt:      Date.now(),
         appointmentId:  this.selectedAptId() || undefined,
@@ -502,7 +504,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
           recipientId: owner,
           type: 'new_review',
           title: 'Nueva reseña',
-          body: `${name} dejó ${this.reviewRating()} ★`,
+          body: `${name} dejó ${rating} ★`,
           link: '/empresa/resenas',
         }).catch(() => {});
       }
