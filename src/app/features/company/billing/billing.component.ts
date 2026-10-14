@@ -81,7 +81,7 @@ import { PaymentClaimService } from '../../../core/services/payment-claim.servic
 
       <!-- ── PLANES (solo si no es beneficiario) ── -->
       @if (sub().status !== 'free') {
-        <app-billing-plan-cards
+        <app-billing-plan-cards id="planes" style="display:block;scroll-margin-top:80px"
           [sub]="sub()"
           [noSubscription]="noSubscription()"
           [loadError]="loadError()"

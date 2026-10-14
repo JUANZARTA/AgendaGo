@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   Firestore, collection, onSnapshot, getDocs, updateDoc, doc, writeBatch, serverTimestamp,
 } from '@angular/fire/firestore';
-import { parseLocalDateEndOfDay } from '../../../core/utils/date.utils';
+import { parseLocalDateEndOfDay, toLocalDateKey } from '../../../core/utils/date.utils';
 import { NotificationService } from '../../../core/services/notification.service';
 import { categoryMeta } from '../../../core/domain/categories';
 
@@ -327,8 +327,11 @@ export class CompaniesComponent implements OnDestroy {
 
   openPlanModal(c: { id: string; name: string; ownerId: string }) {
     this.planTarget.set({ id: c.id, name: c.name, ownerId: c.ownerId });
-    this.editPlanStatus   = 'active';
-    this.editPlanPeriodEnd = '';
+    // Arranca con el estado y el vencimiento vigentes de la suscripción
+    const sub = this.subsMap()[c.id];
+    this.editPlanStatus   = sub?.status ?? 'active';
+    const end = sub?.status === 'trial' ? sub?.trialEndDate : sub?.currentPeriodEnd;
+    this.editPlanPeriodEnd = end?.toDate ? toLocalDateKey(end.toDate()) : '';
     this.editPlanNote     = '';
   }
 

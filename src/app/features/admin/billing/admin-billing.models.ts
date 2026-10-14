@@ -8,6 +8,7 @@ export interface AdminSub {
   periodEndLabel: string;
   lastPaymentLabel: string;
   periodEndMs: number | null;
+  trialEndMs: number | null;
 }
 
 export const STATUS_LABEL: Record<string, string> = {

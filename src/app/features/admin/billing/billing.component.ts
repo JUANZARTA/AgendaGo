@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   Firestore, collection, onSnapshot, getDocs, writeBatch, doc, serverTimestamp,
 } from '@angular/fire/firestore';
-import { parseLocalDateEndOfDay } from '../../../core/utils/date.utils';
+import { parseLocalDateEndOfDay, toLocalDateKey } from '../../../core/utils/date.utils';
 import { SubscriptionService, OverdueSub } from '../../../core/services/subscription.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
@@ -263,7 +263,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
               <label style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Fecha de vencimiento</label>
               <input type="date" [(ngModel)]="editPeriodEnd"
                 style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" />
-              <p style="font-size:11px;color:#aaa;margin:4px 0 0">Dejá vacío para no modificar</p>
+              <p style="font-size:11px;color:#aaa;margin:4px 0 0">Es el vencimiento actual; cambialo sólo si querés corregirlo</p>
             </div>
 
             <!-- Nota -->
@@ -341,6 +341,7 @@ export class AdminBillingComponent implements OnDestroy {
         periodEndLabel:   this.fmtTs(s.currentPeriodEnd),
         lastPaymentLabel: this.fmtTs(s.lastPaymentDate),
         periodEndMs:      s.currentPeriodEnd?.toDate ? s.currentPeriodEnd.toDate().getTime() : null,
+        trialEndMs:       s.trialEndDate?.toDate ? s.trialEndDate.toDate().getTime() : null,
       };
     });
   });
@@ -454,7 +455,9 @@ export class AdminBillingComponent implements OnDestroy {
   openModal(s: AdminSub) {
     this.selected.set(s);
     this.editStatus   = s.status;
-    this.editPeriodEnd = '';
+    // Arranca con el vencimiento vigente (el que calcularon los pagos o el trial)
+    const endMs = s.status === 'trial' ? s.trialEndMs : s.periodEndMs;
+    this.editPeriodEnd = endMs ? toLocalDateKey(new Date(endMs)) : '';
     this.editNote     = '';
     this.payPlan  = '';
     this.payRef   = '';

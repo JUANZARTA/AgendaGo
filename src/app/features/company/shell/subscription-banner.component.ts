@@ -1,5 +1,5 @@
-import { Component, computed, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, computed, inject, input } from '@angular/core';
+import { Router } from '@angular/router';
 import { SubscriptionLike, subscriptionTimeline } from '../../../core/domain/subscription-timeline';
 
 /**
@@ -10,7 +10,6 @@ import { SubscriptionLike, subscriptionTimeline } from '../../../core/domain/sub
 @Component({
   selector: 'app-subscription-banner',
   standalone: true,
-  imports: [RouterLink],
   styles: [`
     :host { display: block; }
     .banner {
@@ -41,7 +40,7 @@ import { SubscriptionLike, subscriptionTimeline } from '../../../core/domain/sub
             Tu {{ label() }} vence en <strong>{{ t().daysToEnd }} {{ t().daysToEnd === 1 ? 'día' : 'días' }}</strong>
             ({{ day(t().endDate) }}). Renovalo para no perder el acceso.
           </span>
-          <a class="cta" routerLink="/empresa/facturacion">Renovar</a>
+          <a class="cta" href="/empresa/facturacion#planes" (click)="goToPlans($event)">Renovar</a>
         </div>
       }
       @case ('due-today') {
@@ -50,7 +49,7 @@ import { SubscriptionLike, subscriptionTimeline } from '../../../core/domain/sub
           <span class="text">
             <strong>Tu {{ label() }} vence hoy.</strong> Pagá hoy para seguir usando AgendaGo sin interrupciones.
           </span>
-          <a class="cta" routerLink="/empresa/facturacion">Pagar ahora</a>
+          <a class="cta" href="/empresa/facturacion#planes" (click)="goToPlans($event)">Pagar ahora</a>
         </div>
       }
       @case ('grace') {
@@ -61,17 +60,31 @@ import { SubscriptionLike, subscriptionTimeline } from '../../../core/domain/sub
             ({{ t().graceDaysLeft === 0 ? 'hoy es el último día' : 'quedan ' + t().graceDaysLeft + (t().graceDaysLeft === 1 ? ' día' : ' días') }})
             para pagar antes de que se suspenda la cuenta.
           </span>
-          <a class="cta" routerLink="/empresa/facturacion">Pagar ahora</a>
+          <a class="cta" href="/empresa/facturacion#planes" (click)="goToPlans($event)">Pagar ahora</a>
         </div>
       }
     }
   `,
 })
 export class SubscriptionBannerComponent {
+  private router = inject(Router);
   readonly subscription = input<SubscriptionLike | null>(null);
 
   t = computed(() => subscriptionTimeline(this.subscription()));
   label = computed(() => this.subscription()?.status === 'trial' ? 'prueba gratis' : 'plan');
+
+  /** Va a Facturación (aunque ya estés ahí) y baja hasta los planes cuando se renderizan. */
+  async goToPlans(e: Event): Promise<void> {
+    e.preventDefault();
+    await this.router.navigate(['/empresa/facturacion'], { fragment: 'planes' });
+    const started = Date.now();
+    const tryScroll = () => {
+      const el = document.getElementById('planes');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else if (Date.now() - started < 3000) requestAnimationFrame(tryScroll);
+    };
+    tryScroll();
+  }
 
   day(d: Date | null): string {
     return d ? d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '—';
