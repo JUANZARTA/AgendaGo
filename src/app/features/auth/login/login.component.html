@@ -1,19 +1,7 @@
 @if (showSplash()) {
   <div class="splash-backdrop">
     <div class="splash-card">
-      <svg class="scissors-svg" width="80" height="80" viewBox="0 0 100 100" fill="none" style="margin-bottom:8px">
-        <rect width="100" height="100" rx="22" fill="#7c3aed"/>
-        <!-- Brazo superior: rota hacia arriba al "cortar" -->
-        <g class="blade-top">
-          <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-          <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-        <!-- Brazo inferior: rota en sentido contrario -->
-        <g class="blade-bottom">
-          <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-          <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-      </svg>
+      <app-brand-logo class="splash-logo" variant="tile" [size]="80" style="margin-bottom:8px" />
       <span class="splash-sub">AgendaCo</span>
       <div class="splash-spinner"></div>
       <span style="font-size:13px;color:#a0a0b8;font-weight:600;margin-top:4px">Iniciando sesión...</span>
@@ -31,12 +19,7 @@
     <div class="auth-blob auth-blob-4"></div>
 
     <div class="auth-brand-content">
-      <svg width="160" height="160" viewBox="0 0 100 100" fill="none" style="margin-bottom:4px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.25))">
-        <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-        <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-        <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <app-brand-logo variant="mark" [size]="160" style="color:white;margin-bottom:4px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.25))" />
       <h1 class="auth-brand-title">AgendaCo</h1>
       <p class="auth-brand-tagline">Bienvenido de vuelta</p>
 
@@ -188,8 +171,8 @@
         </svg>
         Continuar como cliente sin iniciar sesión
       </a>
-    </div>
 
-    <p style="text-align:center;margin-top:16px;font-size:11px;color:#c4b8e8">v{{ APP_VERSION }}</p>
+      <p style="text-align:center;margin:18px 0 0;font-size:12px;font-weight:600;color:#a0a0b8">AgendaCo v{{ APP_VERSION }}</p>
+    </div>
   </div>
 </div>

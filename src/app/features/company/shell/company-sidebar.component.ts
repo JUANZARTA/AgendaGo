@@ -1,6 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { APP_VERSION } from '../../../core/version';
+import { BrandLogoComponent } from '../../../shared/components/brand-logo.component';
 import { NavIconComponent } from './nav-icon.component';
 import { NavItem } from './nav-item.model';
 
@@ -8,19 +9,13 @@ import { NavItem } from './nav-item.model';
 @Component({
   selector: 'app-company-sidebar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, NavIconComponent],
+  imports: [RouterLink, RouterLinkActive, NavIconComponent, BrandLogoComponent],
   template: `
     <aside class="sidebar">
 
       <!-- Logo -->
       <div class="logo">
-        <svg width="44" height="44" viewBox="0 0 100 100" fill="none" style="flex-shrink:0">
-            <rect width="100" height="100" rx="22" fill="rgba(255,255,255,0.12)"/>
-            <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-            <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-            <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+        <app-brand-logo variant="tile" [size]="44" />
         <span class="logo-text">AgendaCo</span>
       </div>
 

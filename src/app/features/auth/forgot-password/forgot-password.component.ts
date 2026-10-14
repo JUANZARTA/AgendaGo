@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { BrandLogoComponent } from '../../../shared/components/brand-logo.component';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, BrandLogoComponent],
   template: `
 <div class="auth-split">
 
@@ -90,12 +91,7 @@ import { AuthService } from '../../../core/services/auth.service';
     <div class="auth-blob auth-blob-4"></div>
 
     <div class="auth-brand-content">
-      <svg width="160" height="160" viewBox="0 0 100 100" fill="none" style="margin-bottom:4px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.25))">
-        <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-        <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-        <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <app-brand-logo variant="mark" [size]="160" style="color:white;margin-bottom:4px;filter:drop-shadow(0 8px 24px rgba(0,0,0,.25))" />
 
       <h1 class="auth-brand-title">AgendaCo</h1>
       <p class="auth-brand-tagline">Sin contraseña, sin problema</p>

@@ -1,4 +1,5 @@
 import { Component, effect, inject, OnInit, signal } from '@angular/core';
+import { BrandLogoComponent } from './shared/components/brand-logo.component';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from './core/services/theme.service';
@@ -8,7 +9,7 @@ import { PushService } from './core/services/push.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CommonModule],
+  imports: [RouterOutlet, CommonModule, BrandLogoComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

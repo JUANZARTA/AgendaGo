@@ -1,20 +1,15 @@
 import { Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { BrandLogoComponent } from '../../../shared/components/brand-logo.component';
 
 /** Header móvil (oculto en desktop). */
 @Component({
   selector: 'app-company-mobile-header',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, BrandLogoComponent],
   template: `
     <header class="mobile-header">
-      <svg width="40" height="40" viewBox="0 0 100 100" fill="none" style="flex-shrink:0">
-          <rect width="100" height="100" rx="22" fill="#7c3aed"/>
-          <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-          <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-          <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+      <app-brand-logo variant="tile" [size]="40" />
       <span style="font-weight:900;font-size:1.05rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">AgendaCo</span>
       <div style="flex:1"></div>
       <!-- Campana -->

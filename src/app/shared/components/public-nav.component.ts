@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { BrandLogoComponent } from './brand-logo.component';
 import { ThemeSwitcherComponent } from './theme-switcher.component';
 import { NotificationBellComponent } from './notification-bell.component';
 import { ClientActivityService } from '../../core/services/client-activity.service';
@@ -9,7 +10,7 @@ import { ClientActivityService } from '../../core/services/client-activity.servi
 @Component({
   selector: 'app-public-nav',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, ThemeSwitcherComponent, NotificationBellComponent],
+  imports: [BrandLogoComponent, RouterLink, RouterLinkActive, ThemeSwitcherComponent, NotificationBellComponent],
   styles: [`
     .nav-actions { display: flex; align-items: center; gap: 16px; }
     .nav-hamburger {
@@ -109,13 +110,7 @@ import { ClientActivityService } from '../../core/services/client-activity.servi
 
         <!-- Logo -->
         <a routerLink="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0">
-          <svg width="44" height="44" viewBox="0 0 100 100" fill="none" style="flex-shrink:0">
-              <rect width="100" height="100" rx="22" fill="#7c3aed"/>
-              <circle cx="30" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-              <polyline points="30,61 50,51 80,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
-              <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+          <app-brand-logo variant="tile" [size]="44" />
           <span style="font-weight:900;font-size:1.1rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
             AgendaCo
           </span>

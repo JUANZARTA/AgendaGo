@@ -6,12 +6,13 @@ import { Firestore, doc, getDoc, serverTimestamp } from '@angular/fire/firestore
 import { AuthService } from '../../../core/services/auth.service';
 import { AppConfigService } from '../../../core/services/app-config.service';
 import { formatCop } from '../../../core/domain/plans';
+import { BrandLogoComponent } from '../../../shared/components/brand-logo.component';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, BrandLogoComponent],
   templateUrl: './register.component.html',
 })
 export class RegisterComponent {

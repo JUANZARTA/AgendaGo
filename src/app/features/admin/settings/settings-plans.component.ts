@@ -16,6 +16,15 @@ type PlansForm = AppConfig['plans'];
   standalone: true,
   imports: [SettingsSectionComponent],
   styles: [`
+    .mode {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; line-height: 1.5; margin-bottom: 12px; border: 1.5px solid;
+    }
+    .mode--test { background: #eff6ff; border-color: #93c5fd; color: #1e3a8a; }
+    .mode--prod { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+    .mode-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .mode--test .mode-dot { background: #3b82f6; }
+    .mode--prod .mode-dot { background: #10b981; }
     .warn {
       padding: 12px 14px; border-radius: 10px; background: #fffbeb; border: 1px solid #fde68a;
       color: #92400e; font-size: 12.5px; line-height: 1.55; margin-bottom: 18px;
@@ -47,6 +56,16 @@ type PlansForm = AppConfig['plans'];
       [state]="state()" [errors]="errors()" [dirty]="dirty()" [disabled]="!loaded() || !!pending()"
       (save)="askSave()">
 
+      <!-- El modo lo decide el build (ng serve = sandbox, deploy = producción), nunca un switch: la base es compartida -->
+      @if (production) {
+        <div class="mode mode--prod"><span class="mode-dot"></span>
+          <span>Estás en modo <strong>PRODUCCIÓN</strong>: pagos reales. Se usan los links reales y los pagos se verifican contra Wompi producción.</span>
+        </div>
+      } @else {
+        <div class="mode mode--test"><span class="mode-dot"></span>
+          <span>Estás en modo <strong>PRUEBAS (sandbox)</strong>: pagos ficticios. Se usan los links de pruebas y los pagos se verifican contra el sandbox de Wompi. La web publicada usa siempre los links reales.</span>
+        </div>
+      }
       <div class="warn">
         <strong>Importante:</strong> Wompi cobra el monto <strong>FIJO</strong> que tiene cada link, y la app reconoce
         qué plan pagó la empresa <strong>por el monto cobrado</strong>. Por eso el precio y el link van juntos:
