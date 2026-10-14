@@ -242,7 +242,9 @@ export function changedPlanAmounts(prev: AppConfig['plans'], next: AppConfig['pl
 
 /** Link de WhatsApp (wa.me/<sólo dígitos>), o null si no hay número. */
 export function whatsappLink(phone: string | null | undefined): string | null {
-  const digits = (phone ?? '').replace(/\D/g, '');
+  let digits = (phone ?? '').replace(/\D/g, '');
+  // Celular colombiano cargado sin indicativo (3xx xxx xxxx): wa.me exige el código de país
+  if (digits.length === 10 && digits.startsWith('3')) digits = '57' + digits;
   return digits ? `https://wa.me/${digits}` : null;
 }
 

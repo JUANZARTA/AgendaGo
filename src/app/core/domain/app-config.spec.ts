@@ -126,6 +126,8 @@ describe('app-config', () => {
 
   it('links de contacto', () => {
     expect(whatsappLink('+57 300 123-4567')).toBe('https://wa.me/573001234567');
+    expect(whatsappLink('3128622945')).toBe('https://wa.me/573128622945');
+    expect(whatsappLink('312 862 2945')).toBe('https://wa.me/573128622945');
     expect(whatsappLink('')).toBeNull();
     expect(whatsappLink(undefined)).toBeNull();
     expect(mailtoLink(' hola@agendago.co ')).toBe('mailto:hola@agendago.co');

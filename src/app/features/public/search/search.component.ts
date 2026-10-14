@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
@@ -279,6 +279,7 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
 export class SearchComponent implements OnInit {
   private companySvc = inject(CompanyService);
   private reviewSvc  = inject(ReviewService);
+  private route      = inject(ActivatedRoute);
   readonly auth      = inject(AuthService);
 
   isAuthClient = computed(() => this.auth.isLoggedIn() && this.auth.role() === 'client');
@@ -315,6 +316,12 @@ export class SearchComponent implements OnInit {
   totalSlots = computed(() => this.filtered().reduce((sum, c) => sum + c.slots, 0));
 
   async ngOnInit() {
+    // ?rubro=<categoría>: llega filtrado (ej. desde un negocio que no está recibiendo reservas)
+    const rubro = this.route.snapshot.queryParamMap.get('rubro');
+    if (rubro && categoryMeta(rubro).value === rubro) {
+      this.group.set(categoryMeta(rubro).group);
+      this.category.set(rubro);
+    }
     try {
       const list = await this.companySvc.searchCompanies('');
       this.companies.set(list.map(toDisplay));

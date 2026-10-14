@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { whatsappLink } from '../../../core/domain/app-config';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { categoryMeta } from '../../../core/domain/categories';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
@@ -78,7 +79,7 @@ import { ChatWidgetComponent } from './components/chat-widget.component';
       } @else if (!company()) {
         <div class="card" style="text-align:center;padding:48px;color:#aaa">Negocio no encontrado.</div>
       } @else if (company()!.isActive === false) {
-        <app-cp-company-inactive />
+        <app-cp-company-inactive [company]="company()!" />
       } @else {
 
         <!-- Header empresa -->
@@ -377,7 +378,7 @@ ${this.clientNote() ? `\nNota: ${this.clientNote()}` : ''}
 
   whatsappUrl = computed(() => {
     const msg = encodeURIComponent(this.whatsappPreview());
-    return `https://wa.me/${this.company()?.phone ?? ''}?text=${msg}`;
+    return `${whatsappLink(this.company()?.phone) ?? 'https://wa.me/'}?text=${msg}`;
   });
 
   async confirm() {

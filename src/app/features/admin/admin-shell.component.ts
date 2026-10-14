@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { SupportService } from '../../core/services/support.service';
+import { SubscriptionService } from '../../core/services/subscription.service';
 import { APP_VERSION } from '../../core/version';
 import { AdminNavItem } from './shell/admin-nav-item.model';
 import { AdminSidebarComponent } from './shell/admin-sidebar.component';
@@ -90,6 +91,7 @@ export class AdminShellComponent implements OnDestroy {
   private router   = inject(Router);
   private notifSvc = inject(NotificationService);
   private supportSvc = inject(SupportService);
+  private subSvc     = inject(SubscriptionService);
 
   notifPanelOpen = signal(false);
   notifications  = signal<AppNotification[]>([]);
@@ -110,6 +112,22 @@ export class AdminShellComponent implements OnDestroy {
       next: threads => this.supportUnread.set(threads.filter(t => t.unreadByAdmin).length),
       error: err => console.error('[AdminShell] support threads error', err),
     });
+    this.expireOverdueSilently();
+  }
+
+  /**
+   * Sin cron (plan Spark): al entrar al panel se marcan solas como vencidas las suscripciones
+   * que pasaron la gracia → la empresa sale de la búsqueda y deja de recibir reservas.
+   */
+  private async expireOverdueSilently(): Promise<void> {
+    try {
+      const overdue = await this.subSvc.findOverdue();
+      if (!overdue.length) return;
+      const { expired, failed } = await this.subSvc.expireOverdue(overdue);
+      console.info(`[AdminShell] Vencimientos automáticos: ${expired} marcadas` + (failed ? `, ${failed} con error` : ''));
+    } catch (err) {
+      console.error('[AdminShell] Error revisando vencimientos:', err);
+    }
   }
 
   ngOnDestroy(): void {
