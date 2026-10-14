@@ -8,6 +8,7 @@ import { SubscriptionService } from '../../core/services/subscription.service';
 import { APP_VERSION } from '../../core/version';
 import { AdminNavItem } from './shell/admin-nav-item.model';
 import { AdminSidebarComponent } from './shell/admin-sidebar.component';
+import { BrandLogoComponent } from '../../shared/components/brand-logo.component';
 import { AdminBottomBarComponent } from './shell/admin-bottom-bar.component';
 import { AdminNotificationsPanelComponent } from './shell/admin-notifications-panel.component';
 import { safeInternalPath } from '../../core/domain/safe-links';
@@ -15,7 +16,7 @@ import { safeInternalPath } from '../../core/domain/safe-links';
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [RouterOutlet, AdminSidebarComponent, AdminBottomBarComponent, AdminNotificationsPanelComponent],
+  imports: [BrandLogoComponent, RouterOutlet, AdminSidebarComponent, AdminBottomBarComponent, AdminNotificationsPanelComponent],
   template: `
     <div class="shell">
 
@@ -29,6 +30,21 @@ import { safeInternalPath } from '../../core/domain/safe-links';
         (notificationsToggle)="notifPanelOpen.set(!notifPanelOpen())"
         (logoutClick)="logout()"
       />
+
+      <!-- ── HEADER (mobile): el sidebar está oculto, sin esto no hay campana ni salir ── -->
+      <header class="m-header">
+        <app-brand-logo variant="tile" [size]="34" />
+        <span class="m-title">Admin</span>
+        <div style="flex:1"></div>
+        <button class="m-btn" title="Notificaciones" (click)="notifPanelOpen.set(!notifPanelOpen())">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          @if (unreadCount() > 0) { <span class="m-badge">{{ unreadCount() }}</span> }
+        </button>
+        <button class="m-btn m-btn--out" (click)="logout()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Salir
+        </button>
+      </header>
 
       <!-- ── MAIN CONTENT ────────────────────────────────────────── -->
       <main class="content">
@@ -73,10 +89,29 @@ import { safeInternalPath } from '../../core/domain/safe-links';
       animation: fadeInUp 0.35s ease 0.1s backwards;
     }
 
+    .m-header { display: none; }
+
     /* ── Responsive ─────────────────────────────────────────────── */
     @media (max-width: 768px) {
       .shell {
         flex-direction: column;
+      }
+
+      .m-header {
+        display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+        padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top));
+        background: var(--sidebar-bg); color: white;
+      }
+      .m-title { font-weight: 900; font-size: 1rem; }
+      .m-btn {
+        position: relative; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px;
+        border-radius: 10px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06);
+        color: white; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+      }
+      .m-btn--out { color: #fca5a5; border-color: rgba(252,165,165,.35); }
+      .m-badge {
+        position: absolute; top: -4px; right: -4px; background: #f43f5e; color: white; border-radius: 99px;
+        font-size: 9px; font-weight: 700; padding: 1px 4px; min-width: 14px; text-align: center;
       }
 
       .content {

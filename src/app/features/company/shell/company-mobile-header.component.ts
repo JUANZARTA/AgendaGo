@@ -23,12 +23,13 @@ import { BrandLogoComponent } from '../../../shared/components/brand-logo.compon
         }
       </button>
       <!-- Salir -->
-      <button class="mh-icon-btn" title="Cerrar sesión" (click)="logoutClick.emit()">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button class="mh-icon-btn mh-out" title="Cerrar sesión" (click)="logoutClick.emit()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
           <polyline points="16 17 21 12 16 7"/>
           <line x1="21" y1="12" x2="9" y2="12"/>
         </svg>
+        Salir
       </button>
       <!-- Avatar → perfil empresa -->
       <a routerLink="/empresa/perfil" class="mh-avatar" title="Configuración">
@@ -70,6 +71,8 @@ import { BrandLogoComponent } from '../../../shared/components/brand-logo.compon
         flex-shrink: 0;
       }
       .mh-icon-btn:hover { border-color: var(--purple); color: var(--purple); }
+      /* "Salir" con texto: el ícono solo no se entendía */
+      .mh-out { width: auto; border-radius: 99px; padding: 0 10px; gap: 5px; font-size: 12px; font-weight: 700; color: #dc2626; font-family: inherit; }
 
       .mh-avatar {
         width: 36px; height: 36px;

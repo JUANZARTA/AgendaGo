@@ -9,6 +9,7 @@ import { SettingsAnnouncementComponent } from './settings-announcement.component
 import { SettingsSectionComponent } from './settings-section.component';
 import { SettingsLegalComponent } from './settings-legal.component';
 import { InstallAppCardComponent } from '../../../shared/components/install-app-card.component';
+import { LogoutCardComponent } from '../../../shared/components/logout-card.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
 /**
@@ -20,7 +21,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
   standalone: true,
   imports: [
     ThemeSwitcherComponent, SettingsSectionComponent, SettingsPlansComponent, SettingsTimesComponent,
-    SettingsSupportComponent, SettingsAnnouncementComponent, SettingsLegalComponent, LegalLinksComponent, InstallAppCardComponent,
+    SettingsSupportComponent, SettingsAnnouncementComponent, SettingsLegalComponent, LegalLinksComponent, InstallAppCardComponent, LogoutCardComponent,
   ],
   template: `
     <div class="page">
@@ -42,6 +43,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
 
       <app-install-app-card />
       <app-legal-links />
+      <app-logout-card />
 
       <h2 style="font-size:1rem;font-weight:800;color:#1a1a2e;margin:28px 0 12px">Versiones</h2>
 
