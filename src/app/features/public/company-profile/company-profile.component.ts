@@ -623,6 +623,16 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
     return cat ? (labels[cat] ?? cat) : '';
   });
 
+  /**
+   * Capacidad del servicio: si tiene profesionales asignados, son ellos (cada uno atiende una cita a la vez);
+   * si no, el `staffCount` configurado en el servicio. El detalle por horario (quién trabaja a esa hora)
+   * lo resuelve después el filtro de `isStaffFree`.
+   */
+  capacity = computed(() => {
+    const staff = this.staffList().length;
+    return staff > 0 ? staff : (this.selectedService()?.staffCount ?? 1);
+  });
+
   allSlots = computed(() => {
     const day     = this.selectedDay();
     const company = this.company();
@@ -635,7 +645,7 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
     const selectedStaff = this.selectedStaff();
     // Todas las citas del día cuentan: las "cualquier profesional" (sin staffId) también consumen capacidad
     const apts          = this.existingApts();
-    const staffCount    = svc.staffCount ?? 1;
+    const staffCount    = this.capacity();
 
     // Día bloqueado o slots deshabilitados por la empresa
     if (company.blockedDates?.some(b => b.date === day.date)) return [];
@@ -908,7 +918,7 @@ ${this.clientNote ? `\nNota: ${this.clientNote}` : ''}
         staffId:         staffMember?.id,
         staffName:       staffMember?.name,
         source:          'app',
-      }, svc.staffCount ?? 1, this.company()?.autoConfirm ?? false, {
+      }, this.capacity(), this.company()?.autoConfirm ?? false, {
         slotInterval:  this.company()?.slotInterval ?? 30,
         blockedDates:  this.company()?.blockedDates,
         disabledSlots: this.company()?.disabledSlots,
