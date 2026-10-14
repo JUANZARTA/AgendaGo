@@ -44,12 +44,15 @@ service cloud.firestore {
                     && request.resource.data.role in ['client', 'company']
                     && request.resource.data.get('uid', uid) == uid
                     && request.resource.data.get('isActive', true) == true
-                    && request.resource.data.get('acceptedTermsAt', request.time) == request.time;
+                    && request.resource.data.get('acceptedTermsAt', request.time) == request.time
+                    // Favoritos nunca al registrarse: sólo se agregan de a uno (ver favoritesChangeOk)
+                    && !request.resource.data.keys().hasAny(['favoriteCompanyIds']);
       // El dueño edita su perfil (displayName, phone, photoUrl, fcmToken, profileComplete, ...)
       // pero NUNCA role / isActive / uid. Excepción legacy: doc sin role puede fijarlo una vez.
       allow update: if isSuperAdmin() || (
         isOwner(uid)
         && !changedKeys().hasAny(['isActive', 'uid'])
+        && (!changedKeys().hasAny(['favoriteCompanyIds']) || favoritesChangeOk())
         && (!changedKeys().hasAny(['acceptedTermsAt']) || request.resource.data.acceptedTermsAt == request.time)
         && (
           !changedKeys().hasAny(['role'])
@@ -57,6 +60,26 @@ service cloud.firestore {
         )
       );
       allow delete: if isSuperAdmin();
+
+      // "Mis negocios" del cliente: favoriteCompanyIds (máx. 100 ids). Las reglas no pueden recorrer
+      // una lista, así que se valida por inducción: cada escritura AGREGA exactamente un id válido
+      // al final (lo que hace arrayUnion) o sólo QUITA ids (arrayRemove). Sólo clientes.
+      function favoritesChangeOk() {
+        let before = resource.data.get('favoriteCompanyIds', []);
+        let after  = request.resource.data.get('favoriteCompanyIds', []);
+        return resource.data.get('role', '') == 'client'
+          && before is list && after is list && after.size() <= 100
+          && (
+            (after.size() == before.size() + 1
+              // after = before + [nuevo]: como before no tiene repetidos (invariante), hasAll + tamaño
+              // + "el último no estaba" implica que no se coló ningún otro valor
+              && after.hasAll(before)
+              && after[after.size() - 1] is string
+              && after[after.size() - 1].matches('^[A-Za-z0-9_-]{1,128}$')
+              && !before.hasAny([after[after.size() - 1]]))
+            || (after.size() < before.size() && before.hasAll(after))
+          );
+      }
     }
 
     // ───────────────────────── COMPANIES ─────────────────────────

@@ -1,12 +1,13 @@
 import { Component, input } from '@angular/core';
 import { Company } from '../../../../core/services/company.service';
 import { BookingStepperComponent } from './booking-stepper.component';
+import { FavoriteHeartComponent } from '../../../../shared/components/favorite-heart.component';
 
 /** Cabecera de la empresa (logo, nombre, descripción) + indicador de pasos. */
 @Component({
   selector: 'app-cp-company-header',
   standalone: true,
-  imports: [BookingStepperComponent],
+  imports: [BookingStepperComponent, FavoriteHeartComponent],
   styles: [`:host { display: block; }`],
   template: `
         <div class="card" [style.borderTop]="'4px solid ' + companyColor()" style="padding:0;overflow:hidden;margin-bottom:20px">
@@ -25,10 +26,13 @@ import { BookingStepperComponent } from './booking-stepper.component';
                   </svg>
                 }
               </div>
-              <div style="flex:1">
-                <h1 style="font-size:1.5rem;font-weight:800">{{ company().name }}</h1>
+              <div style="flex:1;min-width:0">
+                <h1 style="font-size:1.5rem;font-weight:800;overflow-wrap:anywhere">{{ company().name }}</h1>
                 <p style="font-weight:600;font-size:13px;margin-top:2px" [style.color]="companyColor()">{{ companyCategory() }}</p>
               </div>
+              @if (company().id) {
+                <app-favorite-heart [companyId]="company().id!" [size]="42" style="align-self:flex-start" />
+              }
             </div>
             <p style="color:#555;line-height:1.6;margin-top:14px;font-size:14px">{{ company().description }}</p>
           </div>

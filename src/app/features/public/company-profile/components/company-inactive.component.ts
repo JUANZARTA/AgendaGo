@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { FavoriteHeartComponent } from '../../../../shared/components/favorite-heart.component';
 import { Company } from '../../../../core/services/company.service';
 import { categoryMeta } from '../../../../core/domain/categories';
 import { whatsappLink } from '../../../../core/domain/app-config';
@@ -14,10 +15,11 @@ import { instagramUrl } from '../../../../core/domain/safe-links';
 @Component({
   selector: 'app-cp-company-inactive',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, FavoriteHeartComponent],
   styles: [`
     :host { display: contents; }
-    .ci-card { text-align: center; padding: 36px 28px; }
+    .ci-card { text-align: center; padding: 36px 28px; position: relative; }
+    .ci-fav { position: absolute; top: 14px; right: 14px; }
     .ci-logo {
       width: 76px; height: 76px; border-radius: 20px; margin: 0 auto 14px; overflow: hidden;
       display: flex; align-items: center; justify-content: center; color: white;
@@ -44,6 +46,8 @@ import { instagramUrl } from '../../../../core/domain/safe-links';
   `],
   template: `
     <div class="card ci-card">
+      <!-- Aunque no reciba reservas, el cliente puede guardarlo para tener su contacto a mano -->
+      @if (company().id) { <app-favorite-heart class="ci-fav" [companyId]="company().id!" [size]="38" /> }
       <div class="ci-logo" [style.background]="company().logoUrl ? 'white' : meta().color">
         @if (company().logoUrl) {
           <img [src]="company().logoUrl" [alt]="company().name" />

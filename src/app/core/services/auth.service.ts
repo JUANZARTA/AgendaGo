@@ -33,6 +33,8 @@ export interface UserProfile {
   isActive?: boolean;
   /** Cuándo aceptó Términos y Política de privacidad al registrarse (serverTimestamp al crear). */
   acceptedTermsAt?: Timestamp | FieldValue;
+  /** "Mis negocios": ids de empresas favoritas (sólo clientes, máx. 100; ver FavoritesService). */
+  favoriteCompanyIds?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

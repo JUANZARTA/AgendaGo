@@ -7,6 +7,10 @@ export const CLIENT_ROUTES: Routes = [
     children: [
       { path: '', redirectTo: 'citas', pathMatch: 'full' },
       {
+        path: 'negocios',
+        loadComponent: () => import('./businesses/my-businesses.component').then(m => m.MyBusinessesComponent),
+      },
+      {
         path: 'citas',
         loadComponent: () => import('./appointments/appointments.component').then(m => m.AppointmentsComponent),
       },

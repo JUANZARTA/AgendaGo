@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
+import { FavoriteHeartComponent } from '../../../shared/components/favorite-heart.component';
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReviewService } from '../../../core/services/review.service';
@@ -74,7 +75,7 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent, LegalLinksComponent],
+  imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent, LegalLinksComponent, FavoriteHeartComponent],
   styles: [`
     :host { display: block; }
     .filter-chip {
@@ -208,9 +209,12 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="meta(company.category).icon"/></svg>
                   }
                 </div>
-                <span class="badge" [class]="company.slots > 0 ? 'badge-green' : 'badge-red'">
-                  {{ company.slots > 0 ? company.slots + ' turnos' : 'Sin turnos hoy' }}
-                </span>
+                <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                  <span class="badge" [class]="company.slots > 0 ? 'badge-green' : 'badge-red'">
+                    {{ company.slots > 0 ? company.slots + ' turnos' : 'Sin turnos hoy' }}
+                  </span>
+                  <app-favorite-heart [companyId]="company.id" [size]="34" />
+                </div>
               </div>
               <h3 style="margin-top:12px;font-size:1.05rem;font-weight:800">{{ company.name }}</h3>
               <p style="font-size:12px;font-weight:600;margin-top:2px" [style.color]="meta(company.category).color">

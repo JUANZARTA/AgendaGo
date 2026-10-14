@@ -772,6 +772,40 @@ async function main() {
   await expectDeny('SQA attempt companyName > 200', () => addDoc(collection(o1, 'paymentAttempts'), att({ companyName: '<script>'.repeat(30) })));
   await expectDeny('SQA notif title > 200', () => addDoc(collection(c1, 'notifications'), nf({ title: 'x'.repeat(201) })));
 
+  console.log(' [11] favoritos (users/{uid}.favoriteCompanyIds)');
+  const { arrayUnion, arrayRemove } = F;
+  const favRef = (db, uid) => doc(db, 'users', uid);
+  await expectOk('FAV client adds favorite (arrayUnion)', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion('c1') }));
+  await expectOk('FAV client adds second favorite', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion('c3') }));
+  await expectOk('FAV client re-adds existing (no-op)', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion('c1') }));
+  await expectOk('FAV client reads own favorites', async () => {
+    const ids = (await getDoc(favRef(c1, 'client1'))).data().favoriteCompanyIds;
+    if (JSON.stringify(ids) !== '["c1","c3"]') throw new Error('bad favs ' + JSON.stringify(ids));
+  });
+  await expectOk('FAV client removes favorite (arrayRemove)', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayRemove('c1') }));
+  await expectOk('FAV client edits profile without touching favorites', () => updateDoc(favRef(c1, 'client1'), { displayName: 'Ana F' }));
+  await expectDeny('SQA FAV other client reads my favorites', () => getDoc(favRef(c2, 'client1')));
+  await expectDeny('SQA FAV other client writes my favorites', () => updateDoc(favRef(c2, 'client1'), { favoriteCompanyIds: arrayUnion('c6') }));
+  await expectDeny('SQA FAV guest writes favorites', () => updateDoc(favRef(guest, 'client1'), { favoriteCompanyIds: arrayUnion('c6') }));
+  await expectDeny('SQA FAV company sets favorites', () => updateDoc(favRef(o1, 'owner1'), { favoriteCompanyIds: arrayUnion('c3') }));
+  await expectDeny('SQA FAV add 2 ids at once', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion('c5', 'c6') }));
+  await expectDeny('SQA FAV overwrite with 101 ids', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: Array.from({ length: 101 }, (_, i) => 'id' + i) }));
+  await expectDeny('SQA FAV huge id (> 128)', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion('x'.repeat(129)) }));
+  await expectDeny('SQA FAV non-string id', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion(123) }));
+  await expectDeny('SQA FAV map id', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion({ a: 'x'.repeat(5000) }) }));
+  await expectDeny('SQA FAV id with path chars', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion('../users/admin') }));
+  await expectDeny('SQA FAV favorites as string', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: 'c1' }));
+  await expectDeny('SQA FAV swap ids (same size)', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: ['c6'] }));
+  await expectDeny('SQA FAV prepend instead of append', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: ['c6', 'c3'] }));
+  await expectDeny('SQA FAV duplicate id', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: ['c3', 'c3'] }));
+  await expectDeny('SQA FAV register with favorites', () => setDoc(doc(dbFor('fresh3'), 'users', 'fresh3'), { uid: 'fresh3', role: 'client', favoriteCompanyIds: ['c1'] }));
+  await expectDeny('SQA FAV + role change in same write', () => updateDoc(favRef(c1, 'client1'), { favoriteCompanyIds: arrayUnion('c6'), role: 'company' }));
+  await seed('users/client9', { uid: 'client9', role: 'client', favoriteCompanyIds: Array.from({ length: 100 }, (_, i) => 'id' + i) });
+  const c9 = dbFor('client9');
+  await expectDeny('SQA FAV 101st favorite', () => updateDoc(favRef(c9, 'client9'), { favoriteCompanyIds: arrayUnion('c1') }));
+  await expectOk('FAV remove at limit', () => updateDoc(favRef(c9, 'client9'), { favoriteCompanyIds: arrayRemove('id0') }));
+  await expectOk('FAV admin may reset favorites', () => updateDoc(favRef(admin, 'client9'), { favoriteCompanyIds: [] }));
+
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }
