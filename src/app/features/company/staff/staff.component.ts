@@ -1,4 +1,5 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { fileToSquareDataUrl } from '../../../core/utils/image.utils';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { StaffMember, StaffDaySchedule, StaffService, hasOwnSchedule } from '../../../core/services/staff.service';
@@ -460,16 +461,15 @@ export class StaffComponent {
     }
   }
 
-  onPhotoChange(event: Event): void {
+  async onPhotoChange(event: Event): Promise<void> {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('La imagen supera los 2MB.'); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      this.photoPreview.set(reader.result as string);
+    try {
+      this.photoPreview.set(await fileToSquareDataUrl(file));
       this.photoFile.set(file);
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      alert('No se pudo leer la imagen.');
+    }
   }
 
   readonly dayOrder  = DAY_ORDER;
