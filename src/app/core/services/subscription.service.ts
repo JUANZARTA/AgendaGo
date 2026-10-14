@@ -6,6 +6,15 @@ import {
 import { Observable } from 'rxjs';
 import { PLANS, PlanKey, nextPeriodEnd } from '../domain/plans';
 
+/** Datos de quien pagó según Wompi, para el historial (opcionales). */
+export interface PaymentPayer {
+  payerName?: string | null;
+  payerEmail?: string | null;
+  payerPhone?: string | null;
+  paymentMethod?: string | null;
+  paidAt?: string | null;
+}
+
 /** Duración del trial en meses calendario (igual que functions/src/subscriptions/on-company-created.ts). */
 export const TRIAL_MONTHS = 2;
 
@@ -102,7 +111,7 @@ export class SubscriptionService {
    * extiende el período desde max(ahora, fin actual) y reactiva la empresa.
    * Con referencia, el id del pago se deriva de ella: registrar dos veces el mismo pago falla.
    */
-  async registerManualPayment(companyId: string, planKey: PlanKey, reference: string): Promise<ManualPaymentResult> {
+  async registerManualPayment(companyId: string, planKey: PlanKey, reference: string, payer: PaymentPayer = {}): Promise<ManualPaymentResult> {
     const plan       = PLANS[planKey];
     const ref        = reference.trim();
     const paymentRef = ref
@@ -129,6 +138,8 @@ export class SubscriptionService {
         status:      'approved',
         source:      'manual',
         ...(ref ? { wompiRef: ref } : {}),
+        // Sólo campos con valor (Firestore no acepta undefined)
+        ...Object.fromEntries(Object.entries(payer).filter(([, v]) => v != null && v !== '')),
         periodStart: Timestamp.fromDate(start),
         periodEnd:   Timestamp.fromDate(end),
         createdAt:   serverTimestamp(),

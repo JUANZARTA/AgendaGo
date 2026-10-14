@@ -390,6 +390,26 @@ async function main() {
   await expectDeny('owner sends plan_changed', () => addDoc(collection(o1, 'notifications'), { recipientId: 'owner1', type: 'plan_changed', title: 'Pago', body: 'ok', read: false, createdAt: serverTimestamp(), senderId: 'owner1' }));
   await expectOk('owner notifies admin payment_initiated', () => addDoc(collection(o1, 'notifications'), { recipientId: 'admin', type: 'payment_initiated', title: 'Pago iniciado', body: 'ref', link: '/admin/facturacion', read: false, createdAt: serverTimestamp(), senderId: 'owner1' }));
 
+  console.log('PAYMENT CLAIMS (reporte de la empresa al volver de Wompi)');
+  const claim = (over = {}) => ({ companyId: 'c1', companyName: 'Salon', ownerEmail: 'o@o', transactionId: '12345-1700-999', status: 'pending', createdAt: serverTimestamp(), ...over });
+  await expectOk('owner reads non-existing claim (pre-check)', () => getDoc(doc(o1, 'paymentClaims', '12345-1700-999')));
+  await expectOk('owner reports own payment', () => setDoc(doc(o1, 'paymentClaims', '12345-1700-999'), claim()));
+  await expectOk('owner reports with Wompi details', () => setDoc(doc(o1, 'paymentClaims', '88888-1700-999'), claim({ transactionId: '88888-1700-999', amount: 29000, plan: 'mensual', payerName: 'Juan', payerEmail: 'j@j.co', payerPhone: '+573991111111', paymentMethod: 'NEQUI', paidAt: '2026-10-14T17:03:00Z' })));
+  await expectDeny('details with wrong types', () => setDoc(doc(o1, 'paymentClaims', '99999-1700-999'), claim({ transactionId: '99999-1700-999', amount: 'mucho' })));
+  await expectDeny('owner reports same tx again (update)', () => setDoc(doc(o1, 'paymentClaims', '12345-1700-999'), claim()));
+  await expectDeny('other owner reports same tx', () => setDoc(doc(o2, 'paymentClaims', '12345-1700-999'), claim({ companyId: 'c3' })));
+  await expectDeny('owner reports for another company', () => setDoc(doc(o1, 'paymentClaims', '22222-1700-999'), claim({ companyId: 'c3', transactionId: '22222-1700-999' })));
+  await expectDeny('owner reports as registered', () => setDoc(doc(o1, 'paymentClaims', '33333-1700-999'), claim({ transactionId: '33333-1700-999', status: 'registered' })));
+  await expectDeny('id != transactionId', () => setDoc(doc(o1, 'paymentClaims', '44444-1700-999'), claim({ transactionId: '55555-1700-999' })));
+  await expectDeny('bad tx id chars', () => setDoc(doc(o1, 'paymentClaims', 'abc$%^'), claim({ transactionId: 'abc$%^' })));
+  await expectDeny('extra field', () => setDoc(doc(o1, 'paymentClaims', '66666-1700-999'), { ...claim({ transactionId: '66666-1700-999' }), activated: true }));
+  await expectDeny('client reports payment', () => setDoc(doc(c1, 'paymentClaims', '77777-1700-999'), claim({ transactionId: '77777-1700-999' })));
+  await expectDeny('owner closes own claim', () => updateDoc(doc(o1, 'paymentClaims', '12345-1700-999'), { status: 'registered' }));
+  await expectDeny('other owner reads claim', () => getDoc(doc(o2, 'paymentClaims', '12345-1700-999')));
+  await expectOk('owner reads own claim', () => getDoc(doc(o1, 'paymentClaims', '12345-1700-999')));
+  await expectOk('admin lists pending claims', () => getDocs(query(collection(admin, 'paymentClaims'), where('status', '==', 'pending'))));
+  await expectOk('admin closes claim', () => updateDoc(doc(admin, 'paymentClaims', '12345-1700-999'), { status: 'registered', reviewedAt: serverTimestamp() }));
+
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

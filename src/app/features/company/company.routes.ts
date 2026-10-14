@@ -15,6 +15,8 @@ export const COMPANY_ROUTES: Routes = [
       { path: 'resenas',    canActivate: [subscriptionGuard], loadComponent: () => import('./reviews/company-reviews-dashboard.component').then(m => m.CompanyReviewsDashboardComponent) },
       { path: 'mensajes',     canActivate: [subscriptionGuard], loadComponent: () => import('./messages/messages.component').then(m => m.MessagesComponent) },
       { path: 'estadisticas', canActivate: [subscriptionGuard], loadComponent: () => import('./statistics/statistics.component').then(m => m.StatisticsComponent) },
+      // Vuelta de Wompi (URL de redirección del link de pago); sin guard: una cuenta vencida tiene que poder pagar
+      { path: 'facturacion/gracias', loadComponent: () => import('./billing/payment-thanks.component').then(m => m.PaymentThanksComponent) },
       { path: 'facturacion', loadComponent: () => import('./billing/billing.component').then(m => m.BillingComponent) },
     ],
   },

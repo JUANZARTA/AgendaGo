@@ -341,6 +341,43 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // ───────────────────────── PAYMENT CLAIMS ─────────────────────────
+    // La empresa reporta "pagué con la transacción X" al volver de Wompi. NO activa nada:
+    // el admin verifica contra Wompi y registra el pago. Id del doc = id de la transacción
+    // (un mismo pago no se reporta dos veces: un segundo create sería update → denegado).
+    match /paymentClaims/{txId} {
+      // resource == null: la empresa consulta si su transacción ya fue reportada antes de crear
+      allow read: if isAuth() && (resource == null
+                                  || isCompanyOwner(resource.data.companyId)
+                                  || isSuperAdmin());
+      allow create: if isAuth()
+        && request.resource.data.keys().hasOnly(['companyId', 'companyName', 'ownerEmail',
+                                                 'transactionId', 'status', 'createdAt',
+                                                 // Copia de lo que informó Wompi, SÓLO para mostrar:
+                                                 // el admin vuelve a consultar a Wompi antes de activar.
+                                                 'amount', 'plan', 'payerName', 'payerEmail',
+                                                 'payerPhone', 'paymentMethod', 'paidAt'])
+        && (!('amount' in request.resource.data) || (request.resource.data.amount is number
+              && request.resource.data.amount >= 0 && request.resource.data.amount <= 100000000))
+        && optString(request.resource.data, 'plan', 20)
+        && optString(request.resource.data, 'payerName', 200)
+        && optString(request.resource.data, 'payerEmail', 200)
+        && optString(request.resource.data, 'payerPhone', 40)
+        && optString(request.resource.data, 'paymentMethod', 40)
+        && optString(request.resource.data, 'paidAt', 40)
+        && request.resource.data.keys().hasAll(['companyId', 'companyName', 'ownerEmail',
+                                                'transactionId', 'status', 'createdAt'])
+        && request.resource.data.transactionId == txId
+        && txId.matches('^[0-9A-Za-z-]{5,64}$')
+        && request.resource.data.companyId is string
+        && isCompanyOwner(request.resource.data.companyId)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.companyName is string && request.resource.data.companyName.size() <= 200
+        && request.resource.data.ownerEmail is string && request.resource.data.ownerEmail.size() <= 200;
+      allow update, delete: if isSuperAdmin();
+    }
+
     // ───────────────────────── NOTIFICATIONS ─────────────────────────
     // Sólo usuarios autenticados, tipos conocidos, claves fijas y senderId == uid.
     // (Una reserva de invitado no genera notificación: aceptado.)
