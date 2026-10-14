@@ -10,6 +10,7 @@ import { NotificationService } from '../../../core/services/notification.service
 import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
 import { PaymentClaimsComponent } from './payment-claims.component';
 import { CompanyBillingDetailComponent } from './company-billing-detail.component';
+import { VerifyPaymentComponent } from './verify-payment.component';
 import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
 
@@ -17,7 +18,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 @Component({
   selector: 'app-admin-billing',
   standalone: true,
-  imports: [CommonModule, FormsModule, PaymentClaimsComponent, CompanyBillingDetailComponent],
+  imports: [CommonModule, FormsModule, PaymentClaimsComponent, CompanyBillingDetailComponent, VerifyPaymentComponent],
   // Facturación usa tablas anchas: aprovechar la pantalla en vez de los 920px del .page global
   styles: [`.page { max-width: 1280px; }`],
   template: `
@@ -27,10 +28,17 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
           <h1 style="font-size:1.4rem;margin:0 0 4px">Facturación</h1>
           <p style="color:#888;font-size:13px;margin:0">Gestión de suscripciones y pagos por empresa</p>
         </div>
-        <button class="btn btn-sm btn-primary" (click)="startExpiryReview()" [disabled]="reviewing()">
-          {{ reviewing() ? 'Revisando...' : 'Revisar vencimientos' }}
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-secondary" (click)="verifyOpen.set(true)">Verificar un pago</button>
+          <button class="btn btn-sm btn-primary" (click)="startExpiryReview()" [disabled]="reviewing()">
+            {{ reviewing() ? 'Revisando...' : 'Revisar vencimientos' }}
+          </button>
+        </div>
       </div>
+
+      @if (verifyOpen()) {
+        <app-verify-payment [companies]="subs()" (closed)="verifyOpen.set(false)" />
+      }
 
       <!-- Detalle de UNA empresa (Gestionar) o la lista de todas -->
       @if (detailSub(); as d) {
@@ -431,6 +439,7 @@ export class AdminBillingComponent implements OnDestroy {
 
   // Detalle por empresa: se guarda el id y se lee de subs() para que refleje los cambios en vivo
   private detailId = signal<string | null>(null);
+  verifyOpen = signal(false);
   detailSub = computed(() => this.subs().find(s => s.companyId === this.detailId()) ?? null);
 
   openDetail(s: AdminSub) { this.detailId.set(s.companyId); window.scrollTo({ top: 0 }); }
