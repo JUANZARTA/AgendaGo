@@ -93,32 +93,6 @@ export class AppointmentService {
   }
 
   /**
-   * Calcula slots disponibles según intervalo, duración real del servicio y cantidad de staff.
-   * Si se pasa `staffId`, se valida la disponibilidad de ese profesional (las citas sin staff
-   * asignado también consumen capacidad).
-   */
-  calculateAvailableSlots(
-    openTime: string,
-    closeTime: string,
-    slotInterval: number,
-    serviceDuration: number,
-    staffCount: number,
-    existingAppointments: TimedAppointment[],
-    staffId?: string | null
-  ): string[] {
-    const slots: string[] = [];
-    const open  = this.toMin(openTime);
-    const close = this.toMin(closeTime);
-
-    for (let cur = open; cur + serviceDuration <= close; cur += slotInterval) {
-      if (hasCapacity(existingAppointments, cur, cur + serviceDuration, staffId, staffCount)) {
-        slots.push(this.toTime(cur));
-      }
-    }
-    return slots;
-  }
-
-  /**
    * Ocupación pública del día (sin PII) leída de `slotLocks`. La reserva pública la usa
    * en lugar de leer `appointments` (que ya no son legibles por terceros).
    */

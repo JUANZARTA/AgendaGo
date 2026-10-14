@@ -32,9 +32,7 @@ export interface StaffMember {
  * true si el profesional tiene "Horario propio" activado.
  * Con el toggle apagado se guarda `schedule: {}` (truthy): en ese caso usa el horario de la empresa.
  */
-export function hasOwnSchedule(m: StaffMember | null | undefined): m is StaffMember & { schedule: Record<string, StaffDaySchedule> } {
-  return !!m?.schedule && Object.keys(m.schedule).length > 0;
-}
+export { hasOwnSchedule } from '../domain/availability';
 
 @Injectable({ providedIn: 'root' })
 export class StaffService {

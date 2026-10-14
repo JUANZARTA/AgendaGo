@@ -53,3 +53,7 @@ Thumbs.db
 
 # Firebase CLI (caché local de deploy)
 .firebase/
+
+# Logs de emuladores de Firebase
+firestore-debug.log
+firebase-debug.log

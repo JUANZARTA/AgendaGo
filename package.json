@@ -6,7 +6,9 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:domain": "vitest run --config vitest.domain.config.ts",
+    "test:rules": "npx -y firebase-tools@13 emulators:exec --only firestore --project demo-agendago \"node tests/rules/rules.test.mjs\""
   },
   "prettier": {
     "printWidth": 100,

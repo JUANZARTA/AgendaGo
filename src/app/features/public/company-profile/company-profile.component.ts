@@ -7,11 +7,12 @@ import { Subscription } from 'rxjs';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
-import { DAY_KEYS, rangesOverlap, toMin } from '../../../core/domain/scheduling';
+import { DAY_KEYS, toMin } from '../../../core/domain/scheduling';
+import { availableSlots, isStaffFree, serviceCapacity } from '../../../core/domain/availability';
 import { toLocalDateKey } from '../../../core/utils/date.utils';
 import { AppointmentService, SlotLockEntry } from '../../../core/services/appointment.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { StaffService, StaffMember, hasOwnSchedule } from '../../../core/services/staff.service';
+import { StaffService, StaffMember } from '../../../core/services/staff.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { MessageService, Message } from '../../../core/services/message.service';
 
@@ -628,76 +629,28 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
    * si no, el `staffCount` configurado en el servicio. El detalle por horario (quién trabaja a esa hora)
    * lo resuelve después el filtro de `isStaffFree`.
    */
-  capacity = computed(() => {
-    const staff = this.staffList().length;
-    return staff > 0 ? staff : (this.selectedService()?.staffCount ?? 1);
-  });
+  capacity = computed(() => serviceCapacity(this.staffList().length, this.selectedService()?.staffCount));
 
+  /** Horarios disponibles: la lógica vive en core/domain/availability.ts (testeada). */
   allSlots = computed(() => {
     const day     = this.selectedDay();
     const company = this.company();
     const svc     = this.selectedService();
     if (!day || !company || !svc) return [];
 
-    const key           = DAY_KEYS[day.dayOfWeek];
-    const interval      = company.slotInterval ?? 30;
-    const duration      = svc.duration ?? interval;
-    const selectedStaff = this.selectedStaff();
-    // Todas las citas del día cuentan: las "cualquier profesional" (sin staffId) también consumen capacidad
-    const apts          = this.existingApts();
-    const staffCount    = this.capacity();
-
-    // Día bloqueado o slots deshabilitados por la empresa
-    if (company.blockedDates?.some(b => b.date === day.date)) return [];
-    const disabled = company.disabledSlots ?? {};
-
-    let ranges: { open: string; close: string }[];
-    if (hasOwnSchedule(selectedStaff)) {
-      const staffDay = selectedStaff.schedule[key];
-      if (!staffDay?.enabled) return [];
-      ranges = [{ open: staffDay.open, close: staffDay.close }];
-    } else {
-      if (!company.schedule?.length) return [];
-      const sched = company.schedule.find(d => d.key === key);
-      if (!sched?.enabled || !sched.ranges?.length) return [];
-      ranges = sched.ranges;
-    }
-
-    const slots: string[] = [];
-    for (const range of ranges) {
-      slots.push(...this.aptSvc.calculateAvailableSlots(
-        range.open, range.close, interval, duration, staffCount, apts, selectedStaff?.id ?? null
-      ));
-    }
-
-    let result = slots.filter(s => !disabled[`${key}-${s}`]);
-
-    // "Cualquier profesional" con staff asignado al servicio: el horario sólo sirve si queda alguien libre.
-    // Libres = trabajan a esa hora y no tienen cita propia, menos las citas "cualquiera" que ya se solapan.
-    const staff = this.staffList();
-    if (!selectedStaff && staff.length > 0) {
-      result = result.filter(s => {
-        const start = toMin(s);
-        const end   = start + duration;
-        const free  = staff.filter(m => this.isStaffFree(m, key, start, end, apts)).length;
-        const anyBusy = apts.filter(a =>
-          !a.staffId && rangesOverlap(start, end, toMin(a.startTime), toMin(a.endTime))
-        ).length;
-        return free - anyBusy > 0;
-      });
-    }
-
-    // Para el día de hoy (hora LOCAL), filtrar slots que ya pasaron (con 10 min de buffer)
-    if (day.date === toLocalDateKey()) {
-      const now    = new Date();
-      const nowMin = now.getHours() * 60 + now.getMinutes();
-      result = result.filter(s => {
-        const [h, m] = s.split(':').map(Number);
-        return h * 60 + m + 10 > nowMin;
-      });
-    }
-
-    return result;
+    // Para hoy (hora LOCAL) se descartan los horarios ya pasados
+    const now = new Date();
+    return availableSlots({
+      company,
+      dayKey:            DAY_KEYS[day.dayOfWeek],
+      dateKey:           day.date,
+      duration:          svc.duration,
+      staff:             this.staffList(),
+      selectedStaff:     this.selectedStaff(),
+      apts:              this.existingApts(),
+      serviceStaffCount: svc.staffCount,
+      nowMin:            day.date === toLocalDateKey() ? now.getHours() * 60 + now.getMinutes() : null,
+    });
   });
 
   /**
@@ -715,19 +668,8 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
     const start = toMin(slot);
     const end   = start + (svc.duration ?? this.company()?.slotInterval ?? 30);
     const apts  = this.existingApts();
-    return this.staffList().filter(s => this.isStaffFree(s, key, start, end, apts));
+    return this.staffList().filter(s => isStaffFree(s, key, start, end, apts));
   });
-
-  private isStaffFree(s: StaffMember, dayKey: string, start: number, end: number, apts: SlotLockEntry[]): boolean {
-    if (hasOwnSchedule(s)) {
-      const staffDay = s.schedule[dayKey];
-      if (!staffDay?.enabled) return false;
-      if (start < toMin(staffDay.open) || end > toMin(staffDay.close)) return false;
-    }
-    return !apts.some(a =>
-      a.staffId === s.id && rangesOverlap(start, end, toMin(a.startTime), toMin(a.endTime))
-    );
-  }
 
   steps = [
     { n: 1, label: 'Servicio' },
