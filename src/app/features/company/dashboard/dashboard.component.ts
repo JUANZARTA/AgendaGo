@@ -1,6 +1,5 @@
 import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
@@ -10,46 +9,32 @@ import { StaffService, StaffMember } from '../../../core/services/staff.service'
 import { NotificationService } from '../../../core/services/notification.service';
 import { toLocalDateKey } from '../../../core/utils/date.utils';
 import { ShareLinkModalComponent } from '../../../shared/components/share-link-modal.component';
-
-const CANCEL_REASONS = [
-  'El cliente no se presentó',
-  'El cliente canceló con anticipación',
-  'Enfermedad del profesional',
-  'Problema con materiales o equipos',
-  'Error en el agendamiento',
-  'Otro',
-];
-
-const TIME_SLOTS: string[] = (() => {
-  const slots: string[] = [];
-  for (let h = 8; h < 18; h++) {
-    slots.push(`${String(h).padStart(2,'0')}:00`);
-    slots.push(`${String(h).padStart(2,'0')}:30`);
-  }
-  return slots;
-})();
-
-const DAY_KEYS = ['dom','lun','mar','mie','jue','vie','sab'];
-
-interface DaySlot {
-  time: string;
-  appointments: Appointment[];
-}
+import { DashboardStatsComponent } from './components/dashboard-stats.component';
+import { AppointmentCardComponent } from './components/appointment-card.component';
+import { AppointmentDetailModalComponent } from './components/appointment-detail-modal.component';
+import { NewAppointmentModalComponent, NewAppointmentForm } from './components/new-appointment-modal.component';
+import { DeleteAppointmentModalComponent } from './components/delete-appointment-modal.component';
+import { CancelAppointmentModalComponent } from './components/cancel-appointment-modal.component';
+import { DaySlot, buildDaySlots, calcEndTime } from './dashboard.utils';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, ShareLinkModalComponent],
+  imports: [
+    CommonModule,
+    ShareLinkModalComponent,
+    DashboardStatsComponent,
+    AppointmentCardComponent,
+    AppointmentDetailModalComponent,
+    NewAppointmentModalComponent,
+    DeleteAppointmentModalComponent,
+    CancelAppointmentModalComponent,
+  ],
   styles: [`
     .dashboard { animation: fadeInUp .35s ease both; }
     @keyframes fadeInUp {
       from { opacity:0; transform:translateY(16px); }
       to   { opacity:1; transform:translateY(0); }
-    }
-    @keyframes scaleIn {
-      from { opacity:0; transform:scale(0.88); }
-      60%  { transform:scale(1.04); }
-      to   { opacity:1; transform:scale(1); }
     }
 
     /* Título centrado en la página; acciones a la derecha (columna izquierda vacía para equilibrar) */
@@ -68,41 +53,6 @@ interface DaySlot {
     }
     .page-title { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin: 0; }
     .page-subtitle { font-size: 13px; color: #888; margin: 2px 0 0; }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-    .stat-card {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(var(--primary-rgb),.12);
-      padding: 20px 16px;
-      text-align: center;
-      animation: scaleIn 0.4s ease both;
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
-    }
-    .stat-card:hover { transform: translateY(-4px) scale(1.04); box-shadow: 0 10px 32px rgba(var(--primary-rgb),.22); }
-    .stats-grid .stat-card:nth-child(1) { animation-delay: 0.00s; }
-    .stats-grid .stat-card:nth-child(2) { animation-delay: 0.08s; }
-    .stats-grid .stat-card:nth-child(3) { animation-delay: 0.16s; }
-    .stats-grid .stat-card:nth-child(4) { animation-delay: 0.24s; }
-    .stat-number {
-      font-size: 2.2rem;
-      font-weight: 800;
-      background: var(--gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      line-height: 1;
-      margin-bottom: 6px;
-    }
-    .stat-number.green  { background: linear-gradient(135deg, #059669, #10b981); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-    .stat-number.yellow { background: linear-gradient(135deg, #d97706, #f59e0b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-    .stat-number.red    { background: linear-gradient(135deg, #dc2626, #f43f5e); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-    .stat-label { font-size: 12px; color: #888; font-weight: 500; letter-spacing: .3px; }
 
     .section-card {
       background: white;
@@ -131,163 +81,6 @@ interface DaySlot {
       border-radius: 2px;
     }
 
-    .apt-card {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 14px 16px;
-      border-radius: 12px;
-      border: 1.5px solid #eee;
-      border-left: 4px solid var(--purple);
-      background: #fafafa;
-      transition: box-shadow .25s ease, transform .25s ease;
-      animation: slideInLeft 0.35s ease both;
-    }
-    .apt-card:nth-child(1) { animation-delay: 0.05s; }
-    .apt-card:nth-child(2) { animation-delay: 0.12s; }
-    .apt-card:nth-child(3) { animation-delay: 0.19s; }
-    .apt-card:nth-child(4) { animation-delay: 0.26s; }
-    .apt-card:nth-child(5) { animation-delay: 0.33s; }
-    .apt-card:nth-child(6) { animation-delay: 0.40s; }
-    .apt-card:hover { box-shadow: 0 6px 20px rgba(var(--primary-rgb),.15); transform: translateX(4px); }
-    @keyframes slideInLeft {
-      from { opacity:0; transform:translateX(-20px); }
-      to   { opacity:1; transform:translateX(0); }
-    }
-    .apt-card.scheduled { border-left-color: #059669; }
-    .apt-card.pending   { border-left-color: #d97706; }
-    .apt-card.cancelled { border-left-color: #dc2626; opacity: .55; }
-    .apt-card.completed { border-left-color: #0891b2; opacity: .7; }
-
-    .apt-time { min-width: 56px; text-align: center; }
-    .apt-time-value { font-size: 1.1rem; font-weight: 800; color: var(--purple); }
-    .apt-body { flex: 1; min-width: 0; }
-    .apt-client { font-weight: 700; font-size: 14px; color: #1a1a2e; display:flex; align-items:center; gap:6px; }
-    .apt-service { font-size: 12px; color: #888; margin-top: 2px; }
-    .apt-meta { font-size: 12px; color: #aaa; margin-top: 2px; }
-    .apt-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .badge-green  { background: #d1fae5; color: #065f46; }
-    .badge-yellow { background: #fef3c7; color: #92400e; }
-    .badge-red    { background: #fee2e2; color: #991b1b; }
-    .badge-blue   { background: #dbeafe; color: #1d4ed8; }
-
-    .icon-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      border: 1.5px solid #e5e7eb;
-      background: white;
-      cursor: pointer;
-      color: #6b7280;
-      transition: background .15s, color .15s, border-color .15s;
-      flex-shrink: 0;
-    }
-    .icon-btn:hover { background: #f3f4f6; color: #1a1a2e; border-color: #d1d5db; }
-    .icon-btn.confirm:hover { background: #d1fae5; color: #059669; border-color: #6ee7b7; }
-    .icon-btn.complete-btn:hover { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
-    .icon-btn.cancel-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
-    .icon-btn.delete-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
-
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-      padding: 16px;
-    }
-    .modal-card {
-      background: white;
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.25);
-      padding: 28px;
-      width: 100%;
-      max-width: 460px;
-      max-height: 90vh;
-      overflow-y: auto;
-      animation: fadeInUp .25s ease both;
-    }
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-    .modal-title { font-size: 1.1rem; font-weight: 700; color: #1a1a2e; margin: 0; }
-    .modal-close {
-      width: 32px; height: 32px; border-radius: 8px; border: none;
-      background: #f3f4f6; cursor: pointer; color: #6b7280;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .15s;
-    }
-    .modal-close:hover { background: #e5e7eb; }
-
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:5px; }
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-      width: 100%;
-      border: 1.5px solid #e5e7eb;
-      border-radius: 10px;
-      padding: 9px 12px;
-      font-size: 14px;
-      color: #1a1a2e;
-      background: white;
-      outline: none;
-      transition: border-color .15s;
-      box-sizing: border-box;
-    }
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(var(--primary-rgb),.1); }
-    .form-group textarea { resize: vertical; min-height: 72px; }
-
-    .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
-    .modal-footer .btn { flex: 1; }
-
-    .reason-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-    .reason-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border: 1.5px solid #e5e7eb;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: border-color .15s, background .15s;
-    }
-    .reason-item:hover { background: #f9f5ff; border-color: #c4b5fd; }
-    .reason-item.selected { background: #f3f4ff; border-color: var(--purple); }
-    .reason-item input[type=radio] { accent-color: var(--purple); width: 16px; height: 16px; flex-shrink: 0; }
-    .reason-item span { font-size: 13px; color: #374151; }
-
-    .cancel-target-info {
-      background: #fef3c7;
-      border: 1.5px solid #fde68a;
-      border-radius: 10px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      font-size: 13px;
-      color: #92400e;
-    }
-    .cancel-target-info strong { display: block; font-size: 14px; color: #78350f; margin-bottom: 2px; }
-
     .slot-empty {
       display: flex;
       align-items: center;
@@ -310,16 +103,6 @@ interface DaySlot {
       color: #c4b5fd;
       font-weight: 500;
     }
-
-    @media (max-width: 700px) {
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
-      .apt-card { flex-wrap: wrap; }
-    }
-    @media (max-width: 420px) {
-      .stats-grid { grid-template-columns: 1fr 1fr; }
-    }
-
-    .modal-card { max-width: min(460px, calc(100vw - 16px)); }
 
     /* Date navigation */
     .date-nav {
@@ -350,21 +133,6 @@ interface DaySlot {
       position: absolute; inset: 0; opacity: 0;
       width: 100%; height: 100%; cursor: pointer;
       border: none; padding: 0; margin: 0;
-    }
-
-    @media (max-width: 480px) {
-      .apt-card { flex-wrap: wrap; gap: 10px; }
-      .apt-time { min-width: unset; width: 100%; display: flex; align-items: center; gap: 8px; }
-      .apt-time-value { font-size: 1rem; }
-      .apt-actions { width: 100%; justify-content: flex-end; }
-      .modal-overlay { padding: 8px; align-items: flex-end; }
-      .modal-card { border-radius: 20px 20px 0 0; max-height: 95vh; }
-    }
-
-    @media (max-width: 640px) {
-      .form-group input,
-      .form-group select,
-      .form-group textarea { font-size: 16px; }
     }
   `],
   template: `
@@ -434,24 +202,11 @@ interface DaySlot {
         </div>
       } @else {
         <!-- Stats -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-number">{{ total() }}</div>
-            <div class="stat-label">Total hoy</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number green">{{ scheduled() }}</div>
-            <div class="stat-label">Confirmadas</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number yellow">{{ pending() }}</div>
-            <div class="stat-label">Pendientes</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number red">{{ cancelled() }}</div>
-            <div class="stat-label">Canceladas</div>
-          </div>
-        </div>
+        <app-dashboard-stats
+          [total]="total()"
+          [scheduled]="scheduled()"
+          [pending]="pending()"
+          [cancelled]="cancelled()" />
 
         <!-- Agenda del día -->
         <div class="section-card">
@@ -478,97 +233,13 @@ interface DaySlot {
                   </div>
                 } @else {
                   @for (apt of slot.appointments; track apt.id) {
-                <div class="apt-card" [class]="apt.status">
-                  <div class="apt-time">
-                    <div class="apt-time-value">{{ apt.startTime }}</div>
-                  </div>
-
-                  <div class="apt-body">
-                    <div class="apt-client">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                      </svg>
-                      {{ apt.clientName }}
-                    </div>
-                    <div class="apt-service">{{ apt.serviceName }}</div>
-                    @if (apt.staffName) {
-                      <div class="apt-meta" style="margin-top:2px;font-size:12px;color:#a0a0b8;display:flex;align-items:center;gap:4px">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                        </svg>
-                        {{ apt.staffName }}
-                      </div>
-                    }
-                    <div class="apt-meta" style="display:flex;align-items:center;gap:10px;margin-top:3px">
-                      <span style="display:inline-flex;align-items:center;gap:3px">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                        </svg>
-                        {{ apt.serviceDuration }} min
-                      </span>
-                      @if (apt.price) {
-                        <span>\${{ apt.price | number }}</span>
-                      }
-                      @if (apt.clientPhone) {
-                        <span style="display:inline-flex;align-items:center;gap:3px">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.08 6.08l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                          </svg>
-                          {{ apt.clientPhone }}
-                        </span>
-                      }
-                    </div>
-                  </div>
-
-                  <div class="apt-actions">
-                    <!-- Ver detalle -->
-                    <button class="icon-btn" title="Ver detalle" (click)="detailApt.set(apt)">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    </button>
-
-                    @switch (apt.status) {
-                      @case ('scheduled') { <span class="badge badge-green">Confirmada</span> }
-                      @case ('pending')   { <span class="badge badge-yellow">Pendiente</span> }
-                      @case ('cancelled') { <span class="badge badge-red">Cancelada</span> }
-                      @case ('completed') { <span class="badge badge-blue">Completada</span> }
-                    }
-
-                    @if (apt.status === 'pending') {
-                      <button class="icon-btn confirm" title="Confirmar" (click)="confirmApt(apt.id!)">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      </button>
-                    }
-
-                    @if (apt.status === 'scheduled') {
-                      <button class="icon-btn complete-btn" title="Marcar completada" (click)="completeApt(apt.id!)">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                      </button>
-                    }
-
-                    @if (apt.status !== 'cancelled' && apt.status !== 'completed') {
-                      <button class="icon-btn cancel-btn" title="Cancelar" (click)="openCancelModal(apt)">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                      </button>
-                    }
-
-                    <!-- Las completadas no se eliminan: alimentan ingresos, estadísticas y reseñas -->
-                    @if (apt.status === 'cancelled') {
-                      <button class="icon-btn delete-btn" title="Eliminar" (click)="deleteTarget.set(apt)">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                        </svg>
-                      </button>
-                    }
-                  </div>
-                </div>
+                    <app-appointment-card
+                      [apt]="apt"
+                      (detailRequested)="detailApt.set($event)"
+                      (confirmRequested)="confirmApt($event)"
+                      (completeRequested)="completeApt($event)"
+                      (cancelRequested)="openCancelModal($event)"
+                      (deleteRequested)="deleteTarget.set($event)" />
                   } <!-- /@for appointments -->
                 } <!-- /slot con citas -->
               }
@@ -580,95 +251,8 @@ interface DaySlot {
 
 
     <!-- ===== MODAL: Detalle de cita ===== -->
-    @if (detailApt()) {
-      <div class="modal-overlay" (click)="detailApt.set(null)">
-        <div class="modal-card" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2 class="modal-title" style="display:flex;align-items:center;gap:8px">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
-              Detalle de cita
-            </h2>
-            <button class="modal-close" (click)="detailApt.set(null)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Estado -->
-          <div style="margin-bottom:16px">
-            @switch (detailApt()!.status) {
-              @case ('scheduled') { <span class="badge badge-green">Confirmada</span> }
-              @case ('pending')   { <span class="badge badge-yellow">Pendiente</span> }
-              @case ('cancelled') { <span class="badge badge-red">Cancelada</span> }
-              @case ('completed') { <span class="badge badge-blue">Completada</span> }
-            }
-          </div>
-
-          <!-- Sección: Servicio -->
-          <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Servicio</p>
-          <div style="background:#f9f5ff;border-radius:12px;padding:14px 16px;margin-bottom:16px">
-            <div style="font-weight:700;font-size:15px">{{ detailApt()!.serviceName }}</div>
-            <div style="display:flex;gap:14px;margin-top:6px;font-size:13px;color:#666;flex-wrap:wrap">
-              <span style="display:inline-flex;align-items:center;gap:4px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                {{ detailApt()!.date }}
-              </span>
-              <span style="display:inline-flex;align-items:center;gap:4px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                {{ detailApt()!.startTime }} – {{ detailApt()!.endTime }}
-              </span>
-              <span style="display:inline-flex;align-items:center;gap:4px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                {{ detailApt()!.serviceDuration }} min
-              </span>
-              @if (detailApt()!.price) {
-                <span style="font-weight:700;color:var(--purple)">\${{ detailApt()!.price | number }}</span>
-              }
-            </div>
-          </div>
-
-          <!-- Sección: Cliente -->
-          <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Cliente</p>
-          <div style="background:#f9f5ff;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;flex-direction:column;gap:8px">
-            @if (detailApt()!.clientPhotoUrl) {
-              <img [src]="detailApt()!.clientPhotoUrl" alt="Foto del cliente"
-                   style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.08)" />
-            }
-            <div style="display:flex;align-items:center;gap:8px;font-size:14px">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              <span style="font-weight:600">{{ detailApt()!.clientName }}</span>
-              @if (!detailApt()!.clientId) { <span style="font-size:11px;color:#aaa;background:#f3f4f6;padding:2px 7px;border-radius:20px">Invitado</span> }
-            </div>
-            @if (detailApt()!.clientPhone) {
-              <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.08 6.08l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                <a [href]="'tel:' + detailApt()!.clientPhone" style="color:var(--purple);text-decoration:none;font-weight:600">{{ detailApt()!.clientPhone }}</a>
-              </div>
-            }
-            @if (detailApt()!.clientEmail) {
-              <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#555">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                {{ detailApt()!.clientEmail }}
-              </div>
-            }
-          </div>
-
-          <!-- Observaciones -->
-          @if (detailApt()!.clientNote) {
-            <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Observaciones</p>
-            <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#78350f;line-height:1.6">
-              {{ detailApt()!.clientNote }}
-            </div>
-          }
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" style="flex:1" (click)="detailApt.set(null)">Cerrar</button>
-          </div>
-        </div>
-      </div>
+    @if (detailApt(); as apt) {
+      <app-appointment-detail-modal [apt]="apt" (closed)="detailApt.set(null)" />
     }
 
 
@@ -684,178 +268,33 @@ interface DaySlot {
 
     <!-- ===== MODAL: Nueva cita ===== -->
     @if (showNewModal()) {
-      <div class="modal-overlay" (click)="closeNewModal()">
-        <div class="modal-card" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2 class="modal-title" style="display:flex;align-items:center;gap:8px">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              Nueva cita
-            </h2>
-            <button class="modal-close" (click)="closeNewModal()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="form-group">
-            <label>Nombre del cliente</label>
-            <input [(ngModel)]="newClient" placeholder="Nombre completo" />
-          </div>
-
-          <div class="form-group">
-            <label>Teléfono</label>
-            <input [(ngModel)]="newPhone" placeholder="3001234567" type="tel" />
-          </div>
-
-          <div class="form-group">
-            <label>Servicio</label>
-            <select [(ngModel)]="newServiceId">
-              @for (svc of services(); track svc.id) {
-                <option [value]="svc.id">{{ svc.name }} — {{ svc.duration }} min / \${{ (svc.price ?? 0) | number }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Profesional <span style="color:#aaa;font-weight:400">(opcional)</span></label>
-            <select [(ngModel)]="newStaffId">
-              <option value="">Cualquier profesional</option>
-              @for (s of staff(); track s.id) {
-                <option [value]="s.id">{{ s.name }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Fecha</label>
-            <input type="date" [(ngModel)]="newDate" />
-          </div>
-
-          <div class="form-group">
-            <label>Hora</label>
-            <select [(ngModel)]="newTime">
-              @for (slot of timeSlots; track slot) {
-                <option [value]="slot">{{ slot }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Nota interna <span style="font-weight:400;color:#aaa">(opcional)</span></label>
-            <textarea [(ngModel)]="newNote" placeholder="Preferencias, indicaciones, etc."></textarea>
-          </div>
-
-          @if (formError()) {
-            <div style="background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:10px;padding:10px 14px;margin-top:8px;font-size:13px;font-weight:600">
-              {{ formError() }}
-            </div>
-          }
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" (click)="closeNewModal()">Cancelar</button>
-            <button class="btn btn-primary" (click)="saveNewAppointment()"
-                    [disabled]="!newClient.trim() || saving()">
-              {{ saving() ? 'Guardando...' : 'Guardar cita' }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <app-new-appointment-modal
+        [services]="services()"
+        [staff]="staff()"
+        [saving]="saving()"
+        [formError]="formError()"
+        (closed)="closeNewModal()"
+        (saved)="saveNewAppointment($event)" />
     }
 
 
     <!-- ===== MODAL: Eliminar cita ===== -->
-    @if (deleteTarget()) {
-      <div class="modal-overlay" (click)="deleteTarget.set(null)">
-        <div class="modal-card" style="max-width:360px" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2 class="modal-title" style="display:flex;align-items:center;gap:8px">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-              </svg>
-              Eliminar cita
-            </h2>
-            <button class="modal-close" (click)="deleteTarget.set(null)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="cancel-target-info">
-            <strong>{{ deleteTarget()?.clientName }}</strong>
-            {{ deleteTarget()?.serviceName }} · {{ deleteTarget()?.startTime }}
-          </div>
-
-          <p style="font-size:13px;color:#374151;margin:0 0 20px">
-            Esta acción es permanente y no se puede deshacer. ¿Confirmás que querés eliminar esta cita?
-          </p>
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" (click)="deleteTarget.set(null)">Cancelar</button>
-            <button class="btn btn-danger" [disabled]="saving()" (click)="doDelete()">
-              {{ saving() ? 'Eliminando...' : 'Eliminar' }}
-            </button>
-          </div>
-        </div>
-      </div>
+    @if (deleteTarget(); as target) {
+      <app-delete-appointment-modal
+        [target]="target"
+        [saving]="saving()"
+        (closed)="deleteTarget.set(null)"
+        (confirmed)="doDelete()" />
     }
 
 
     <!-- ===== MODAL: Cancelar cita ===== -->
-    @if (cancelTarget()) {
-      <div class="modal-overlay" (click)="cancelTarget.set(null)">
-        <div class="modal-card" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2 class="modal-title" style="display:flex;align-items:center;gap:8px">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              Cancelar cita
-            </h2>
-            <button class="modal-close" (click)="cancelTarget.set(null)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="cancel-target-info">
-            <strong>{{ cancelTarget()?.clientName }}</strong>
-            {{ cancelTarget()?.serviceName }} · {{ cancelTarget()?.startTime }}
-          </div>
-
-          <p style="font-size:13px;color:#374151;margin:0 0 10px;font-weight:600">Motivo de cancelación</p>
-
-          <div class="reason-list">
-            @for (reason of cancelReasons; track reason) {
-              <label class="reason-item" [class.selected]="cancelReason() === reason">
-                <input type="radio" name="cancel-reason" [value]="reason" [(ngModel)]="selectedReason" (change)="cancelReason.set(reason)" />
-                <span>{{ reason }}</span>
-              </label>
-            }
-          </div>
-
-          @if (cancelReason() === 'Otro') {
-            <div class="form-group">
-              <label>Especificá el motivo</label>
-              <textarea [(ngModel)]="cancelOtherText" placeholder="Describí el motivo..." (input)="cancelOther.set(cancelOtherText)"></textarea>
-            </div>
-          }
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" (click)="cancelTarget.set(null)">Volver</button>
-            <button class="btn btn-danger"
-              [disabled]="!cancelReason() || (cancelReason() === 'Otro' && !cancelOther().trim()) || saving()"
-              (click)="doCancel()">
-              Confirmar cancelación
-            </button>
-          </div>
-        </div>
-      </div>
+    @if (cancelTarget(); as target) {
+      <app-cancel-appointment-modal
+        [target]="target"
+        [saving]="saving()"
+        (closed)="cancelTarget.set(null)"
+        (confirmed)="doCancel()" />
     }
   `,
 })
@@ -885,8 +324,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       day: 'numeric', month: 'short',
     });
   });
-  readonly cancelReasons = CANCEL_REASONS;
-  readonly timeSlots     = TIME_SLOTS;
 
   appointments = signal<Appointment[]>([]);
   services     = signal<ServiceItem[]>([]);
@@ -897,8 +334,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   showNewModal = signal(false);
   detailApt    = signal<Appointment | null>(null);
   cancelTarget = signal<Appointment | null>(null);
-  cancelReason = signal('');
-  cancelOther  = signal('');
   deleteTarget = signal<Appointment | null>(null);
   shareOpen    = signal(false);
   actionError  = signal('');
@@ -909,46 +344,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   pending   = computed(() => this.appointments().filter(a => a.status === 'pending').length);
   cancelled = computed(() => this.appointments().filter(a => a.status === 'cancelled').length);
 
-  daySlots = computed((): DaySlot[] => {
-    const company = this.companyStore.company();
-    const date    = this.selectedDate();
-    if (!company?.schedule?.length) return [];
-
-    const [y, m, d] = date.split('-').map(Number);
-    const dayOfWeek  = new Date(y, m - 1, d).getDay();
-    const key        = DAY_KEYS[dayOfWeek];
-    const sched      = company.schedule.find(s => s.key === key);
-    if (!sched?.enabled || !sched.ranges?.length) return [];
-
-    const interval = company.slotInterval ?? 30;
-    const apts     = this.appointments();
-    const slots: DaySlot[] = [];
-
-    for (const range of sched.ranges) {
-      const [oh, om] = range.open.split(':').map(Number);
-      const [ch, cm] = range.close.split(':').map(Number);
-      let cur = oh * 60 + om;
-      const close = ch * 60 + cm;
-      while (cur + interval <= close) {
-        const time = `${String(Math.floor(cur/60)).padStart(2,'0')}:${String(cur%60).padStart(2,'0')}`;
-        slots.push({ time, appointments: apts.filter(a => a.startTime === time) });
-        cur += interval;
-      }
-    }
-
-    return slots;
-  });
-
-  newClient    = '';
-  newPhone     = '';
-  newServiceId = '';
-  newStaffId   = '';
-  newDate      = '';
-  newTime      = '08:00';
-  newNote      = '';
-
-  selectedReason  = '';
-  cancelOtherText = '';
+  daySlots = computed((): DaySlot[] =>
+    buildDaySlots(this.companyStore.company(), this.selectedDate(), this.appointments()));
 
   private aptSub?: Subscription;
 
@@ -971,7 +368,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
       this.catalogSvc.getActiveServices(cid).then(svcs => {
         this.services.set(svcs);
-        if (svcs.length && !this.newServiceId) this.newServiceId = svcs[0].id!;
       });
     });
   }
@@ -1042,10 +438,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   openCancelModal(apt: Appointment) {
     this.cancelTarget.set(apt);
-    this.cancelReason.set('');
-    this.cancelOther.set('');
-    this.selectedReason  = '';
-    this.cancelOtherText = '';
   }
 
   async doDelete() {
@@ -1084,15 +476,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  async saveNewAppointment() {
+  async saveNewAppointment(form: NewAppointmentForm) {
     const cid     = this.companyStore.companyId();
     const company = this.companyStore.company();
-    if (!cid || !this.newClient.trim()) return;
+    if (!cid || !form.client.trim()) return;
 
-    const svc = this.services().find(s => s.id === this.newServiceId) ?? this.services()[0];
+    const svc = this.services().find(s => s.id === form.serviceId) ?? this.services()[0];
     if (!svc) return;
 
-    const staffMember = this.staff().find(s => s.id === this.newStaffId);
+    const staffMember = this.staff().find(s => s.id === form.staffId);
     this.saving.set(true);
     this.formError.set('');
     try {
@@ -1102,14 +494,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
         serviceId:       svc.id!,
         serviceName:     svc.name,
         serviceDuration: svc.duration ?? 30,
-        clientName:      this.newClient.trim(),
-        clientPhone:     this.newPhone.trim(),
+        clientName:      form.client.trim(),
+        clientPhone:     form.phone.trim(),
         isGuestClient:   true,
-        date:            this.newDate || this.selectedDate(),
-        startTime:       this.newTime,
-        endTime:         this.calcEndTime(this.newTime, svc.duration ?? 30),
+        date:            form.date || this.selectedDate(),
+        startTime:       form.time,
+        endTime:         calcEndTime(form.time, svc.duration ?? 30),
         price:           svc.price,
-        clientNote:      this.newNote.trim() || undefined,
+        clientNote:      form.note.trim() || undefined,
         staffId:         staffMember?.id,
         staffName:       staffMember?.name,
         source:          'manual',
@@ -1136,18 +528,5 @@ export class DashboardComponent implements OnInit, OnDestroy {
   closeNewModal() {
     this.showNewModal.set(false);
     this.formError.set('');
-    this.newClient    = '';
-    this.newPhone     = '';
-    this.newServiceId = this.services()[0]?.id ?? '';
-    this.newStaffId   = '';
-    this.newDate      = '';
-    this.newTime      = '08:00';
-    this.newNote      = '';
-  }
-
-  private calcEndTime(start: string, duration: number): string {
-    const [h, m] = start.split(':').map(Number);
-    const total  = h * 60 + m + duration;
-    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
   }
 }
