@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
+import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReviewService } from '../../../core/services/review.service';
@@ -72,7 +73,7 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent],
+  imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent, LegalLinksComponent],
   styles: [`
     :host { display: block; }
     .filter-chip {
@@ -272,6 +273,7 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
         }
       </div>
     </div>
+    <app-legal-links variant="footer" />
   `,
 })
 export class SearchComponent implements OnInit {

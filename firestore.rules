@@ -33,15 +33,18 @@ service cloud.firestore {
     // ───────────────────────── USERS ─────────────────────────
     match /users/{uid} {
       allow read:   if isOwner(uid) || isSuperAdmin();
+      // acceptedTermsAt (opcional): momento en que aceptó Términos y Privacidad al registrarse (serverTimestamp)
       allow create: if isOwner(uid)
                     && request.resource.data.role in ['client', 'company']
                     && request.resource.data.get('uid', uid) == uid
-                    && request.resource.data.get('isActive', true) == true;
+                    && request.resource.data.get('isActive', true) == true
+                    && request.resource.data.get('acceptedTermsAt', request.time) == request.time;
       // El dueño edita su perfil (displayName, phone, photoUrl, fcmToken, profileComplete, ...)
       // pero NUNCA role / isActive / uid. Excepción legacy: doc sin role puede fijarlo una vez.
       allow update: if isSuperAdmin() || (
         isOwner(uid)
         && !changedKeys().hasAny(['isActive', 'uid'])
+        && (!changedKeys().hasAny(['acceptedTermsAt']) || request.resource.data.acceptedTermsAt == request.time)
         && (
           !changedKeys().hasAny(['role'])
           || (!('role' in resource.data) && request.resource.data.role in ['client', 'company'])
@@ -233,10 +236,20 @@ service cloud.firestore {
           );
     }
 
+    // Motivo de cancelación (opcional): sólo se escribe al pasar a 'cancelled', string de hasta 300.
+    function cancelReasonOk() {
+      return !changedKeys().hasAny(['cancelReason'])
+          || (resource.data.status != 'cancelled'
+              && request.resource.data.status == 'cancelled'
+              && request.resource.data.cancelReason is string
+              && request.resource.data.cancelReason.size() <= 300);
+    }
+
     function ownerAptUpdateOk() {
       let s0 = resource.data.status;
       let s1 = request.resource.data.status;
-      return changedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
+      return changedKeys().hasOnly(['status', 'cancelledBy', 'cancelReason', 'updatedAt'])
+          && cancelReasonOk()
           && request.resource.data.get('updatedAt', request.time) == request.time
           && (s0 == s1
               || (s0 == 'pending'   && s1 in ['scheduled', 'completed', 'cancelled'])
@@ -248,7 +261,8 @@ service cloud.firestore {
       return request.resource.data.get('updatedAt', request.time) == request.time
           && (
             // Cancelar su propia cita activa
-            (changedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
+            (changedKeys().hasOnly(['status', 'cancelledBy', 'cancelReason', 'updatedAt'])
+              && cancelReasonOk()
               && resource.data.status in ['pending', 'scheduled']
               && request.resource.data.status == 'cancelled'
               && request.resource.data.cancelledBy == 'client')
@@ -314,18 +328,29 @@ service cloud.firestore {
     }
 
     // ───────────────────────── CONFIG ─────────────────────────
-    // config/app: configuración global que edita el superadmin (planes, tiempos, contacto, anuncio).
+    // config/app: configuración global que edita el superadmin (planes, tiempos, contacto, anuncio, legal).
     // La leen todos (también páginas públicas sin login); sólo el superadmin escribe.
     function appConfigPath() { return /databases/$(database)/documents/config/app; }
     function optIntIn(d, key, lo, hi) {
       return !(key in d) || (d[key] is int && d[key] >= lo && d[key] <= hi);
     }
     function optMap(d, key) { return !(key in d) || d[key] is map; }
+    // legal: { terms, privacy, updatedAt? } — textos de Términos y Política de datos (máx. 50.000 c/u)
+    function validLegal(d) {
+      return !('legal' in d) || (
+        d.legal is map
+        && d.legal.keys().hasOnly(['terms', 'privacy', 'updatedAt'])
+        && optString(d.legal, 'terms', 50000)
+        && optString(d.legal, 'privacy', 50000)
+        && (!('updatedAt' in d.legal) || d.legal.updatedAt is timestamp)
+      );
+    }
     function validAppConfig(d) {
       return optIntIn(d, 'trialMonths', 1, 12)
         && optIntIn(d, 'warningDays', 0, 30)
         && optIntIn(d, 'graceDays', 0, 30)
-        && optMap(d, 'plans') && optMap(d, 'support') && optMap(d, 'announcement');
+        && optMap(d, 'plans') && optMap(d, 'support') && optMap(d, 'announcement')
+        && validLegal(d);
     }
     // Tope del trial que crea el dueño: trialMonths*31+1 días (2 meses = 63, el valor histórico).
     // exists() antes de get(): get() de un doc inexistente hace fallar la regla.

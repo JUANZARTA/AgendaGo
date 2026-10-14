@@ -4,7 +4,7 @@ import { mailtoLink, whatsappLink } from '../../../core/domain/app-config';
 
 /** Número que estaba fijo antes de config/app.support: se usa sólo si el admin no configuró uno. */
 const LEGACY_WHATSAPP = '573128622945';
-const WA_TEXT = '?text=Hola%2C%20necesito%20ayuda%20con%20mi%20cuenta%20de%20empresa%20en%20AgendaGo';
+const WA_TEXT = '?text=Hola%2C%20necesito%20ayuda%20con%20mi%20cuenta%20de%20empresa%20en%20AgendaCo';
 
 /** Modal bloqueante: empresa deshabilitada. */
 @Component({

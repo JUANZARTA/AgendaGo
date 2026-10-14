@@ -21,7 +21,7 @@ import { NavItem } from './nav-item.model';
             <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
             <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-        <span class="logo-text">AgendaZco</span>
+        <span class="logo-text">AgendaCo</span>
       </div>
 
       <!-- Navigation -->

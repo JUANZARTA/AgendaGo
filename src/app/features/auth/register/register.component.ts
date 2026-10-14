@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Firestore, doc, getDoc } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc, serverTimestamp } from '@angular/fire/firestore';
 import { AuthService } from '../../../core/services/auth.service';
 import { AppConfigService } from '../../../core/services/app-config.service';
 import { formatCop } from '../../../core/domain/plans';
@@ -39,6 +39,8 @@ export class RegisterComponent {
   error = signal('');
   success = signal(false);
   showPassword = signal(false);
+  /** Checkbox obligatorio de Términos y Privacidad (signal: la app es zoneless). */
+  acceptedTerms = signal(false);
 
   get selectedRole() { return this.form.get('role')?.value; }
 
@@ -64,6 +66,8 @@ export class RegisterComponent {
               displayName: credential.user.displayName ?? '',
               role: role as 'client' | 'company',
               createdAt: Date.now(),
+              // Con Google alcanza el aviso "Al continuar aceptás…" debajo del botón
+              acceptedTermsAt: serverTimestamp(),
             });
           }
           await this.auth.waitForProfile();
@@ -88,6 +92,10 @@ export class RegisterComponent {
 
   onSubmit() {
     if (this.form.invalid) return;
+    if (!this.acceptedTerms()) {
+      this.error.set('Para crear la cuenta tenés que aceptar los Términos y la Política de privacidad.');
+      return;
+    }
     this.loading.set(true);
     this.error.set('');
 
@@ -107,6 +115,7 @@ export class RegisterComponent {
             displayName: displayName!,
             role: role as 'client' | 'company',
             createdAt: Date.now(),
+            acceptedTermsAt: serverTimestamp(),
           });
         } catch {
           // Si Firestore falla, continuamos igual — el perfil se puede crear después

@@ -6,6 +6,7 @@ import { CompanyService } from '../../../core/services/company.service';
 import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
 import { TourService } from '../../../core/services/tour.service';
 import { CATEGORY_GROUPS, categoriesOfGroup } from '../../../core/domain/categories';
+import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
 const PRESET_ICONS: { key: string; label: string; path: string }[] = [
   { key: 'scissors', label: 'Tijeras',    path: 'M6 3v12M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9v12M18 3L6 15' },
@@ -23,10 +24,15 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
 @Component({
   selector: 'app-company-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, ThemeSwitcherComponent],
+  imports: [CommonModule, FormsModule, ThemeSwitcherComponent, LegalLinksComponent],
   styles: [`
-    .profile-page { max-width: 620px; margin: 0 auto; padding-bottom: 40px; animation: fadeInUp .3s ease; }
+    .profile-page { max-width: 1120px; margin: 0 auto; padding-bottom: 40px; animation: fadeInUp .3s ease; }
     @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+    /* Escritorio: dos columnas; en pantallas chicas, una sola */
+    .profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 20px; align-items:start; }
+    .profile-grid > .full { grid-column:1 / -1; }
+    @media (max-width: 900px) { .profile-grid { grid-template-columns:1fr; } }
 
     .page-title { font-size:1.45rem; font-weight:800; color:#1a1a2e; margin:0 0 24px; }
 
@@ -133,8 +139,9 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     <div class="profile-page">
       <h1 class="page-title">Perfil de la empresa</h1>
 
+      <div class="profile-grid">
       <!-- ── Compartir negocio ── -->
-      <div class="card" style="background:linear-gradient(135deg,#f9f5ff 0%,#fdf2ff 100%);border:1.5px solid #f0e8ff">
+      <div class="card full" style="background:linear-gradient(135deg,#f9f5ff 0%,#fdf2ff 100%);border:1.5px solid #f0e8ff">
         <div class="card-title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -164,6 +171,8 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         </div>
       </div>
 
+      <!-- Columna izquierda -->
+      <div>
       <!-- ── Logo ── -->
       <div class="card">
         <div class="card-title">
@@ -257,6 +266,52 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         }
       </div>
 
+      <!-- ── Configuración de reservas ── -->
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 9 15 9"/><polyline points="9 12 15 12"/><polyline points="9 15 12 15"/>
+          </svg>
+          Reservas
+        </div>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Confirmar citas automáticamente</div>
+            <div style="font-size:12px;color:#888;margin-top:3px">Las nuevas reservas quedan confirmadas sin revisión manual</div>
+          </div>
+          <div style="position:relative;width:44px;height:24px;flex-shrink:0">
+            <input type="checkbox" [(ngModel)]="form.autoConfirm"
+                   style="position:absolute;opacity:0;width:0;height:0" />
+            <div style="position:absolute;inset:0;border-radius:24px;transition:background .2s"
+                 [style.background]="form.autoConfirm ? 'var(--purple)' : '#e5e7eb'">
+              <div style="position:absolute;top:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"
+                   [style.transform]="form.autoConfirm ? 'translateX(23px)' : 'translateX(3px)'"></div>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- ── Apariencia ── -->
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          Apariencia
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Tema de la interfaz</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">Claro u oscuro</div>
+          </div>
+          <app-theme-switcher />
+        </div>
+      </div>
+
+      </div>
+
+      <!-- Columna derecha -->
+      <div>
       <!-- ── Datos generales ── -->
       <div class="card">
         <div class="card-title">
@@ -337,50 +392,10 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         </div>
       </div>
 
-      <!-- ── Configuración de reservas ── -->
-      <div class="card">
-        <div class="card-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 9 15 9"/><polyline points="9 12 15 12"/><polyline points="9 15 12 15"/>
-          </svg>
-          Reservas
-        </div>
-        <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Confirmar citas automáticamente</div>
-            <div style="font-size:12px;color:#888;margin-top:3px">Las nuevas reservas quedan confirmadas sin revisión manual</div>
-          </div>
-          <div style="position:relative;width:44px;height:24px;flex-shrink:0">
-            <input type="checkbox" [(ngModel)]="form.autoConfirm"
-                   style="position:absolute;opacity:0;width:0;height:0" />
-            <div style="position:absolute;inset:0;border-radius:24px;transition:background .2s"
-                 [style.background]="form.autoConfirm ? 'var(--purple)' : '#e5e7eb'">
-              <div style="position:absolute;top:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"
-                   [style.transform]="form.autoConfirm ? 'translateX(23px)' : 'translateX(3px)'"></div>
-            </div>
-          </div>
-        </label>
-      </div>
-
-      <!-- ── Apariencia ── -->
-      <div class="card">
-        <div class="card-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-          Apariencia
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Tema de la interfaz</div>
-            <div style="font-size:12px;color:#888;margin-top:2px">Claro u oscuro</div>
-          </div>
-          <app-theme-switcher />
-        </div>
       </div>
 
       <!-- Acciones -->
-      <div style="display:flex;gap:10px">
+      <div class="full" style="display:flex;gap:10px;margin-bottom:20px">
         <button class="btn btn-primary" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px"
                 (click)="save()" [disabled]="!form.name || saving()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -391,10 +406,9 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         </button>
         <button class="btn btn-secondary" (click)="reset()">Descartar</button>
       </div>
-    </div>
 
     <!-- ── Tour de la app ── -->
-    <div class="card" style="display:flex;align-items:center;gap:16px">
+    <div class="card full" style="display:flex;align-items:center;gap:16px">
       <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -407,6 +421,11 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         <div style="font-size:12px;color:#888;margin-top:2px">Volvé a ver el recorrido guiado por el panel</div>
       </div>
       <button class="btn btn-secondary btn-sm" (click)="startTour()">Ver tour</button>
+    </div>
+
+    <!-- ── Legal ── -->
+    <app-legal-links class="full" />
+      </div>
     </div>
 
     @if (saved()) {

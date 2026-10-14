@@ -48,7 +48,7 @@ import { AppConfigService } from '../../../core/services/app-config.service';
         <div class="banner banner--today" role="alert">
           <span class="icon">⏰</span>
           <span class="text">
-            <strong>Tu {{ label() }} vence hoy.</strong> Pagá hoy para seguir usando AgendaGo sin interrupciones.
+            <strong>Tu {{ label() }} vence hoy.</strong> Pagá hoy para seguir usando AgendaCo sin interrupciones.
           </span>
           <a class="cta" href="/empresa/facturacion#planes" (click)="goToPlans($event)">Pagar ahora</a>
         </div>

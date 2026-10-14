@@ -55,7 +55,12 @@ export class AppConfigService {
 
   /** (Solo superadmin) Guarda una o más secciones con merge (no pisa las demás). */
   async save(patch: Partial<AppConfig>): Promise<void> {
-    await setDoc(this.ref, { ...patch, updatedAt: serverTimestamp() }, { merge: true });
+    const data: Record<string, unknown> = { ...patch, updatedAt: serverTimestamp() };
+    // Los textos legales llevan su propia fecha de actualización (la muestran las páginas públicas)
+    if (patch.legal) {
+      data['legal'] = { terms: patch.legal.terms, privacy: patch.legal.privacy, updatedAt: serverTimestamp() };
+    }
+    await setDoc(this.ref, data, { merge: true });
   }
 
   private markLoaded(): void {

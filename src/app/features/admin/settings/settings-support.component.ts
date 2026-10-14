@@ -13,7 +13,8 @@ type SupportForm = AppConfig['support'];
   styles: [`
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
     .form-group { margin-bottom: 12px; }
-    .form-group input { padding: 9px 12px; font-size: 13px; }
+    .grid > * { min-width: 0; }
+    .form-group input { padding: 9px 12px; font-size: 13px; width: 100%; box-sizing: border-box; }
     .hint { font-size: 11.5px; color: #888; line-height: 1.45; }
     .hint a { color: var(--purple); font-weight: 600; }
   `],
@@ -38,7 +39,7 @@ type SupportForm = AppConfig['support'];
           </div>
           <div class="form-group">
             <label>Email</label>
-            <input type="email" placeholder="soporte@agendago.co" [value]="form().email"
+            <input type="email" placeholder="soporte@agendaco.co" [value]="form().email"
               (input)="patch({ email: $any($event.target).value })" />
             @if (mail(); as href) { <span class="hint">Link: <a [href]="href">{{ href }}</a></span> }
           </div>

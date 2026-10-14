@@ -210,6 +210,25 @@ async function main() {
   await expectOk('slot freed: guest re-books 11:00 staff st1', () => book(guest, aptData({ staffId: 'st1', staffName: 'Pepe', startTime: '11:00', endTime: '11:30' }), 'pending'));
   await expectOk('client1 cancels LEGACY apt (no lock doc entry)', () => transition(c1, 'legacy1', () => ({ status: 'cancelled', cancelledBy: 'client' })));
   await expectOk('owner cancels manual apt + lock release', () => transition(o1, manualApt, () => ({ status: 'cancelled', cancelledBy: 'company' })));
+  // Motivo de cancelación (cancelReason): opcional, string <= 300, sólo al pasar a 'cancelled'
+  let rA, rB, rC;
+  await expectOk('setup: 3 apts para motivo de cancelación', async () => {
+    rA = await book(c1, aptData({ clientId: 'client1', isGuestClient: false, startTime: '08:00', endTime: '08:30' }), 'pending');
+    rB = await book(guest, aptData({ startTime: '08:30', endTime: '09:00' }), 'pending');
+    rC = await book(guest, aptData({ startTime: '09:00', endTime: '09:30' }), 'pending');
+  });
+  await expectDeny('client cancels with reason > 300', () => transition(c1, rA, () => ({ status: 'cancelled', cancelledBy: 'client', cancelReason: 'x'.repeat(301) })));
+  await expectDeny('client cancels with non-string reason', () => transition(c1, rA, () => ({ status: 'cancelled', cancelledBy: 'client', cancelReason: 5 })));
+  await expectOk('client cancels own apt WITH reason (300 chars)', () => transition(c1, rA, () => ({ status: 'cancelled', cancelledBy: 'client', cancelReason: 'x'.repeat(300) })));
+  await expectDeny('client edits reason of already cancelled apt', () => updateDoc(doc(c1, 'appointments', rA), { cancelReason: 'otro', updatedAt: serverTimestamp() }));
+  await expectDeny('owner confirms adding cancelReason', () => transition(o1, rB, () => ({ status: 'scheduled', cancelReason: 'nope' })));
+  await expectOk('owner cancels WITH reason', () => transition(o1, rB, () => ({ status: 'cancelled', cancelledBy: 'company', cancelReason: 'Enfermedad del profesional' })));
+  await expectDeny('owner edits reason after cancel', () => updateDoc(doc(o1, 'appointments', rB), { cancelReason: 'cambio', updatedAt: serverTimestamp() }));
+  await expectOk('owner cancels WITHOUT reason (still ok)', () => transition(o1, rC, () => ({ status: 'cancelled', cancelledBy: 'company' })));
+  await expectOk('lock released for cancelled-with-reason apts', async () => {
+    const s = await getDoc(doc(guest, 'slotLocks', lockId('c1', D)));
+    if (s.data().entries.some(e => [rA, rB, rC].includes(e.aptId))) throw new Error('entry still there');
+  });
   await expectOk('owner completes guest apt', () => transition(o1, guestApt, () => ({ status: 'completed' })));
   await expectDeny('owner sets completed -> pending', () => transition(o1, guestApt, () => ({ status: 'pending' })));
   await expectDeny('owner edits clientName', () => updateDoc(doc(o1, 'appointments', guestApt), { clientName: 'X' }));
@@ -262,6 +281,12 @@ async function main() {
   await expectOk('legacy doc without role sets role once', () => setDoc(doc(c2, 'users', 'client2'), { role: 'client' }, { merge: true }).catch(async e => { throw e; }));
   const newU = dbFor('newuser');
   await expectOk('register: create own doc (merge) with role company', () => setDoc(doc(newU, 'users', 'newuser'), { uid: 'newuser', email: 'n@n', displayName: 'N', role: 'company', createdAt: Date.now() }, { merge: true }));
+  const newT = dbFor('newterms');
+  await expectOk('register with acceptedTermsAt = serverTimestamp', () => setDoc(doc(newT, 'users', 'newterms'), { uid: 'newterms', email: 't@t', displayName: 'T', role: 'client', createdAt: Date.now(), acceptedTermsAt: serverTimestamp() }, { merge: true }));
+  const newT2 = dbFor('newterms2');
+  await expectDeny('register with forged acceptedTermsAt (past date)', () => setDoc(doc(newT2, 'users', 'newterms2'), { uid: 'newterms2', role: 'client', acceptedTermsAt: Timestamp.fromDate(new Date('2020-01-01')) }, { merge: true }));
+  await expectDeny('user backdates acceptedTermsAt on update', () => updateDoc(doc(newT, 'users', 'newterms'), { acceptedTermsAt: Timestamp.fromDate(new Date('2020-01-01')) }));
+  await expectOk('user re-accepts terms (serverTimestamp) on update', () => updateDoc(doc(newT, 'users', 'newterms'), { acceptedTermsAt: serverTimestamp() }));
   const newU2 = dbFor('newuser2');
   await expectDeny('register as superadmin', () => setDoc(doc(newU2, 'users', 'newuser2'), { uid: 'newuser2', role: 'superadmin' }, { merge: true }));
   await expectOk('admin toggles isActive', () => updateDoc(doc(admin, 'users', 'client2'), { isActive: false }));
@@ -335,6 +360,16 @@ async function main() {
   await expectDeny('company writes config/app', () => setDoc(doc(o1, 'config', 'app'), { trialMonths: 12 }, { merge: true }));
   await expectDeny('client writes config/app', () => setDoc(doc(c1, 'config', 'app'), { announcement: { active: true, text: 'x', level: 'info' } }, { merge: true }));
   await expectDeny('guest writes config/app', () => setDoc(doc(guest, 'config', 'app'), { trialMonths: 12 }, { merge: true }));
+  await expectOk('admin writes legal texts', () => setDoc(doc(admin, 'config', 'app'), { legal: { terms: 'T'.repeat(50000), privacy: 'Política', updatedAt: serverTimestamp() }, updatedAt: serverTimestamp() }, { merge: true }));
+  await expectOk('guest reads legal texts', async () => {
+    const s = await getDoc(doc(guest, 'config', 'app'));
+    if (s.data().legal.privacy !== 'Política') throw new Error('bad legal');
+  });
+  await expectDeny('admin writes legal terms > 50000', () => setDoc(doc(admin, 'config', 'app'), { legal: { terms: 'T'.repeat(50001), privacy: 'P' } }, { merge: true }));
+  await expectDeny('admin writes legal with non-string privacy', () => setDoc(doc(admin, 'config', 'app'), { legal: { terms: 'T', privacy: 5 } }, { merge: true }));
+  await expectDeny('admin writes legal with extra key', () => setDoc(doc(admin, 'config', 'app'), { legal: { terms: 'T', privacy: 'P', html: '<b>' } }, { merge: true }));
+  await expectDeny('admin writes legal as string', () => setDoc(doc(admin, 'config', 'app'), { legal: 'todo' }, { merge: true }));
+  await expectDeny('company writes legal', () => setDoc(doc(o1, 'config', 'app'), { legal: { terms: 'T', privacy: 'P' } }, { merge: true }));
 
   console.log('REVIEWS');
   const rev = (over = {}) => ({ companyId: 'c1', clientId: 'client1', clientName: 'Ana', rating: 5, comment: 'genial', createdAt: Date.now(), appointmentId: 'done1', ...over });

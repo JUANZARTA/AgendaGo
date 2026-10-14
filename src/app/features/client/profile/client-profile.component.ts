@@ -11,6 +11,7 @@ import { ProfileDataFormComponent } from './components/profile-data-form.compone
 import { ProfilePhotoComponent } from './components/profile-photo.component';
 import { ProfileAccountComponent } from './components/profile-account.component';
 import { PROFILE_SETTINGS_STYLES } from './components/profile.styles';
+import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
 type OpenSection = 'none' | 'data' | 'photo';
 
@@ -20,6 +21,7 @@ type OpenSection = 'none' | 'data' | 'photo';
   imports: [
     CommonModule, ReactiveFormsModule, ThemeSwitcherComponent,
     ProfileAppointmentsComponent, ProfileDataFormComponent, ProfilePhotoComponent, ProfileAccountComponent,
+    LegalLinksComponent,
   ],
   styles: [`
     .panel { max-width: 500px; margin: 0 auto; padding-bottom: 48px; }
@@ -194,6 +196,8 @@ type OpenSection = 'none' | 'data' | 'photo';
         </button>
 
       </div>
+
+      <app-legal-links />
 
       <app-profile-account (logout)="logout()" />
 

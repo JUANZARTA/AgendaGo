@@ -13,7 +13,8 @@ type TimesForm = Pick<AppConfig, 'trialMonths' | 'warningDays' | 'graceDays'>;
   styles: [`
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
     .form-group { margin-bottom: 12px; }
-    .form-group input { padding: 9px 12px; font-size: 13px; }
+    .grid > * { min-width: 0; }
+    .form-group input { padding: 9px 12px; font-size: 13px; width: 100%; box-sizing: border-box; }
     .hint { font-size: 11.5px; color: #888; line-height: 1.45; }
   `],
   template: `

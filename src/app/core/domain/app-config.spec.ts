@@ -1,8 +1,9 @@
 import {
   DEFAULT_APP_CONFIG, announcementKey, changedPlanAmounts, checkoutLink, mailtoLink, mergeAppConfig,
   planCatalog, timelineOptions, validateAnnouncement, validateAppConfig, validatePlans, validateSupport,
-  validateTimes, whatsappLink,
+  validateLegal, validateTimes, whatsappLink, LIMITS,
 } from './app-config';
+import { DEFAULT_PRIVACY, DEFAULT_TERMS, SUPPORT_EMAIL_FALLBACK, SUPPORT_EMAIL_TOKEN, renderLegalText } from './legal';
 import { PLANS, planFromAmount } from './plans';
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -136,5 +137,40 @@ describe('app-config', () => {
     expect(announcementKey(a)).toBe(announcementKey({ ...a }));
     expect(announcementKey(a)).not.toBe(announcementKey({ ...a, text: 'Mantenimiento el domingo' }));
     expect(announcementKey(a)).not.toBe(announcementKey({ ...a, level: 'warning' }));
+  });
+
+  describe('legal (Términos y Privacidad)', () => {
+    it('defaults: borradores no vacíos, válidos y con el token del email de soporte', () => {
+      const l = DEFAULT_APP_CONFIG.legal;
+      expect(l.terms).toBe(DEFAULT_TERMS);
+      expect(l.privacy).toBe(DEFAULT_PRIVACY);
+      expect(l.updatedAt).toBeNull();
+      expect(l.privacy).toContain(SUPPORT_EMAIL_TOKEN);
+      expect(l.privacy).toContain('1581');
+      expect(validateLegal(l)).toEqual([]);
+    });
+
+    it('merge: usa lo guardado; vacío o tipo inválido → borrador por defecto', () => {
+      const ts = { toDate: () => new Date('2026-10-14T12:00:00Z') };
+      const c = mergeAppConfig({ legal: { terms: 'Mis términos', privacy: '   ', updatedAt: ts } });
+      expect(c.legal.terms).toBe('Mis términos');
+      expect(c.legal.privacy).toBe(DEFAULT_PRIVACY);
+      expect(c.legal.updatedAt?.toISOString()).toBe('2026-10-14T12:00:00.000Z');
+      expect(mergeAppConfig({ legal: { terms: 5, updatedAt: 'ayer' } }).legal)
+        .toEqual({ terms: DEFAULT_TERMS, privacy: DEFAULT_PRIVACY, updatedAt: null });
+    });
+
+    it('validación: no vacíos y tope de largo', () => {
+      expect(validateLegal({ terms: '', privacy: 'x' })).toHaveLength(1);
+      expect(validateLegal({ terms: 'x', privacy: 'x'.repeat(LIMITS.legalText + 1) })).toHaveLength(1);
+      expect(validateLegal({ terms: 'x'.repeat(LIMITS.legalText), privacy: 'x' })).toEqual([]);
+    });
+
+    it('renderLegalText reemplaza el token por el email de soporte (o un texto genérico)', () => {
+      const t = `Escribí a ${SUPPORT_EMAIL_TOKEN}. O a ${SUPPORT_EMAIL_TOKEN}.`;
+      expect(renderLegalText(t, ' soporte@agendaco.co ')).toBe('Escribí a soporte@agendaco.co. O a soporte@agendaco.co.');
+      expect(renderLegalText(t, '')).toBe(`Escribí a ${SUPPORT_EMAIL_FALLBACK}. O a ${SUPPORT_EMAIL_FALLBACK}.`);
+      expect(renderLegalText('<b>hola</b>', null)).toBe('<b>hola</b>');
+    });
   });
 });

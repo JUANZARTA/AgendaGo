@@ -27,7 +27,7 @@
         <!-- Header -->
         <div style="text-align:center;margin-bottom:24px">
           <h2 style="font-size:1.6rem;font-weight:900;color:#1a1a2e;margin-bottom:6px">Crear cuenta</h2>
-          <p style="color:#a0a0b8;font-size:14px">Elegí cómo vas a usar AgendaZco</p>
+          <p style="color:#a0a0b8;font-size:14px">Elegí cómo vas a usar AgendaCo</p>
         </div>
 
         <form [formGroup]="form" (ngSubmit)="onSubmit()">
@@ -124,6 +124,16 @@
             }
           </div>
 
+          <!-- Aceptación de Términos y Política de privacidad (obligatoria) -->
+          <label style="display:flex;align-items:flex-start;gap:10px;margin-top:16px;font-size:13px;color:#555;line-height:1.5;cursor:pointer">
+            <input type="checkbox" [checked]="acceptedTerms()" (change)="acceptedTerms.set($any($event.target).checked)"
+              style="width:17px;height:17px;margin-top:2px;accent-color:#7c3aed;flex-shrink:0;cursor:pointer" />
+            <span>
+              Acepto los <a routerLink="/terminos" target="_blank" rel="noopener" style="color:#7c3aed;font-weight:700">Términos y condiciones</a>
+              y la <a routerLink="/privacidad" target="_blank" rel="noopener" style="color:#7c3aed;font-weight:700">Política de privacidad</a>.
+            </span>
+          </label>
+
           <!-- Error -->
           @if (error()) {
             <div style="background:#ede9fe;border:1.5px solid #c4b5fd;border-radius:10px;padding:10px 14px;color:#5b21b6;font-size:13px;font-weight:600;margin-top:14px;margin-bottom:4px;display:flex;gap:8px;align-items:center">
@@ -134,7 +144,7 @@
           <!-- Submit -->
           <button type="submit" class="btn btn-primary btn-shimmer"
             style="width:100%;padding:14px;font-size:15px;border-radius:14px;margin-top:20px;letter-spacing:.02em"
-            [disabled]="loading() || form.invalid">
+            [disabled]="loading() || form.invalid || !acceptedTerms()">
             {{ loading() ? 'Creando cuenta...' : (selectedRole === 'company' ? 'Empezar prueba gratis' : 'Crear cuenta') }}
           </button>
         </form>
@@ -156,6 +166,11 @@
           </svg>
           Registrarse con Google
         </button>
+        <p style="text-align:center;margin-top:10px;font-size:12px;color:#a0a0b8;line-height:1.5">
+          Al continuar con Google aceptás los
+          <a routerLink="/terminos" target="_blank" rel="noopener" style="color:#7c3aed;font-weight:700">Términos</a>
+          y la <a routerLink="/privacidad" target="_blank" rel="noopener" style="color:#7c3aed;font-weight:700">Política de privacidad</a>.
+        </p>
 
         <p style="text-align:center;margin-top:20px;font-size:14px;color:#a0a0b8">
           ¿Ya tenés cuenta?
@@ -180,7 +195,7 @@
         <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
 
-      <h1 class="auth-brand-title">AgendaZco</h1>
+      <h1 class="auth-brand-title">AgendaCo</h1>
       <p class="auth-brand-tagline">Creá tu cuenta — es gratis</p>
 
       <div class="auth-feature-list">
@@ -208,7 +223,7 @@
           <span style="color:#FFD700;display:inline-flex;gap:2px;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
         </div>
         <p style="color:white;font-size:13px;line-height:1.6;font-style:italic;margin-bottom:10px">
-          "AgendaZco transformó mi barbería. Cero llamadas, lleno todos los días."
+          "AgendaCo transformó mi barbería. Cero llamadas, lleno todos los días."
         </p>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg></div>

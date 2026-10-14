@@ -10,7 +10,9 @@ import {
   sendPasswordResetEmail,
 } from '@angular/fire/auth';
 import {
+  FieldValue,
   Firestore,
+  Timestamp,
   doc,
   getDoc,
   setDoc,
@@ -29,6 +31,8 @@ export interface UserProfile {
   profileComplete?: boolean;
   fcmToken?: string;
   isActive?: boolean;
+  /** Cuándo aceptó Términos y Política de privacidad al registrarse (serverTimestamp al crear). */
+  acceptedTermsAt?: Timestamp | FieldValue;
 }
 
 @Injectable({ providedIn: 'root' })

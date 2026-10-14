@@ -22,7 +22,7 @@ import { AdminNavIconComponent } from './admin-nav-icon.component';
               <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           <div class="logo-text-group">
-            <span class="logo-text">AgendaZco</span>
+            <span class="logo-text">AgendaCo</span>
             <span class="logo-sub">Admin Panel</span>
           </div>
         </div>

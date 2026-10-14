@@ -60,7 +60,7 @@ export class TourService {
   private _buildCompanySteps(mobile: boolean): DriveStep[] {
     if (mobile) {
       return [
-        { popover: { title: '👋 Bienvenido a AgendaZco', description: 'Te mostramos los puntos clave en menos de un minuto.', side: 'over' } },
+        { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Te mostramos los puntos clave en menos de un minuto.', side: 'over' } },
         { element: '#cnav-m-grid',    popover: { title: 'Dashboard',  description: 'Tu agenda del día y métricas del negocio.', side: 'top' } },
         { element: '#cnav-m-list',    popover: { title: 'Servicios',  description: 'Definí tus servicios, duración y precio.', side: 'top' } },
         { element: '#cnav-m-clock',   popover: { title: 'Horarios',   description: 'Configurá días y horas de atención.', side: 'top' } },
@@ -69,7 +69,7 @@ export class TourService {
       ];
     }
     return [
-      { popover: { title: '👋 Bienvenido a AgendaZco', description: 'Te mostramos los puntos clave en menos de un minuto.', side: 'over' } },
+      { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Te mostramos los puntos clave en menos de un minuto.', side: 'over' } },
       { element: '#cnav-grid',        popover: { title: 'Dashboard',    description: 'Tu agenda del día, métricas y resumen del negocio.', side: 'right' } },
       { element: '#cnav-list',        popover: { title: 'Servicios',    description: 'Definí tus servicios, duración y precio.', side: 'right' } },
       { element: '#cnav-clock',       popover: { title: 'Horarios',     description: 'Configurá los días y horas en que atendés.', side: 'right' } },
@@ -83,8 +83,8 @@ export class TourService {
   private _buildClientSteps(mobile: boolean): DriveStep[] {
     if (mobile) {
       return [
-        { popover: { title: '👋 Bienvenido a AgendaZco', description: 'Reservá tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
-        { element: '#ctour-brand',          popover: { title: 'AgendaZco', description: 'Desde acá siempre podés volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
+        { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Reservá tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
+        { element: '#ctour-brand',          popover: { title: 'AgendaCo', description: 'Desde acá siempre podés volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
         { element: '#ctour-citas-mobile',   popover: { title: 'Mis citas',  description: 'Todas tus reservas activas e historial. Podés cancelar si necesitás.', side: 'top' } },
         { element: '#ctour-mensajes-mobile',popover: { title: 'Mensajes',   description: 'Comunicación directa con el negocio antes y después del turno.', side: 'top' } },
         { element: '#ctour-perfil-mobile',  popover: { title: 'Tu perfil',  description: 'Actualizá tus datos de contacto y preferencias.', side: 'top' } },
@@ -92,8 +92,8 @@ export class TourService {
       ];
     }
     return [
-      { popover: { title: '👋 Bienvenido a AgendaZco', description: 'Reservá tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
-      { element: '#ctour-brand',           popover: { title: 'AgendaZco',  description: 'Desde acá siempre podés volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
+      { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Reservá tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
+      { element: '#ctour-brand',           popover: { title: 'AgendaCo',  description: 'Desde acá siempre podés volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
       { element: '#ctour-search-desktop',  popover: { title: 'Buscar',     description: 'Encontrá negocios con turnos: belleza, salud, bienestar y más. Podés buscar por nombre o rubro.', side: 'bottom' } },
       { element: '#ctour-citas-desktop',   popover: { title: 'Mis citas',  description: 'Todas tus reservas activas e historial. Podés cancelar si necesitás.', side: 'bottom' } },
       { element: '#ctour-mensajes-desktop',popover: { title: 'Mensajes',   description: 'Comunicación directa con el negocio antes y después del turno.', side: 'bottom' } },

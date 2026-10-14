@@ -31,6 +31,8 @@ export interface Appointment {
   staffName?: string;
   status: 'pending' | 'scheduled' | 'cancelled' | 'completed';
   cancelledBy?: 'client' | 'company';
+  /** Motivo opcional que escribió quien canceló (máx. CANCEL_REASON_MAX, validado en firestore.rules). */
+  cancelReason?: string;
   source: 'app' | 'manual';
   /** El cliente la ocultó de su historial (no se borra: alimenta estadísticas de la empresa). */
   hiddenByClient?: boolean;
@@ -55,6 +57,9 @@ export interface SlotLockEntry {
   startTime: string;
   endTime: string;
 }
+
+/** Largo máximo del motivo de cancelación (debe coincidir con firestore.rules). */
+export const CANCEL_REASON_MAX = 300;
 
 /** Tope de entries por día (debe coincidir con firestore.rules). */
 export const MAX_LOCK_ENTRIES = 300;
@@ -230,11 +235,13 @@ export class AppointmentService {
     });
   }
 
-  async cancelAppointment(id: string, cancelledBy: 'client' | 'company'): Promise<void> {
+  /** Cancela la cita. El motivo es opcional: si viene vacío no se guarda el campo. */
+  async cancelAppointment(id: string, cancelledBy: 'client' | 'company', reason?: string): Promise<void> {
+    const cancelReason = (reason ?? '').trim().slice(0, CANCEL_REASON_MAX);
     await this.transition(id, (a) => {
       if (a.status === 'cancelled') return null;
       if (a.status !== 'pending' && a.status !== 'scheduled') throw new Error('INVALID_TRANSITION');
-      return { status: 'cancelled', cancelledBy };
+      return cancelReason ? { status: 'cancelled', cancelledBy, cancelReason } : { status: 'cancelled', cancelledBy };
     });
   }
 

@@ -121,6 +121,11 @@ import { BADGE_STYLES } from '../dashboard.styles';
             </span>
           }
         </div>
+        @if (apt().status === 'cancelled' && apt().cancelReason) {
+          <div class="apt-meta" style="margin-top:3px;color:#dc2626" [title]="apt().cancelReason!">
+            Motivo{{ apt().cancelledBy === 'client' ? ' (cliente)' : '' }}: {{ apt().cancelReason }}
+          </div>
+        }
       </div>
 
       <div class="apt-actions">

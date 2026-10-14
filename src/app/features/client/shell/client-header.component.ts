@@ -24,7 +24,7 @@ import { ClientNotificationsPanelComponent } from './client-notifications-panel.
                 <line x1="18" y1="3" x2="6" y2="15"/>
               </svg>
             </div>
-            <span class="brand-name">AgendaZco</span>
+            <span class="brand-name">AgendaCo</span>
             <span class="header-version desktop-only">v{{ APP_VERSION }}</span>
           </a>
 

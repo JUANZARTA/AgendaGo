@@ -4,8 +4,20 @@ export interface ChangelogEntry {
   cambios: string[];
 }
 
-/** Notas de versión de AgendaGo, de la más nueva a la más vieja. Solo cambios notorios para el usuario. */
+/** Notas de versión de AgendaCo, de la más nueva a la más vieja. Solo cambios notorios para el usuario. */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '2.2.0',
+    fecha: '14/10/2026',
+    cambios: [
+      'La app ahora se llama AgendaCo.',
+      'Avisos de vencimiento del plan, 5 días de gracia y confirmación al renovar.',
+      'Términos y condiciones y Política de privacidad, con aceptación al registrarse.',
+      'Al cancelar una cita se puede indicar el motivo, y se ve en la cita.',
+      'Anuncios generales del equipo de AgendaCo en el panel de la empresa.',
+      'Perfil de la empresa más amplio, en dos columnas.',
+    ],
+  },
   {
     version: '2.1.0',
     fecha: '14/10/2026',
@@ -48,7 +60,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: '1.0.0',
     fecha: '16/05/2026',
     cambios: [
-      'Primera versión de AgendaGo: cuentas de cliente y empresa, cada una con su propia vista.',
+      'Primera versión de AgendaCo: cuentas de cliente y empresa, cada una con su propia vista.',
       'Sistema de citas: reservá turnos con empresas desde la vista de cliente.',
       'Buscador de empresas y reseñas de clientes.',
     ],

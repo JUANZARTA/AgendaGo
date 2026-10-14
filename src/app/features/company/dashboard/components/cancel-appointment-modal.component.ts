@@ -1,14 +1,15 @@
-import { Component, input, output, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Appointment } from '../../../../core/services/appointment.service';
+import { Component, computed, input, output, signal } from '@angular/core';
+import { Appointment, CANCEL_REASON_MAX } from '../../../../core/services/appointment.service';
 import { MODAL_STYLES } from '../dashboard.styles';
 import { CANCEL_REASONS } from '../dashboard.utils';
 
-/** Modal para cancelar una cita eligiendo el motivo. El estado del formulario vive acá y se reinicia al reabrirse. */
+/**
+ * Modal para cancelar una cita eligiendo el motivo. El estado del formulario vive acá (signals: la app es
+ * zoneless) y se reinicia al reabrirse. Emite el motivo final, que se guarda en la cita (cancelReason).
+ */
 @Component({
   selector: 'app-cancel-appointment-modal',
   standalone: true,
-  imports: [FormsModule],
   styles: [MODAL_STYLES + `
     .reason-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
     .reason-item {
@@ -53,7 +54,7 @@ import { CANCEL_REASONS } from '../dashboard.utils';
         <div class="reason-list">
           @for (reason of cancelReasons; track reason) {
             <label class="reason-item" [class.selected]="cancelReason() === reason">
-              <input type="radio" name="cancel-reason" [value]="reason" [(ngModel)]="selectedReason" (change)="cancelReason.set(reason)" />
+              <input type="radio" name="cancel-reason" [value]="reason" [checked]="cancelReason() === reason" (change)="cancelReason.set(reason)" />
               <span>{{ reason }}</span>
             </label>
           }
@@ -62,15 +63,15 @@ import { CANCEL_REASONS } from '../dashboard.utils';
         @if (cancelReason() === 'Otro') {
           <div class="form-group">
             <label>Especificá el motivo</label>
-            <textarea [(ngModel)]="cancelOtherText" placeholder="Describí el motivo..." (input)="cancelOther.set(cancelOtherText)"></textarea>
+            <textarea [attr.maxlength]="max" placeholder="Describí el motivo..." [value]="cancelOther()" (input)="cancelOther.set($any($event.target).value)"></textarea>
           </div>
         }
 
         <div class="modal-footer">
           <button class="btn btn-secondary" (click)="closed.emit()">Volver</button>
           <button class="btn btn-danger"
-            [disabled]="!cancelReason() || (cancelReason() === 'Otro' && !cancelOther().trim()) || saving()"
-            (click)="confirmed.emit()">
+            [disabled]="!finalReason() || saving()"
+            (click)="confirmed.emit(finalReason())">
             Confirmar cancelación
           </button>
         </div>
@@ -83,13 +84,15 @@ export class CancelAppointmentModalComponent {
   saving = input(false);
 
   closed    = output<void>();
-  confirmed = output<void>();
+  /** Motivo elegido (o el texto libre si eligió "Otro"). */
+  confirmed = output<string>();
 
   readonly cancelReasons = CANCEL_REASONS;
+  readonly max = CANCEL_REASON_MAX;
 
   cancelReason = signal('');
   cancelOther  = signal('');
 
-  selectedReason  = '';
-  cancelOtherText = '';
+  readonly finalReason = computed(() =>
+    (this.cancelReason() === 'Otro' ? this.cancelOther() : this.cancelReason()).trim().slice(0, CANCEL_REASON_MAX));
 }

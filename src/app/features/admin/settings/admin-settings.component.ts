@@ -7,9 +7,11 @@ import { SettingsTimesComponent } from './settings-times.component';
 import { SettingsSupportComponent } from './settings-support.component';
 import { SettingsAnnouncementComponent } from './settings-announcement.component';
 import { SettingsSectionComponent } from './settings-section.component';
+import { SettingsLegalComponent } from './settings-legal.component';
+import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
 /**
- * Configuración del superadmin. Planes, tiempos, contacto y anuncio se guardan en Firestore
+ * Configuración del superadmin. Planes, tiempos, contacto, anuncio y textos legales se guardan en Firestore
  * (config/app, para toda la app); los colores sólo en este navegador; al final, las versiones.
  */
 @Component({
@@ -17,7 +19,7 @@ import { SettingsSectionComponent } from './settings-section.component';
   standalone: true,
   imports: [
     ThemeSwitcherComponent, SettingsSectionComponent, SettingsPlansComponent, SettingsTimesComponent,
-    SettingsSupportComponent, SettingsAnnouncementComponent,
+    SettingsSupportComponent, SettingsAnnouncementComponent, SettingsLegalComponent, LegalLinksComponent,
   ],
   template: `
     <div class="page">
@@ -34,6 +36,10 @@ import { SettingsSectionComponent } from './settings-section.component';
       <app-settings-section title="Colores de la interfaz" subtitle="Se guarda en este navegador (no cambia los colores de las empresas)." [saveable]="false">
         <app-theme-switcher />
       </app-settings-section>
+
+      <app-settings-legal />
+
+      <app-legal-links />
 
       <h2 style="font-size:1rem;font-weight:800;color:#1a1a2e;margin:28px 0 12px">Versiones</h2>
 

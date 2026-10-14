@@ -26,7 +26,8 @@ type PlansForm = AppConfig['plans'];
     .plan-name { font-size: 14px; font-weight: 800; color: #1a1a2e; margin: 0 0 12px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .form-group { margin-bottom: 12px; }
-    .form-group input { padding: 9px 12px; font-size: 13px; }
+    .row > * { min-width: 0; }
+    .form-group input { padding: 9px 12px; font-size: 13px; width: 100%; box-sizing: border-box; }
     .hint { font-size: 11.5px; color: #888; }
     .tag {
       display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 10.5px;

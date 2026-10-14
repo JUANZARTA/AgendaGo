@@ -7,6 +7,7 @@
  */
 import { PLANS, PlanCatalog, PlanKey } from './plans';
 import { GRACE_DAYS, RENEWAL_WARNING_DAYS, TimelineOptions } from './subscription-timeline';
+import { DEFAULT_PRIVACY, DEFAULT_TERMS } from './legal';
 
 export interface PlanLinks {
   /** Link de pago de Wompi en MODO PRUEBAS (sandbox): lo usa `ng serve`. */
@@ -25,6 +26,14 @@ export interface PlanConfig {
 
 export type AnnouncementLevel = 'info' | 'warning';
 
+/** Textos legales (texto plano). updatedAt lo pone el servicio al guardar (serverTimestamp). */
+export interface LegalConfig {
+  terms: string;
+  privacy: string;
+  /** Última vez que el admin guardó los textos; null = nunca (se usan los borradores por defecto). */
+  updatedAt: Date | null;
+}
+
 export interface AppConfig {
   plans: Record<PlanKey, PlanConfig>;
   /** Meses de prueba gratis al crear la empresa. */
@@ -35,6 +44,7 @@ export interface AppConfig {
   graceDays: number;
   support: { whatsapp: string; email: string };
   announcement: { active: boolean; text: string; level: AnnouncementLevel };
+  legal: LegalConfig;
 }
 
 export const PLAN_KEYS: PlanKey[] = ['mensual', 'semestral'];
@@ -47,6 +57,8 @@ export const LIMITS = {
   warningDays: { min: 0, max: 30 },
   graceDays:   { min: 0, max: 30 },
   announcementText: 500,
+  /** Largo máximo de cada texto legal (debe coincidir con firestore.rules). */
+  legalText: 50000,
 } as const;
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -67,6 +79,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   graceDays:   GRACE_DAYS,
   support: { whatsapp: '', email: '' },
   announcement: { active: false, text: '', level: 'info' },
+  legal: { terms: DEFAULT_TERMS, privacy: DEFAULT_PRIVACY, updatedAt: null },
 };
 
 // ── helpers de tipo ──
@@ -75,6 +88,17 @@ const isPosInt = (v: unknown): v is number => typeof v === 'number' && Number.is
 const intIn = (v: unknown, lo: number, hi: number): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= lo && v <= hi;
 const str = (v: unknown, def: string): string => (typeof v === 'string' ? v : def);
+/** Texto no vacío (un texto legal vacío no sirve: se usa el borrador por defecto). */
+const nonEmpty = (v: unknown, def: string): string => (typeof v === 'string' && v.trim() ? v : def);
+/** Timestamp de Firestore (duck typing: el dominio no importa Firebase) o Date → Date. */
+function toDate(v: unknown): Date | null {
+  if (v instanceof Date) return v;
+  if (isObj(v) && typeof v['toDate'] === 'function') {
+    const d = (v['toDate'] as () => unknown)();
+    return d instanceof Date ? d : null;
+  }
+  return null;
+}
 
 /**
  * Mezcla lo que vino de Firestore con los defaults, campo a campo.
@@ -99,6 +123,7 @@ export function mergeAppConfig(raw: unknown): AppConfig {
 
   const support = isObj(r['support']) ? r['support'] : {};
   const ann = isObj(r['announcement']) ? r['announcement'] : {};
+  const legal = isObj(r['legal']) ? r['legal'] : {};
   const L = LIMITS;
 
   return {
@@ -114,6 +139,11 @@ export function mergeAppConfig(raw: unknown): AppConfig {
       active: typeof ann['active'] === 'boolean' ? ann['active'] : d.announcement.active,
       text:   str(ann['text'], d.announcement.text),
       level:  ann['level'] === 'warning' || ann['level'] === 'info' ? ann['level'] : d.announcement.level,
+    },
+    legal: {
+      terms:     nonEmpty(legal['terms'],   d.legal.terms),
+      privacy:   nonEmpty(legal['privacy'], d.legal.privacy),
+      updatedAt: toDate(legal['updatedAt']),
     },
   };
 }
@@ -183,12 +213,23 @@ export function validateAnnouncement(a: AppConfig['announcement']): string[] {
   return errors;
 }
 
+export function validateLegal(l: Pick<LegalConfig, 'terms' | 'privacy'>): string[] {
+  const errors: string[] = [];
+  const max = LIMITS.legalText;
+  if (!l.terms.trim())   errors.push('Los Términos y condiciones no pueden quedar vacíos.');
+  if (!l.privacy.trim()) errors.push('La Política de privacidad no puede quedar vacía.');
+  if (l.terms.length > max)   errors.push(`Los Términos pueden tener hasta ${max.toLocaleString('es-CO')} caracteres.`);
+  if (l.privacy.length > max) errors.push(`La Política de privacidad puede tener hasta ${max.toLocaleString('es-CO')} caracteres.`);
+  return errors;
+}
+
 export function validateAppConfig(cfg: AppConfig): string[] {
   return [
     ...validatePlans(cfg.plans),
     ...validateTimes(cfg),
     ...validateSupport(cfg.support),
     ...validateAnnouncement(cfg.announcement),
+    ...validateLegal(cfg.legal),
   ];
 }
 

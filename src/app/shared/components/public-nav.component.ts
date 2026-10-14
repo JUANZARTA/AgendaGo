@@ -117,7 +117,7 @@ import { ClientActivityService } from '../../core/services/client-activity.servi
               <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           <span style="font-weight:900;font-size:1.1rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
-            AgendaZco
+            AgendaCo
           </span>
         </a>
 

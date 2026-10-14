@@ -83,7 +83,7 @@ import { OnboardingServicesStepComponent } from './steps/onboarding-services-ste
             <line x1="12" y1="16" x2="12" y2="22"/>
           </svg>
         </div>
-        <span class="ob-logo-text">AgendaZco</span>
+        <span class="ob-logo-text">AgendaCo</span>
       </div>
 
       <div class="ob-card">

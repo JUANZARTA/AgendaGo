@@ -15,7 +15,7 @@ import { RouterLink } from '@angular/router';
           <circle cx="70" cy="73" r="12" stroke="white" stroke-width="8.5"/>
           <polyline points="70,61 50,51 20,18" stroke="white" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-      <span style="font-weight:900;font-size:1.05rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">AgendaZco</span>
+      <span style="font-weight:900;font-size:1.05rem;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">AgendaCo</span>
       <div style="flex:1"></div>
       <!-- Campana -->
       <button class="mh-icon-btn" (click)="notificationsToggle.emit()" style="position:relative">

@@ -294,7 +294,7 @@ import { DaySlot, buildDaySlots, calcEndTime } from './dashboard.utils';
         [target]="target"
         [saving]="saving()"
         (closed)="cancelTarget.set(null)"
-        (confirmed)="doCancel()" />
+        (confirmed)="doCancel($event)" />
     }
   `,
 })
@@ -452,18 +452,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  async doCancel() {
+  async doCancel(reason: string) {
     const target = this.cancelTarget();
     if (!target?.id) return;
     this.saving.set(true);
     try {
-      await this.aptSvc.cancelAppointment(target.id, 'company');
+      await this.aptSvc.cancelAppointment(target.id, 'company', reason);
       if (target.clientId) {
         this.notifSvc.create({
           recipientId: target.clientId,
           type: 'appointment_cancelled',
           title: 'Cita cancelada',
-          body: `Tu cita de ${target.serviceName} en ${this.companyStore.company()?.name ?? ''} fue cancelada`,
+          body: `Tu cita de ${target.serviceName} en ${this.companyStore.company()?.name ?? ''} fue cancelada`
+            + (reason ? `. Motivo: ${reason}` : ''),
           link: '/cliente/citas',
         }).catch(() => {});
       }

@@ -136,7 +136,7 @@ import { SupportContactComponent } from '../../../../shared/components/support-c
             @case ('trial')   { Plan gratuito · Vence el {{ sub().trialEnd }} · Renovar antes de que expire para no perder tu agenda }
             @case ('active')  { {{ sub().plan }} · Próxima renovación el {{ sub().trialEnd }} }
             @case ('expired') { Tu suscripción venció. Elegí un plan para reactivar tu cuenta }
-            @case ('free')    { Fuiste seleccionado como beneficiario de AgendaZco. Tenés acceso ilimitado y gratuito a todas las funciones de la plataforma. }
+            @case ('free')    { Fuiste seleccionado como beneficiario de AgendaCo. Tenés acceso ilimitado y gratuito a todas las funciones de la plataforma. }
           }
         </p>
       </div>

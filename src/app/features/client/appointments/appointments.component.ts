@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
-import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
+import { AppointmentService, Appointment, CANCEL_REASON_MAX } from '../../../core/services/appointment.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { NotificationService } from '../../../core/services/notification.service';
 
@@ -142,6 +142,12 @@ const STATUS_CLASS: Record<string, string> = {
                   }
                 </div>
 
+                @if (appt.status === 'cancelled' && appt.cancelReason) {
+                  <div class="cancel-reason-note">
+                    {{ appt.cancelledBy === 'company' ? 'Cancelada por el negocio' : 'La cancelaste vos' }}. Motivo: {{ appt.cancelReason }}
+                  </div>
+                }
+
                 <!-- Acciones -->
                 <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                   <!-- Mensaje a la empresa -->
@@ -158,13 +164,16 @@ const STATUS_CLASS: Record<string, string> = {
                   <!-- Cancelar (pending/scheduled) -->
                   @if (appt.status === 'pending' || appt.status === 'scheduled') {
                     @if (confirmCancelId() === appt.id) {
+                      <input class="cancel-reason" type="text" [attr.maxlength]="cancelReasonMax"
+                        placeholder="Motivo (opcional)" aria-label="Motivo de la cancelación (opcional)"
+                        [value]="cancelReason()" (input)="cancelReason.set($any($event.target).value)" />
                       <span style="font-size:13px;color:#555">¿Cancelar?</span>
                       <button class="btn btn-danger btn-sm" (click)="doCancel(appt.id!)" [disabled]="cancelling()">
                         @if (cancelling()) { ... } @else { Sí }
                       </button>
                       <button class="btn btn-secondary btn-sm" (click)="confirmCancelId.set(null)">No</button>
                     } @else {
-                      <button class="cancel-link" (click)="confirmCancelId.set(appt.id!)">
+                      <button class="cancel-link" (click)="openCancel(appt.id!)">
                         Cancelar cita
                       </button>
                     }
@@ -328,6 +337,14 @@ const STATUS_CLASS: Record<string, string> = {
       gap: 4px;
     }
     .cancel-link { color: var(--purple); }
+    .cancel-reason {
+      flex: 1 1 100%; padding: 8px 10px; border: 1.5px solid #e5e7eb; border-radius: 8px;
+      font-size: 13px; font-family: inherit;
+    }
+    .cancel-reason-note {
+      margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: #fef2f2;
+      color: #991b1b; font-size: 12.5px; line-height: 1.5; word-break: break-word;
+    }
     .cancel-link:hover { text-decoration: underline; }
     .delete-link { color: #dc2626; }
     .delete-link:hover { text-decoration: underline; }
@@ -400,6 +417,8 @@ export class AppointmentsComponent implements OnDestroy {
   error            = signal('');
   confirmCancelId  = signal<string | null>(null);
   cancelling       = signal(false);
+  cancelReason     = signal('');
+  readonly cancelReasonMax = CANCEL_REASON_MAX;
   confirmDeleteId  = signal<string | null>(null);
   deleting         = signal(false);
   bulkDeleteTarget = signal<'cancelled' | 'completed' | null>(null);
@@ -456,11 +475,17 @@ export class AppointmentsComponent implements OnDestroy {
 
   reload() { this.load(); }
 
+  openCancel(id: string) {
+    this.cancelReason.set('');
+    this.confirmCancelId.set(id);
+  }
+
   async doCancel(id: string) {
     this.cancelling.set(true);
     const apt = this.appointments().find(a => a.id === id);
+    const reason = this.cancelReason().trim().slice(0, CANCEL_REASON_MAX);
     try {
-      await this.aptSvc.cancelAppointment(id, 'client');
+      await this.aptSvc.cancelAppointment(id, 'client', reason);
       this.confirmCancelId.set(null);
       // Notify company owner
       if (apt?.companyId) {
@@ -470,7 +495,7 @@ export class AppointmentsComponent implements OnDestroy {
               recipientId: company.ownerId,
               type: 'appointment_cancelled',
               title: 'Cita cancelada',
-              body: `${apt.clientName} canceló su cita de ${apt.serviceName}`,
+              body: `${apt.clientName} canceló su cita de ${apt.serviceName}` + (reason ? `. Motivo: ${reason}` : ''),
               link: '/empresa/dashboard',
             }).catch(() => {});
           }
