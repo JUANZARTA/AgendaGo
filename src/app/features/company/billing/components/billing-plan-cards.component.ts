@@ -134,7 +134,7 @@ import { SubViewModel } from '../billing.models';
       <div class="plan-footer">
         <button class="btn btn-primary plan-cta" (click)="payMonthly.emit()" [disabled]="!companyReady()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          Pagar {{ fmtCop(plans.mensual.amount) }}
+          {{ sub().status === 'active' ? 'Renovar' : 'Pagar' }} {{ fmtCop(plans.mensual.amount) }}
         </button>
       </div>
     </div>
@@ -160,7 +160,7 @@ import { SubViewModel } from '../billing.models';
       <div class="plan-footer">
         <button class="btn btn-primary plan-cta" (click)="paySemestral.emit()" [disabled]="!companyReady()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          Pagar {{ fmtCop(plans.semestral.amount) }}
+          {{ sub().status === 'active' ? 'Renovar' : 'Pagar' }} {{ fmtCop(plans.semestral.amount) }}
         </button>
       </div>
     </div>

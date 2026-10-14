@@ -6,7 +6,7 @@ import { Subscription as RxSubscription } from 'rxjs';
 import { CompanyStore } from '../../core/services/company-store.service';
 import { CompanyOnboardingComponent } from './onboarding/company-onboarding.component';
 import { AuthService } from '../../core/services/auth.service';
-import { SubscriptionService } from '../../core/services/subscription.service';
+import { SubscriptionService, Subscription } from '../../core/services/subscription.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { TourService } from '../../core/services/tour.service';
 import { MessageService } from '../../core/services/message.service';
@@ -17,6 +17,7 @@ import { CompanyMobileHeaderComponent } from './shell/company-mobile-header.comp
 import { CompanyBottomBarComponent } from './shell/company-bottom-bar.component';
 import { NotificationsPanelComponent } from './shell/notifications-panel.component';
 import { DisabledAccountModalComponent } from './shell/disabled-account-modal.component';
+import { SubscriptionBannerComponent } from './shell/subscription-banner.component';
 
 const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
   'new_appointment', 'appointment_confirmed', 'appointment_cancelled',
@@ -32,7 +33,7 @@ const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
   imports: [
     RouterOutlet, CompanyOnboardingComponent, ShareLinkModalComponent,
     CompanySidebarComponent, CompanyMobileHeaderComponent, CompanyBottomBarComponent,
-    NotificationsPanelComponent, DisabledAccountModalComponent,
+    NotificationsPanelComponent, DisabledAccountModalComponent, SubscriptionBannerComponent,
   ],
   template: `
     @if (companyStore.loading()) {
@@ -78,6 +79,7 @@ const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
 
         <!-- ── MAIN CONTENT ────────────────────────────────────────── -->
         <main class="content">
+          <app-subscription-banner [subscription]="sub()" />
           <router-outlet/>
         </main>
 
@@ -168,7 +170,7 @@ export class CompanyShellComponent implements OnDestroy {
   private messageSvc           = inject(MessageService);
   private tourSvc              = inject(TourService);
 
-  sub              = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' | 'free' } | null>(null);
+  sub              = signal<Subscription | null>(null);
   notifPanelOpen   = signal(false);
   shareOpen        = signal(false);
   notifications    = signal<AppNotification[]>([]);

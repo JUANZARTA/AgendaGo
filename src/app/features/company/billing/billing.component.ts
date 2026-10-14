@@ -5,7 +5,8 @@ import {
 } from '@angular/fire/firestore';
 import { SubscriptionService, Subscription } from '../../../core/services/subscription.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
-import { PLANS, PlanKey } from '../../../core/domain/plans';
+import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
+import { subscriptionTimeline } from '../../../core/domain/subscription-timeline';
 import { environment } from '../../../../environments/environment';
 import { Payment, SubViewModel } from './billing.models';
 import { ClaimDocLike, buildPaymentHistory } from '../../../core/domain/payment-history';
@@ -28,6 +29,20 @@ import { PaymentClaimService } from '../../../core/services/payment-claim.servic
     @media (max-width: 640px) {
       .page { padding: 16px 12px; }
     }
+
+    .rn-overlay {
+      position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.45);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .rn-modal { width: 100%; max-width: 440px; background: white; border-radius: 18px; padding: 26px 24px; box-shadow: 0 16px 48px rgba(0,0,0,.18); }
+    .rn-title { font-size: 1.15rem; font-weight: 800; color: #1a1a2e; margin: 0 0 10px; }
+    .rn-text  { font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 20px; }
+    .rn-actions { display: flex; gap: 10px; }
+    .rn-btn {
+      flex: 1; padding: 11px; border-radius: 10px; border: none; background: var(--gradient); color: white;
+      font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .rn-btn--ghost { background: none; color: #888; border: 1.5px solid #e5e7eb; }
   `],
   template: `
     <div class="page">
@@ -76,6 +91,31 @@ import { PaymentClaimService } from '../../../core/services/payment-claim.servic
       }
 
     </div>
+
+    @if (renewal(); as r) {
+      <div class="rn-overlay" (click)="confirmPlan.set(null)">
+        <div class="rn-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+          <p class="rn-title">{{ r.isTrial ? '¿Pagar ahora?' : '¿Renovar tu plan?' }}</p>
+          @if (r.isTrial) {
+            <p class="rn-text">
+              Tu prueba gratis sigue activa hasta el <strong>{{ day(r.current) }}</strong>.
+              Si pagás ahora, el plan <strong>{{ r.plan.label }}</strong> arranca hoy y queda activo hasta el
+              <strong>{{ day(r.newEnd) }}</strong>.
+            </p>
+          } @else {
+            <p class="rn-text">
+              Ya tenés el plan activo hasta el <strong>{{ day(r.current) }}</strong>.
+              Si pagás el plan <strong>{{ r.plan.label }}</strong> ({{ fmtCop(r.plan.amount) }}) ahora, se <strong>suma</strong>:
+              quedaría activo hasta el <strong>{{ day(r.newEnd) }}</strong>. No perdés ningún día.
+            </p>
+          }
+          <div class="rn-actions">
+            <button class="rn-btn rn-btn--ghost" (click)="confirmPlan.set(null)">Cancelar</button>
+            <button class="rn-btn" (click)="confirmRenewal()">{{ r.isTrial ? 'Sí, pagar ahora' : 'Sí, renovar' }}</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class BillingComponent implements OnDestroy {
@@ -93,6 +133,24 @@ export class BillingComponent implements OnDestroy {
   claims   = signal<ClaimDocLike[]>([]);
   /** Historial: pagos confirmados + reportes que todavía no confirmó el admin. */
   historyRows = computed(() => buildPaymentHistory(this.payments(), this.claims()));
+
+  /** Suscripción tal cual (fechas) para el modal de renovación. */
+  rawSub  = signal<Subscription | null>(null);
+  /** Plan elegido esperando confirmación ("ya tenés el plan activo"). */
+  confirmPlan = signal<PlanKey | null>(null);
+  renewal = computed(() => {
+    const key = this.confirmPlan();
+    const sub = this.rawSub();
+    if (!key || !sub) return null;
+    const t = subscriptionTimeline(sub);
+    const current = t.endDate && t.endDate.getTime() > Date.now() ? t.endDate : null;
+    return {
+      plan:      PLANS[key],
+      isTrial:   sub.status === 'trial',
+      current,
+      newEnd:    nextPeriodEnd(sub.status === 'active' ? current : null, PLANS[key].days).end,
+    };
+  });
 
   sub = signal<SubViewModel>({
     status:    'trial',
@@ -134,6 +192,7 @@ export class BillingComponent implements OnDestroy {
             return;
           }
           this.noSubscription.set(false);
+          this.rawSub.set(subscription);
 
           // Un trial vencido cuenta como expirado aunque el cron (05:00) aún no lo marcó
           const status   = this.subscriptionService.effectiveStatus(subscription);
@@ -193,10 +252,34 @@ export class BillingComponent implements OnDestroy {
     });
   }
 
-  payMonthly(): void   { this.pay('mensual'); }
-  paySemestral(): void { this.pay('semestral'); }
+  payMonthly(): void   { this.askPay('mensual'); }
+  paySemestral(): void { this.askPay('semestral'); }
+
+  /**
+   * Con el plan o la prueba todavía vigentes se pide confirmación (no pagar dos veces sin querer).
+   * En gracia o vencida se paga directo: es lo que hay que hacer.
+   */
+  private askPay(planKey: PlanKey): void {
+    const sub = this.rawSub();
+    const phase = sub ? subscriptionTimeline(sub).phase : null;
+    const vigente = (sub?.status === 'active' || sub?.status === 'trial')
+      && (phase === 'ok' || phase === 'warning' || phase === 'due-today');
+    if (vigente) this.confirmPlan.set(planKey);
+    else this.pay(planKey);
+  }
+
+  confirmRenewal(): void {
+    const key = this.confirmPlan();
+    this.confirmPlan.set(null);
+    if (key) this.pay(key);
+  }
+
+  day(d: Date | null): string {
+    return d ? d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  }
 
   paying = signal(false);
+  readonly fmtCop = formatCop;
 
   /**
    * Anota el intento (para que el admin lo vea si la empresa nunca vuelve de Wompi) y abre el checkout.

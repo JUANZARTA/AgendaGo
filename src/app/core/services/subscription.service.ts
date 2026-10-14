@@ -5,6 +5,7 @@ import {
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { PLANS, PlanKey, nextPeriodEnd } from '../domain/plans';
+import { graceEndOf, subscriptionTimeline } from '../domain/subscription-timeline';
 
 /** Datos de quien pagó según Wompi, para el historial (opcionales). */
 export interface PaymentPayer {
@@ -170,7 +171,8 @@ export class SubscriptionService {
         const data = d.data() as any;
         const raw = status === 'trial' ? data.trialEndDate : data.currentPeriodEnd;
         const end: Date | null = raw?.toDate ? raw.toDate() : null;
-        if (end && end.getTime() <= now) out.push({ companyId: d.id, status, endDate: end });
+        // Sólo las que pasaron la gracia: durante esos días la cuenta sigue funcionando
+        if (end && graceEndOf(end).getTime() < now) out.push({ companyId: d.id, status, endDate: end });
       }
     }
     return out;
@@ -202,16 +204,11 @@ export class SubscriptionService {
     return { expired, failed };
   }
 
-  /** True si es trial y la fecha de fin ya pasó (no hay cron en plan Spark: el admin lo marca expired con "Revisar vencimientos"). */
-  isTrialExpired(sub: Subscription): boolean {
-    if (sub.status !== 'trial') return false;
-    const end = sub.trialEndDate?.toDate ? sub.trialEndDate.toDate() : null;
-    return !!end && end.getTime() < Date.now();
-  }
 
   /** Estado efectivo: un trial vencido cuenta como expired aunque el cron aún no lo haya actualizado. */
+  /** 'expired' también si pasó la gracia aunque el admin todavía no la marcó (trial o plan pago). */
   effectiveStatus(sub: Subscription): Subscription['status'] {
-    return this.isTrialExpired(sub) ? 'expired' : sub.status;
+    return subscriptionTimeline(sub).phase === 'suspended' ? 'expired' : sub.status;
   }
 
   daysRemaining(sub: Subscription): number {

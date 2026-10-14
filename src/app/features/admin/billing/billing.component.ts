@@ -9,6 +9,7 @@ import { SubscriptionService, OverdueSub } from '../../../core/services/subscrip
 import { NotificationService } from '../../../core/services/notification.service';
 import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
 import { PaymentClaimsComponent } from './payment-claims.component';
+import { GRACE_DAYS, graceEndOf } from '../../../core/domain/subscription-timeline';
 import { CompanyBillingDetailComponent } from './company-billing-detail.component';
 import { VerifyPaymentComponent } from './verify-payment.component';
 import { PaymentAttemptsComponent } from './payment-attempts.component';
@@ -48,7 +49,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
       @if (pendingOverdueCount() > 0) {
         <div style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;font-weight:600">
-          Hay {{ pendingOverdueCount() }} suscripción(es) con fecha vencida que siguen como Trial/Activa. Usá "Revisar vencimientos" para marcarlas como vencidas.
+          Hay {{ pendingOverdueCount() }} suscripción(es) que vencieron y ya pasaron los {{ graceDays }} días de gracia. Usá "Revisar vencimientos" para suspenderlas.
         </div>
       }
 
@@ -372,8 +373,8 @@ export class AdminBillingComponent implements OnDestroy {
     const now = Date.now();
     return this.rawSubs().filter(s => {
       const raw = s.status === 'trial' ? s.trialEndDate : s.status === 'active' ? s.currentPeriodEnd : null;
-      const end = raw?.toDate ? raw.toDate().getTime() : null;
-      return end !== null && end <= now;
+      const end = raw?.toDate ? raw.toDate() : null;
+      return end !== null && graceEndOf(end).getTime() < now;
     }).length;
   });
 
@@ -444,6 +445,7 @@ export class AdminBillingComponent implements OnDestroy {
   // Detalle por empresa: se guarda el id y se lee de subs() para que refleje los cambios en vivo
   private detailId = signal<string | null>(null);
   verifyOpen = signal(false);
+  readonly graceDays = GRACE_DAYS;
   detailSub = computed(() => this.subs().find(s => s.companyId === this.detailId()) ?? null);
 
   openDetail(s: AdminSub) { this.detailId.set(s.companyId); window.scrollTo({ top: 0 }); }

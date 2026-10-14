@@ -4,6 +4,7 @@ import { CanActivateFn, Router } from '@angular/router';
 import { filter, firstValueFrom, timeout } from 'rxjs';
 import { SubscriptionService } from '../services/subscription.service';
 import { CompanyStore } from '../services/company-store.service';
+import { canUseApp, subscriptionTimeline } from '../domain/subscription-timeline';
 
 export const subscriptionGuard: CanActivateFn = async () => {
   // Capturar dependencias en el contexto de inyección, antes de cualquier await
@@ -32,11 +33,8 @@ export const subscriptionGuard: CanActivateFn = async () => {
 
   try {
     const sub = await subService.getStatus(companyId);
-    if (sub && (
-      sub.status === 'expired' ||
-      sub.status === 'disabled' ||
-      subService.isTrialExpired(sub) // trial vencido aunque el cron aún no corrió
-    )) {
+    // Vencida, deshabilitada o pasada la gracia (aunque el admin aún no la marcó)
+    if (sub && !canUseApp(subscriptionTimeline(sub))) {
       router.navigate(['/empresa/facturacion']);
       return false;
     }
