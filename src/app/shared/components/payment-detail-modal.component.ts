@@ -39,7 +39,7 @@ const WOMPI_STATUS: Record<string, string> = {
     .rows { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
     .row { display: flex; justify-content: space-between; gap: 14px; }
     .row span:first-child { color: #888; flex-shrink: 0; }
-    .row span:last-child { color: #1a1a2e; font-weight: 600; text-align: right; word-break: break-all; }
+    .row span:last-child { color: #1a1a2e; font-weight: 600; text-align: right; overflow-wrap: anywhere; min-width: 0; }
     .hint { font-size: 12px; color: #92400e; background: #fffbeb; border-radius: 10px; padding: 10px 12px; margin-top: 14px; }
     .muted { font-size: 12px; color: #aaa; }
   `],

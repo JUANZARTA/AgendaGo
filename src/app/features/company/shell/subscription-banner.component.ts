@@ -25,7 +25,7 @@ import { AppConfigService } from '../../../core/services/app-config.service';
     .text { flex: 1; min-width: 200px; }
     .cta {
       flex-shrink: 0; padding: 8px 14px; border-radius: 9px; font-size: 12px; font-weight: 700;
-      text-decoration: none; color: white; white-space: nowrap;
+      text-decoration: none; color: white; white-space: nowrap; margin-left: auto;
     }
     .banner--warning .cta { background: #d97706; }
     .banner--today   .cta { background: #ea580c; }

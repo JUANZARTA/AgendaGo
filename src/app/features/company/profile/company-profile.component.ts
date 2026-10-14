@@ -108,6 +108,10 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
       animation:toast-in .25s ease;
     }
     @keyframes toast-in { from{opacity:0;transform:translateX(-50%) translateY(12px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+    /* Mobile: arriba de la bottom bar (64px + safe area) */
+    @media (max-width: 768px) {
+      .toast { bottom: calc(64px + env(safe-area-inset-bottom) + 16px); max-width: calc(100vw - 32px); }
+    }
 
     /* Grid 2 columnas → 1 en mobile */
     .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

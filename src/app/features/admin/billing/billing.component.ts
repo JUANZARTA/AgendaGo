@@ -23,7 +23,19 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
   standalone: true,
   imports: [CommonModule, FormsModule, PaymentClaimsComponent, CompanyBillingDetailComponent, VerifyPaymentComponent, PaymentAttemptsComponent],
   // Facturación usa tablas anchas: aprovechar la pantalla en vez de los 920px del .page global
-  styles: [`.page { max-width: 1280px; }`],
+  styles: [`
+    .page { max-width: 1280px; }
+    /* Pantallas chicas: cada empresa es una tarjeta (sin scroll horizontal) */
+    @media (max-width: 820px) {
+      .subs thead { display: none; }
+      .subs, .subs tbody, .subs tr, .subs td { display: block; width: 100%; }
+      .subs tr { border: 1.5px solid #f0f0f0 !important; border-radius: 12px; padding: 6px 4px; margin-bottom: 10px; }
+      .subs td { padding: 6px 10px !important; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right !important; overflow-wrap: anywhere; }
+      .subs td::before { content: attr(data-label); color: #888; font-size: 12px; font-weight: 600; text-align: left; flex-shrink: 0; }
+      .subs td.actions { justify-content: flex-end; }
+      .subs td.actions::before { content: none; }
+    }
+  `],
   template: `
     <div class="page">
       <div style="margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -98,7 +110,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
         <div class="card" style="text-align:center;padding:40px;color:#aaa">Cargando...</div>
       } @else {
         <div class="card" style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <table class="subs" style="width:100%;border-collapse:collapse;font-size:14px">
             <thead>
               <tr style="border-bottom:2px solid #f0f0f0">
                 <th style="text-align:left;padding:10px 12px;color:#888;font-weight:600">Empresa</th>
@@ -112,16 +124,16 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
             <tbody>
               @for (s of filtered(); track s.companyId) {
                 <tr style="border-bottom:1px solid #f7f7f7">
-                  <td style="padding:12px;font-weight:600">{{ s.companyName }}</td>
-                  <td style="padding:12px;color:#555;font-size:13px">{{ s.ownerEmail }}</td>
-                  <td style="padding:12px">
+                  <td data-label="Empresa" style="padding:12px;font-weight:600">{{ s.companyName }}</td>
+                  <td data-label="Email" style="padding:12px;color:#555;font-size:13px">{{ s.ownerEmail }}</td>
+                  <td data-label="Estado" style="padding:12px">
                     <span class="badge" [class]="STATUS_CLASS[s.status] || 'badge-blue'">
                       {{ STATUS_LABEL[s.status] || s.status }}
                     </span>
                   </td>
-                  <td style="padding:12px;color:#555;font-size:13px">{{ s.periodEndLabel || s.trialEndLabel }}</td>
-                  <td style="padding:12px;color:#555;font-size:13px">{{ s.lastPaymentLabel }}</td>
-                  <td style="padding:12px;text-align:right">
+                  <td data-label="Vence / Venció" style="padding:12px;color:#555;font-size:13px">{{ s.periodEndLabel || s.trialEndLabel }}</td>
+                  <td data-label="Último pago" style="padding:12px;color:#555;font-size:13px">{{ s.lastPaymentLabel }}</td>
+                  <td class="actions" style="padding:12px;text-align:right">
                     <button class="btn btn-sm btn-primary"
                             (click)="openDetail(s)">
                       Gestionar
@@ -199,9 +211,9 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
     <!-- Modal gestión -->
     @if (selected()) {
-      <div style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px"
+      <div style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px"
            (click)="closeModal()">
-        <div style="background:white;border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.18)"
+        <div style="background:white;border-radius:16px;padding:clamp(20px,5vw,32px);max-width:460px;width:100%;max-height:calc(100dvh - 32px);overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.18)"
              (click)="$event.stopPropagation()">
 
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">

@@ -59,7 +59,12 @@ type Thread = SupportThread & { id: string };
       .chat-area { display: none; }
       .msg-layout.has-selection .conv-list { display: none; }
       .msg-layout.has-selection .chat-area { display: flex; }
-      .back-btn { display: block; }
+      .back-btn { display: block; padding: 4px 6px; }
+      .chat-header { padding: 10px 12px; gap: 6px; }
+      .status-btn { padding: 6px 10px; font-size: 12px; }
+      /* Nombre arriba y etiqueta abajo: así entra el nombre completo */
+      .chat-title { flex-direction: column; align-items: flex-start; gap: 2px; }
+      .chat-title span:first-child { max-width: 100%; }
     }
   `],
   template: `

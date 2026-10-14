@@ -62,9 +62,25 @@ import { PaymentDetailModalComponent } from '../../../../shared/components/payme
       background: white; border-radius: 14px; box-shadow: var(--shadow);
       color: #aaa; font-size: 14px;
     }
-    @media (max-width: 640px) {
-      .history-table th:nth-child(3),
-      .history-table td:nth-child(3) { display: none; }
+    /* Pantallas chicas: cada pago es una tarjeta (sin scroll horizontal) */
+    @media (max-width: 820px) {
+      .history-table { background: none; box-shadow: none; border-radius: 0; overflow: visible; }
+      .history-table thead { display: none; }
+      .history-table, .history-table tbody, .history-table tr, .history-table td { display: block; width: 100%; }
+      .history-table tr {
+        background: white; border-radius: 14px; box-shadow: var(--shadow);
+        padding: 8px 4px; margin-bottom: 10px;
+      }
+      .history-table tr:hover td { background: none; }
+      .history-table td {
+        border: none; padding: 7px 14px; display: flex; justify-content: space-between;
+        align-items: center; gap: 12px; text-align: right;
+      }
+      .history-table td::before {
+        content: attr(data-label); color: #888; font-size: 12px; font-weight: 600; text-align: left; flex-shrink: 0;
+      }
+      .history-table td.actions { justify-content: flex-end; }
+      .history-table td.actions::before { content: none; }
     }
   `],
   template: `
@@ -88,11 +104,11 @@ import { PaymentDetailModalComponent } from '../../../../shared/components/payme
       <tbody>
         @for (r of rows(); track r.key) {
           <tr>
-            <td style="color:#666">{{ day(r.date) }}</td>
-            <td style="font-weight:600">{{ r.planLabel }}</td>
-            <td style="font-weight:700">{{ r.amount != null ? (r.amount | number) + ' COP' : '—' }}</td>
-            <td style="color:#666">{{ day(r.periodEnd) }}</td>
-            <td>
+            <td data-label="Fecha" style="color:#666">{{ day(r.date) }}</td>
+            <td data-label="Plan" style="font-weight:600">{{ r.planLabel }}</td>
+            <td data-label="Valor" style="font-weight:700">{{ r.amount != null ? (r.amount | number) + ' COP' : '—' }}</td>
+            <td data-label="Válido hasta" style="color:#666">{{ day(r.periodEnd) }}</td>
+            <td data-label="Estado">
               <span class="status-chip" [class.chip-paid]="r.status === 'approved'"
                     [class.chip-pending]="r.status === 'pending' || r.status === 'to-confirm'"
                     [class.chip-failed]="r.status === 'failed' || r.status === 'rejected'">
@@ -100,7 +116,7 @@ import { PaymentDetailModalComponent } from '../../../../shared/components/payme
                 {{ r.statusLabel }}
               </span>
             </td>
-            <td style="text-align:right">
+            <td class="actions" style="text-align:right">
               <button type="button" class="view-btn" (click)="selected.set(r)">Ver</button>
             </td>
           </tr>

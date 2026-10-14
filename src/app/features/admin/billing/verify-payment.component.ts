@@ -56,6 +56,10 @@ import {
     .label { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 6px; display: block; }
     .msg { font-size: 13px; margin-top: 12px; }
     .done { background: #f0fdf4; color: #166534; border-radius: 10px; padding: 12px; font-size: 13px; margin-top: 14px; }
+    @media (max-width: 480px) {
+      .modal { padding: 22px 18px; }
+      .row { flex-direction: column; }
+    }
   `],
   template: `
     <div class="overlay" (click)="closed.emit()">

@@ -147,9 +147,9 @@ interface AdminCompany {
 
     <!-- Modal: gestión de plan -->
     @if (planTarget(); as company) {
-      <div style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px"
+      <div style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px"
            (click)="planTarget.set(null)">
-        <div style="background:white;border-radius:16px;padding:32px;max-width:460px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.18)"
+        <div style="background:white;border-radius:16px;padding:clamp(20px,5vw,32px);max-width:460px;width:100%;max-height:calc(100dvh - 32px);overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.18)"
              (click)="$event.stopPropagation()">
 
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">

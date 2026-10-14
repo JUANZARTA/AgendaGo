@@ -79,7 +79,10 @@ import { SupportContactComponent } from '../../../../shared/components/support-c
     .days-number.expired { color: #991b1b; }
     .days-label { font-size: 11px; font-weight: 600; color: #888; margin-top: 2px; text-align: center; }
     @media (max-width: 640px) {
-      .status-banner { padding: 18px 16px; }
+      .status-banner { padding: 18px 16px; gap: 14px; }
+      /* Que el texto no quede apretado: el contador de días baja a otra línea */
+      .status-body { min-width: 170px; }
+      .status-icon { width: 48px; height: 48px; }
     }
   `],
   template: `

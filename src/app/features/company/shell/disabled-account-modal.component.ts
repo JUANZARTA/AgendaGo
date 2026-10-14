@@ -11,8 +11,8 @@ const WA_TEXT = '?text=Hola%2C%20necesito%20ayuda%20con%20mi%20cuenta%20de%20emp
   selector: 'app-disabled-account-modal',
   standalone: true,
   template: `
-    <div style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:24px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)">
-      <div style="max-width:440px;width:100%;background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 16px 60px rgba(0,0,0,.2);border-top:4px solid #ef4444">
+    <div style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)">
+      <div style="max-width:440px;width:100%;max-height:calc(100dvh - 32px);overflow-y:auto;background:white;border-radius:20px;padding:clamp(28px,7vw,40px) clamp(20px,6vw,32px);text-align:center;box-shadow:0 16px 60px rgba(0,0,0,.2);border-top:4px solid #ef4444">
         <div style="width:64px;height:64px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>

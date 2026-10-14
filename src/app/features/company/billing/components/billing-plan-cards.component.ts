@@ -19,7 +19,8 @@ import { SubViewModel } from '../billing.models';
     .plans-title { font-size: 1rem; font-weight: 800; margin: 0 0 16px; }
     .plans-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      /* 3 columnas cuando entran; en tablet/sidebar angosto pasan a 2 y en mobile a 1 */
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 16px;
       margin-bottom: 36px;
     }
