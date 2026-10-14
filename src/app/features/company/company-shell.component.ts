@@ -20,6 +20,7 @@ import { NotificationsPanelComponent } from './shell/notifications-panel.compone
 import { DisabledAccountModalComponent } from './shell/disabled-account-modal.component';
 import { SubscriptionBannerComponent } from './shell/subscription-banner.component';
 import { AnnouncementBannerComponent } from './shell/announcement-banner.component';
+import { safeInternalPath } from '../../core/domain/safe-links';
 
 const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
   'new_appointment', 'appointment_confirmed', 'appointment_cancelled',
@@ -289,7 +290,8 @@ export class CompanyShellComponent implements OnDestroy {
   async markNotifRead(n: AppNotification): Promise<void> {
     if (!n.read && n.id) await this.notifSvc.markRead(n.id);
     this.notifPanelOpen.set(false);
-    const dest = n.link ?? this.routeForNotifType(n.type);
+    // La notificación pudo escribirla otro usuario: sólo rutas internas
+    const dest = safeInternalPath(n.link) ?? this.routeForNotifType(n.type);
     if (dest) this.router.navigateByUrl(dest);
   }
 

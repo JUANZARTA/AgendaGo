@@ -10,6 +10,7 @@ import { AdminNavItem } from './shell/admin-nav-item.model';
 import { AdminSidebarComponent } from './shell/admin-sidebar.component';
 import { AdminBottomBarComponent } from './shell/admin-bottom-bar.component';
 import { AdminNotificationsPanelComponent } from './shell/admin-notifications-panel.component';
+import { safeInternalPath } from '../../core/domain/safe-links';
 
 @Component({
   selector: 'app-admin-shell',
@@ -139,7 +140,8 @@ export class AdminShellComponent implements OnDestroy {
     if (!n.read && n.id) await this.notifSvc.markRead(n.id);
     this.notifPanelOpen.set(false);
     // Ej: payment_initiated -> /admin/facturacion para activar el plan manualmente
-    if (n.link?.startsWith('/admin')) this.router.navigateByUrl(n.link);
+    const dest = safeInternalPath(n.link);
+    if (dest?.startsWith('/admin')) this.router.navigateByUrl(dest);
   }
 
   async markAllRead(): Promise<void> {

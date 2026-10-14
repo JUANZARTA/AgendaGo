@@ -61,6 +61,10 @@ export interface WompiTransaction {
   paymentLinkId?: string | null;
   finalizedAt?: string | null;
   statusMessage?: string | null;
+  /** Entorno de la API que respondió (production/sandbox). Lo pone WompiService. */
+  env?: 'production' | 'sandbox' | null;
+  /** merchant.public_key de la transacción, si la API lo informa. */
+  merchantPublicKey?: string | null;
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {

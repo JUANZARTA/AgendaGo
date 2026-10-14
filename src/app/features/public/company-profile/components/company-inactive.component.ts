@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { Company } from '../../../../core/services/company.service';
 import { categoryMeta } from '../../../../core/domain/categories';
 import { whatsappLink } from '../../../../core/domain/app-config';
+import { instagramUrl } from '../../../../core/domain/safe-links';
 
 /**
  * El negocio no recibe reservas (suscripción vencida o deshabilitado por el admin).
@@ -112,10 +113,6 @@ export class CompanyInactiveComponent {
     return digits ? `tel:+${digits.length === 10 && digits.startsWith('3') ? '57' + digits : digits}` : null;
   });
 
-  readonly instagram = computed(() => {
-    const raw = (this.company().instagram ?? '').trim();
-    if (!raw) return null;
-    if (/^https?:\/\//i.test(raw)) return raw;
-    return `https://instagram.com/${raw.replace(/^@/, '').replace(/^(www\.)?instagram\.com\//i, '')}`;
-  });
+  /** Sólo perfiles de instagram.com: una URL cualquiera cargada por la empresa no se convierte en link. */
+  readonly instagram = computed(() => instagramUrl(this.company().instagram));
 }

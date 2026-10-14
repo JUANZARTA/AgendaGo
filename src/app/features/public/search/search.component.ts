@@ -7,6 +7,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReviewService } from '../../../core/services/review.service';
+import { whatsappLink } from '../../../core/domain/app-config';
 import { CATEGORY_GROUPS, CategoryGroupKey, categoriesOfGroup, categoryMeta } from '../../../core/domain/categories';
 
 interface DisplayCompany {
@@ -242,7 +243,7 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
                   Ver y agendar
                 </a>
                 @if (company.phone) {
-                  <a [href]="'https://wa.me/' + company.phone" target="_blank"
+                  <a [href]="waLink(company.phone)" target="_blank"
                      class="btn btn-sm" style="background:#25d366;color:white;box-shadow:0 4px 12px rgba(37,211,102,.3);display:inline-flex;align-items:center;justify-content:center;min-width:40px;flex-shrink:0"
                      title="WhatsApp">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
@@ -277,6 +278,8 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
   `,
 })
 export class SearchComponent implements OnInit {
+  /** wa.me con sólo dígitos: el teléfono lo carga la empresa. */
+  readonly waLink = (phone: string | null | undefined) => whatsappLink(phone) ?? 'https://wa.me/';
   private companySvc = inject(CompanyService);
   private reviewSvc  = inject(ReviewService);
   private route      = inject(ActivatedRoute);

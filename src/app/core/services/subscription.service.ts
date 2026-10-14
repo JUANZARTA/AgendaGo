@@ -9,6 +9,8 @@ import { mergeAppConfig } from '../domain/app-config';
 import { AppConfigService } from './app-config.service';
 import { graceEndOf, subscriptionTimeline } from '../domain/subscription-timeline';
 import { PaymentDocLike, paidUntil } from '../domain/payment-history';
+import { canRegisterPayments } from '../domain/payment-origin';
+import { environment } from '../../../environments/environment';
 
 /** Datos de quien pagó según Wompi, para el historial (opcionales). */
 export interface PaymentPayer {
@@ -17,6 +19,9 @@ export interface PaymentPayer {
   payerPhone?: string | null;
   paymentMethod?: string | null;
   paidAt?: string | null;
+  /** Auditoría de la verificación: entorno de la API de Wompi y link de pago con que se pagó. */
+  wompiEnv?: 'production' | 'sandbox' | null;
+  paymentLinkId?: string | null;
 }
 
 /**
@@ -130,6 +135,9 @@ export class SubscriptionService {
    * Con referencia, el id del pago se deriva de ella: registrar dos veces el mismo pago falla.
    */
   async registerManualPayment(companyId: string, planKey: PlanKey, reference: string, payer: PaymentPayer = {}): Promise<ManualPaymentResult> {
+    // `ng serve` consulta el SANDBOX de Wompi pero escribe en la Firestore REAL: nunca activa planes
+    // (un pago de prueba es gratis). Sólo el build de producción o los emuladores.
+    if (!canRegisterPayments(environment)) throw new Error('SANDBOX_BUILD');
     // Monto y días configurados por el admin (config/app)
     const plan       = this.appConfig.plans()[planKey];
     const ref        = reference.trim();

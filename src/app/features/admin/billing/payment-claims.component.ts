@@ -5,8 +5,10 @@ import { WompiService } from '../../../core/services/wompi.service';
 import { SubscriptionService } from '../../../core/services/subscription.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { AppConfigService } from '../../../core/services/app-config.service';
+import { CompanyService } from '../../../core/services/company.service';
+import { UserService } from '../../../core/services/user.service';
 import {
-  PLANS, PaymentCheck, WompiTransaction, checkWompiPayment, formatCop, nextPeriodEnd, paymentMethodLabel,
+  PLANS, PaymentCheck, WompiTransaction, formatCop, nextPeriodEnd, paymentMethodLabel,
 } from '../../../core/domain/plans';
 
 /** Resultado de verificar un reporte contra Wompi (en el navegador del admin). */
@@ -17,6 +19,10 @@ interface Verification {
   period: { start: Date; end: Date } | null;
   /** El correo de quien pagó en Wompi coincide con el de la cuenta de la empresa. */
   emailMatches: boolean;
+  /** Correo REAL del dueño (users/{ownerId}); el ownerEmail del reporte lo escribe la empresa. */
+  accountEmail: string | null;
+  /** El reporte trae un ownerEmail distinto al de la cuenta: posible reporte manipulado. */
+  claimEmailMismatch: boolean;
 }
 
 /**
@@ -89,8 +95,11 @@ interface Verification {
                   <div>Pagó <b>{{ v.tx.customerName || '—' }}</b></div>
                   <div>Correo
                     <b [class.warn]="!v.emailMatches">{{ v.tx.customerEmail || '—' }}</b>
-                    @if (!v.emailMatches) { <span class="warn">Distinto a {{ c.ownerEmail || 'la cuenta' }}</span> }
+                    @if (!v.emailMatches) { <span class="warn">Distinto a {{ v.accountEmail || 'la cuenta' }}: confirmá con la empresa</span> }
                   </div>
+                  @if (v.claimEmailMismatch) {
+                    <div><b class="bad">⚠ El reporte dice {{ c.ownerEmail || '—' }}, pero la cuenta es {{ v.accountEmail }}. Posible reporte manipulado.</b></div>
+                  }
                   <div>Teléfono <b>{{ v.tx.customerPhone || '—' }}</b></div>
                   <div>Medio de pago <b>{{ methodLabel(v.tx.paymentMethod) }}</b></div>
                   <div>Fecha del pago <b>{{ fmtIso(v.tx.finalizedAt || v.tx.createdAt) }}</b></div>
@@ -126,6 +135,8 @@ export class PaymentClaimsComponent {
   private subSvc   = inject(SubscriptionService);
   private notifSvc = inject(NotificationService);
   private appConfig = inject(AppConfigService);
+  private companySvc = inject(CompanyService);
+  private userSvc    = inject(UserService);
   /** Catálogo con monto/días configurados (config/app). */
   private get plans() { return this.appConfig.plans(); }
 
@@ -156,17 +167,22 @@ export class PaymentClaimsComponent {
     this.busy.set(c.transactionId);
     this.setError(c.transactionId, '');
     try {
-      const tx = await this.wompi.getTransaction(c.transactionId);
-      const check: PaymentCheck = tx ? checkWompiPayment(tx, this.plans) : { ok: false, reason: 'No existe en Wompi' };
+      // Verificación completa: estado, monto, NUESTRO comercio y entorno de producción
+      const { tx, check } = await this.wompi.verify(c.transactionId, this.plans);
       let period: Verification['period'] = null;
       if (check.ok) {
         const sub = await this.subSvc.getStatus(c.companyId);
         const currentEnd = sub?.status === 'active' && sub.currentPeriodEnd?.toDate ? sub.currentPeriodEnd.toDate() : null;
         period = nextPeriodEnd(currentEnd, this.plans[check.plan].days);
       }
-      const emailMatches = !!tx?.customerEmail && !!c.ownerEmail
-        && tx.customerEmail.trim().toLowerCase() === c.ownerEmail.trim().toLowerCase();
-      this.verifications.update(v => ({ ...v, [c.transactionId]: { tx, check, period, emailMatches } }));
+      // Se compara contra el correo REAL de la cuenta, no contra el que vino en el reporte
+      const norm = (e: string | null | undefined) => (e ?? '').trim().toLowerCase();
+      const accountEmail = await this.accountEmailOf(c.companyId);
+      const emailMatches = !!tx?.customerEmail && !!accountEmail && norm(tx.customerEmail) === norm(accountEmail);
+      const claimEmailMismatch = !!accountEmail && norm(c.ownerEmail) !== norm(accountEmail);
+      this.verifications.update(v => ({
+        ...v, [c.transactionId]: { tx, check, period, emailMatches, accountEmail, claimEmailMismatch },
+      }));
     } catch (err) {
       console.error('[PaymentClaims] Error consultando Wompi:', err);
       this.setError(c.transactionId, 'No se pudo consultar Wompi. Intentá de nuevo.');
@@ -180,8 +196,7 @@ export class PaymentClaimsComponent {
     this.busy.set(c.transactionId);
     this.setError(c.transactionId, '');
     try {
-      const tx = await this.wompi.getTransaction(c.transactionId);
-      const check: PaymentCheck = tx ? checkWompiPayment(tx, this.plans) : { ok: false, reason: 'No existe en Wompi' };
+      const { tx, check } = await this.wompi.verify(c.transactionId, this.plans);
       if (!check.ok) { this.setError(c.transactionId, `No se activó: ${check.reason}`); return; }
 
       const plan = this.plans[check.plan];
@@ -191,6 +206,8 @@ export class PaymentClaimsComponent {
         payerPhone:    tx!.customerPhone,
         paymentMethod: tx!.paymentMethod,
         paidAt:        tx!.finalizedAt ?? tx!.createdAt,
+        wompiEnv:      tx!.env,
+        paymentLinkId: tx!.paymentLinkId,
       });
       await this.claimSvc.close(c.transactionId, 'registered');
       if (r.ownerId && !r.disabled) {
@@ -208,11 +225,23 @@ export class PaymentClaimsComponent {
       if (err?.message === 'DUPLICATE_PAYMENT') {
         // Ya estaba registrado (ej. a mano desde el modal): cerrar el reporte
         await this.claimSvc.close(c.transactionId, 'registered', 'Ya estaba registrado').catch(() => {});
+      } else if (err?.message === 'SANDBOX_BUILD') {
+        this.setError(c.transactionId, 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usá la app publicada.');
       } else {
         this.setError(c.transactionId, 'No se pudo activar el plan. Intentá de nuevo.');
       }
     } finally {
       this.busy.set(null);
+    }
+  }
+
+  /** Correo de la cuenta dueña de la empresa (lectura de superadmin). null si no se pudo averiguar. */
+  private async accountEmailOf(companyId: string): Promise<string | null> {
+    try {
+      const ownerId = (await this.companySvc.getCompany(companyId))?.ownerId;
+      return ownerId ? (await this.userSvc.getProfile(ownerId))?.email ?? null : null;
+    } catch {
+      return null;
     }
   }
 

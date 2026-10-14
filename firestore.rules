@@ -10,14 +10,20 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
     function isSuperAdmin() { return isAuth() && userRole() == 'superadmin'; }
-    function isCompany()    { return isAuth() && userRole() == 'company'; }
+    // Usuario NO bloqueado por el admin (users/{uid}.isActive == false). Sin doc = activo (legacy).
+    // SECURITY QA: antes "Bloquear usuario" era sólo visual; el dueño bloqueado seguía operando.
+    function userActive() {
+      let p = /databases/$(database)/documents/users/$(request.auth.uid);
+      return !exists(p) || get(p).data.get('isActive', true) == true;
+    }
+    function isCompany()    { return isAuth() && userRole() == 'company' && userActive(); }
     function isOwner(uid)   { return isAuth() && request.auth.uid == uid; }
 
     function companyDoc(companyId) {
       return get(/databases/$(database)/documents/companies/$(companyId));
     }
     function isCompanyOwner(companyId) {
-      return isAuth() && companyDoc(companyId).data.ownerId == request.auth.uid;
+      return isAuth() && companyDoc(companyId).data.ownerId == request.auth.uid && userActive();
     }
 
     function changedKeys() {
@@ -59,11 +65,13 @@ service cloud.firestore {
                   || (isAuth() && request.auth.uid == resource.data.ownerId)
                   || isSuperAdmin();
       allow create: if isSuperAdmin()
-                    || (isCompany() && request.resource.data.ownerId == request.auth.uid);
+                    || (isCompany() && request.resource.data.ownerId == request.auth.uid
+                        // rating legacy: nunca lo fija el dueño (tampoco al crear)
+                        && !request.resource.data.keys().hasAny(['averageRating', 'reviewCount']));
       allow update: if
         // Dueño: todo menos ownerId / isActive (lo maneja superadmin). El rating ya no se guarda acá:
         // se calcula con una agregación sobre /reviews (campos legacy bloqueados).
-        (isAuth() && resource.data.ownerId == request.auth.uid
+        (isAuth() && resource.data.ownerId == request.auth.uid && userActive()
           && !changedKeys().hasAny(['ownerId', 'isActive', 'createdAt', 'averageRating', 'reviewCount']))
         || isSuperAdmin();
       allow delete: if isSuperAdmin();
@@ -223,7 +231,7 @@ service cloud.firestore {
           && aptHasLock(aptId, d)
           && (
             // Dueño de la empresa: citas manuales o propias, pending/scheduled, sin atribuir a otro cliente
-            (isAuth() && company.ownerId == request.auth.uid
+            (isAuth() && company.ownerId == request.auth.uid && userActive()
               && d.status in ['pending', 'scheduled']
               && (!('clientId' in d) || d.clientId == request.auth.uid))
             // Cliente logueado o invitado: reserva desde la app
@@ -345,11 +353,34 @@ service cloud.firestore {
         && (!('updatedAt' in d.legal) || d.legal.updatedAt is timestamp)
       );
     }
+    // Link de pago: '' (sin configurar) o un link de Wompi (checkout.wompi.co/l/<id>). Nunca otro dominio.
+    function validPayLink(s) {
+      return s is string
+        && (s == '' || s.matches('^https://checkout[.]wompi[.]co/l/[A-Za-z0-9_]{1,64}$'));
+    }
+    function validPlan(p) {
+      return p is map
+        && (!('amount' in p) || (p.amount is int && p.amount > 0 && p.amount <= 100000000))
+        && (!('days' in p) || (p.days is int && p.days > 0 && p.days <= 3660))
+        && (!('links' in p) || (
+              p.links is map
+              && p.links.keys().hasOnly(['test', 'prod'])
+              && (!('test' in p.links) || validPayLink(p.links.test))
+              && (!('prod' in p.links) || validPayLink(p.links.prod))));
+    }
+    function validPlans(d) {
+      return !('plans' in d) || (
+        d.plans is map
+        && d.plans.keys().hasOnly(['mensual', 'semestral'])
+        && (!('mensual' in d.plans) || validPlan(d.plans.mensual))
+        && (!('semestral' in d.plans) || validPlan(d.plans.semestral))
+      );
+    }
     function validAppConfig(d) {
       return optIntIn(d, 'trialMonths', 1, 12)
         && optIntIn(d, 'warningDays', 0, 30)
         && optIntIn(d, 'graceDays', 0, 30)
-        && optMap(d, 'plans') && optMap(d, 'support') && optMap(d, 'announcement')
+        && validPlans(d) && optMap(d, 'support') && optMap(d, 'announcement')
         && validLegal(d);
     }
     // Tope del trial que crea el dueño: trialMonths*31+1 días (2 meses = 63, el valor histórico).
@@ -427,7 +458,9 @@ service cloud.firestore {
         && request.resource.data.status == 'pending'
         && request.resource.data.createdAt == request.time
         && request.resource.data.companyName is string && request.resource.data.companyName.size() <= 200
-        && request.resource.data.ownerEmail is string && request.resource.data.ownerEmail.size() <= 200;
+        && request.resource.data.ownerEmail is string && request.resource.data.ownerEmail.size() <= 200
+        // El email lo pone el token, no la empresa (sin email en el token -> '')
+        && request.resource.data.ownerEmail == request.auth.token.get('email', '');
       allow update, delete: if isSuperAdmin();
     }
 
@@ -444,6 +477,7 @@ service cloud.firestore {
         && request.resource.data.companyName is string && request.resource.data.companyName.size() <= 200
         && request.resource.data.plan in ['mensual', 'semestral']
         && request.resource.data.amount is number
+        && request.resource.data.amount >= 0 && request.resource.data.amount <= 100000000
         && request.resource.data.status == 'open'
         && request.resource.data.createdAt == request.time;
       allow update, delete: if isSuperAdmin();
@@ -471,12 +505,17 @@ service cloud.firestore {
         // Bandeja 'admin' sólo para avisos de alta de empresa / pago iniciado / mensaje de soporte
         && ((request.resource.data.recipientId == 'admin')
               == (request.resource.data.type in ['new_company', 'payment_initiated', 'support_message']))
+        // Avisos a la bandeja del admin: sólo cuentas empresa (activas)
+        && (request.resource.data.recipientId != 'admin' || isCompany())
         && (request.resource.data.type != 'plan_changed' || isSuperAdmin())
         // La respuesta de soporte a una empresa sólo la manda el admin
         && (request.resource.data.type != 'support_reply' || isSuperAdmin())
         && request.resource.data.title is string && request.resource.data.title.size() <= 200
         && request.resource.data.body is string && request.resource.data.body.size() <= 1000
         && optString(request.resource.data, 'link', 500)
+        // Anti-phishing: link SÓLO ruta interna ("/..."), nunca URL externa, "//host" ni "/\host"
+        && (!('link' in request.resource.data)
+            || request.resource.data.link.matches('^/([^/\\\\].*)?$'))
         && request.resource.data.read == false
         && request.resource.data.createdAt == request.time;
       allow update: if isSuperAdmin() || (

@@ -12,6 +12,7 @@ import { Subscription } from 'rxjs';
 import { ClientHeaderComponent } from './shell/client-header.component';
 import { ClientBottomNavComponent } from './shell/client-bottom-nav.component';
 import { ClientBlockedModalComponent } from './shell/client-blocked-modal.component';
+import { safeInternalPath } from '../../core/domain/safe-links';
 
 @Component({
   selector: 'app-client-shell',
@@ -145,7 +146,9 @@ export class ClientShellComponent implements OnDestroy {
   async openNotif(n: AppNotification) {
     if (!n.read && n.id) await this.notifSvc.markRead(n.id);
     this.notifPanelOpen.set(false);
-    if (n.link) this.router.navigateByUrl(n.link);
+    // La notificación pudo escribirla otro usuario: sólo rutas internas
+    const dest = safeInternalPath(n.link);
+    if (dest) this.router.navigateByUrl(dest);
   }
 
   async markAllRead() {

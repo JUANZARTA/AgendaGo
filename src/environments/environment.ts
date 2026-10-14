@@ -2,7 +2,8 @@ export const environment = {
   production: false,
   useEmulators: false,
   bypassAuth: false,
-  wompiPublicKey: 'pub_test_placeholder',
+  // Llave PÚBLICA del comercio en sandbox (no es secreta): se compara con el comercio de cada transacción.
+  wompiPublicKey: 'pub_test_KF76s43F4OOQvwf8eiJ1THUbdunAdLAq',
   // Wompi en MODO PRUEBAS (sandbox): pagos ficticios. Los links de pago viven en Firestore
   // (config/app, los edita el superadmin): acá se usa el link "de pruebas" de cada plan.
   wompi: {

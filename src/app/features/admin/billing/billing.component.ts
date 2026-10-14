@@ -540,6 +540,8 @@ export class AdminBillingComponent implements OnDestroy {
       console.error('[AdminBilling] Error registrando pago:', err);
       this.payError.set(err?.message === 'DUPLICATE_PAYMENT'
         ? 'Ese pago ya fue registrado (misma referencia).'
+        : err?.message === 'SANDBOX_BUILD'
+        ? 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usá la app publicada.'
         : 'No se pudo registrar el pago. Intentá de nuevo.');
     } finally {
       this.paying.set(false);

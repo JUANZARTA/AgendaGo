@@ -18,6 +18,7 @@ import { PaymentClaimService } from '../../../core/services/payment-claim.servic
 import { AppConfigService } from '../../../core/services/app-config.service';
 import { SupportContactComponent } from '../../../shared/components/support-contact.component';
 import { SupportWidgetComponent } from '../support/support-widget.component';
+import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
 
 @Component({
   selector: 'app-billing',
@@ -306,8 +307,8 @@ export class BillingComponent implements OnDestroy {
     const plan = this.appConfig.plans()[planKey];
     // Link de config/app: el real en producción, el de pruebas (sandbox) en ng serve
     const url  = this.appConfig.checkoutLink(planKey);
-    if (!url) {
-      // Sin link para este entorno: nunca caer al de la otra modalidad
+    if (!url || !isWompiCheckoutUrl(url)) {
+      // Sin link (o uno que no es de Wompi: nunca redirigir a otro sitio) para este entorno: nunca caer al de la otra modalidad
       alert('Este plan todavía no tiene link de pago configurado. Escribinos para pagarlo.');
       return;
     }

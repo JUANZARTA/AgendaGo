@@ -7,7 +7,7 @@ import { PaymentClaimService } from '../../../core/services/payment-claim.servic
 import { NotificationService } from '../../../core/services/notification.service';
 import { AppConfigService } from '../../../core/services/app-config.service';
 import {
-  PaymentCheck, WompiTransaction, checkWompiPayment, formatCop, nextPeriodEnd, paymentMethodLabel,
+  PaymentCheck, WompiTransaction, formatCop, nextPeriodEnd, paymentMethodLabel,
 } from '../../../core/domain/plans';
 
 /**
@@ -144,7 +144,8 @@ export class VerifyPaymentComponent {
   tx        = signal<WompiTransaction | null>(null);
   companyId = signal('');
 
-  check     = computed<PaymentCheck | null>(() => { const t = this.tx(); return t ? checkWompiPayment(t, this.plans) : null; });
+  /** Resultado de la verificación COMPLETA (incluye comercio y entorno: ver WompiService.verify). */
+  check     = signal<PaymentCheck | null>(null);
   planLabel = computed(() => { const c = this.check(); return c?.ok ? `${this.plans[c.plan].label} (${formatCop(this.plans[c.plan].amount)})` : ''; });
   /** Empresa cuyo correo de cuenta coincide con el de quien pagó. */
   emailMatch = computed(() => {
@@ -165,13 +166,14 @@ export class VerifyPaymentComponent {
 
   async search(): Promise<void> {
     const id = this.txId.trim();
-    this.error.set(''); this.done.set(''); this.tx.set(null); this.companyId.set('');
+    this.error.set(''); this.done.set(''); this.tx.set(null); this.check.set(null); this.companyId.set('');
     if (!this.wompi.isValidTransactionId(id)) { this.error.set('Ese no parece un número de transacción de Wompi.'); return; }
     this.busy.set(true);
     try {
-      const t = await this.wompi.getTransaction(id);
+      const { tx: t, check } = await this.wompi.verify(id, this.plans);
       if (!t) { this.error.set('Wompi no encontró esa transacción.'); return; }
       this.tx.set(t);
+      this.check.set(check);
       // Preseleccionar la empresa si el correo del pago es el de su cuenta
       const email = t.customerEmail?.trim().toLowerCase();
       const match = email ? this.companies().find(s => s.ownerEmail?.trim().toLowerCase() === email) : null;
@@ -190,14 +192,14 @@ export class VerifyPaymentComponent {
     if (!sub || !id) return;
     this.busy.set(true); this.error.set('');
     try {
-      const t = await this.wompi.getTransaction(id);
-      const c = t ? checkWompiPayment(t, this.plans) : null;
+      const { tx: t, check: c } = await this.wompi.verify(id, this.plans);
       if (!t || !c?.ok) { this.error.set(`No se activó: ${c && !c.ok ? c.reason : 'Wompi no encontró la transacción'}`); return; }
 
       const plan = this.plans[c.plan];
       const r = await this.subSvc.registerManualPayment(sub.companyId, plan.key, t.id, {
         payerName: t.customerName, payerEmail: t.customerEmail, payerPhone: t.customerPhone,
         paymentMethod: t.paymentMethod, paidAt: t.finalizedAt ?? t.createdAt,
+        wompiEnv: t.env, paymentLinkId: t.paymentLinkId,
       });
       // Si la empresa también lo había reportado, cerrar ese reporte
       await this.claimSvc.close(t.id, 'registered', 'Verificado por número de transacción').catch(() => {});
@@ -216,6 +218,8 @@ export class VerifyPaymentComponent {
     } catch (err: any) {
       this.error.set(err?.message === 'DUPLICATE_PAYMENT'
         ? 'Ese pago ya estaba registrado: no se registró de nuevo.'
+        : err?.message === 'SANDBOX_BUILD'
+        ? 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usá la app publicada.'
         : 'No se pudo registrar el pago. Intentá de nuevo.');
     } finally {
       this.busy.set(false);

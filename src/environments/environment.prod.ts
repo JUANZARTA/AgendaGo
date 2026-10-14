@@ -2,6 +2,7 @@ export const environment = {
   production: true,
   useEmulators: false,
   bypassAuth: false,
+  // Llave PÚBLICA del comercio REAL (no es secreta): toda transacción tiene que ser de este comercio.
   wompiPublicKey: 'pub_prod_4HbTBjxCLEox6IHck4HIfClWGJ7HAGFg',
   // Wompi REAL. Sólo producción consulta esta API: una transacción de pruebas no existe acá,
   // así que nunca puede activar un plan. Los links de pago reales viven en config/app (Firestore).

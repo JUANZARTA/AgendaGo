@@ -34,10 +34,10 @@ async function clear() {
 }
 
 let n = 0;
-function dbFor(uid) {
+function dbFor(uid, email) {
   const app = initializeApp({ projectId: PROJECT, apiKey: 'x' }, 'app' + (n++));
   const db = getFirestore(app);
-  connectFirestoreEmulator(db, HOST, Number(PORT), uid ? { mockUserToken: { sub: uid, user_id: uid } } : undefined);
+  connectFirestoreEmulator(db, HOST, Number(PORT), uid ? { mockUserToken: { sub: uid, user_id: uid, ...(email ? { email } : {}) } } : undefined);
   return db;
 }
 
@@ -152,7 +152,7 @@ async function main() {
   await seed('appointments/done2', { ...aptData({ clientId: 'client1', isGuestClient: false, date: '2025-01-02' }), status: 'completed' });
   await seed('appointments/pend9', { ...aptData({ clientId: 'client1', isGuestClient: false, date: '2025-01-03' }), status: 'pending' });
 
-  const guest = dbFor(null), c1 = dbFor('client1'), c2 = dbFor('client2'), o1 = dbFor('owner1'), o2 = dbFor('owner2'), admin = dbFor('admin');
+  const guest = dbFor(null), c1 = dbFor('client1'), c2 = dbFor('client2'), o1 = dbFor('owner1', 'o@o'), o2 = dbFor('owner2', 'o2@o'), admin = dbFor('admin');
 
   console.log('APPOINTMENTS / SLOTLOCKS');
   let guestApt, clientApt, manualApt;
@@ -550,6 +550,227 @@ async function main() {
   await expectOk('admin notifies owner support_reply', () => addDoc(collection(admin, 'notifications'), { recipientId: 'owner1', type: 'support_reply', title: 'Soporte respondio', body: 'listo', link: '/empresa/facturacion?soporte=consulta', read: false, createdAt: serverTimestamp(), senderId: 'admin' }));
   await expectDeny('owner sends support_reply', () => addDoc(collection(o1, 'notifications'), { recipientId: 'owner2', type: 'support_reply', title: 'x', body: 'x', read: false, createdAt: serverTimestamp(), senderId: 'owner1' }));
   await expectOk('admin deletes thread', () => deleteDoc(doc(admin, 'supportThreads', 'c1_urgente')));
+
+  // ═══════════════════════════ SECURITY QA ═══════════════════════════
+  // Pentest de reglas: cada vector de ataque debe FALLAR; el uso legítimo sigue pasando.
+  console.log('SECURITY QA');
+  await seed('users/legacy3', { uid: 'legacy3', email: 'l@l' });                       // doc legacy sin role
+  await seed('users/owner3', { uid: 'owner3', role: 'company', isActive: false });      // dueño BLOQUEADO por admin
+  await seed('companies/c5', { ownerId: 'owner3', name: 'Bloq', isActive: true, isPublic: true });
+  await seed('companies/c6', { ownerId: 'owner2', name: 'SinSub', isActive: true, isPublic: true });
+  await seed('companies/c8', { ownerId: 'owner2', name: 'Privada', isActive: true, isPublic: false });
+  const lg = dbFor('legacy3'), o3 = dbFor('owner3'), fresh = dbFor('fresh1'), fresh2 = dbFor('fresh2');
+  const future = (days) => Timestamp.fromDate(new Date(Date.now() + days * 864e5));
+
+  console.log(' [1] escalar a superadmin');
+  await expectDeny('SQA client setDoc merge role superadmin', () => setDoc(doc(c1, 'users', 'client1'), { role: 'superadmin' }, { merge: true }));
+  await expectDeny('SQA client overwrites own doc with role superadmin', () => setDoc(doc(c1, 'users', 'client1'), { uid: 'client1', role: 'superadmin', isActive: true }));
+  await expectDeny('SQA client -> company', () => updateDoc(doc(c1, 'users', 'client1'), { role: 'company' }));
+  await expectDeny('SQA company -> superadmin', () => updateDoc(doc(o1, 'users', 'owner1'), { role: 'superadmin' }));
+  await expectDeny('SQA company -> client', () => updateDoc(doc(o1, 'users', 'owner1'), { role: 'client' }));
+  await expectDeny('SQA owner drops role (overwrite without role)', () => setDoc(doc(o1, 'users', 'owner1'), { uid: 'owner1', email: 'o@o', isActive: true }));
+  await expectDeny('SQA legacy no-role doc sets superadmin', () => setDoc(doc(lg, 'users', 'legacy3'), { role: 'superadmin' }, { merge: true }));
+  await expectDeny('SQA register role SuperAdmin (casing)', () => setDoc(doc(fresh, 'users', 'fresh1'), { uid: 'fresh1', role: 'SuperAdmin' }));
+  await expectDeny('SQA register role admin', () => setDoc(doc(fresh, 'users', 'fresh1'), { uid: 'fresh1', role: 'admin' }));
+  await expectDeny('SQA register without role', () => setDoc(doc(fresh, 'users', 'fresh1'), { uid: 'fresh1', email: 'f@f' }));
+  await expectDeny('SQA register with uid field of other user', () => setDoc(doc(fresh, 'users', 'fresh1'), { uid: 'admin', role: 'client' }));
+  await expectDeny('SQA register already blocked-bypass isActive string', () => setDoc(doc(fresh, 'users', 'fresh1'), { uid: 'fresh1', role: 'client', isActive: 'true' }));
+  await expectDeny('SQA create users doc of OTHER uid', () => setDoc(doc(fresh, 'users', 'victim9'), { uid: 'victim9', role: 'company' }));
+  await expectDeny('SQA overwrite admin user doc', () => setDoc(doc(c1, 'users', 'admin'), { uid: 'admin', role: 'client' }));
+  await expectDeny('SQA client deletes own user doc (delete+recreate)', () => deleteDoc(doc(c1, 'users', 'client1')));
+  await expectDeny('SQA blocked owner reactivates himself', () => updateDoc(doc(o3, 'users', 'owner3'), { isActive: true }));
+  await expectDeny('SQA client lists users', () => getDocs(collection(c1, 'users')));
+  await expectDeny('SQA owner queries users by role', () => getDocs(query(collection(o1, 'users'), where('role', '==', 'client'))));
+  await expectDeny('SQA client reads other user doc', () => getDoc(doc(c1, 'users', 'owner1')));
+  await expectDeny('SQA guest reads user doc', () => getDoc(doc(guest, 'users', 'admin')));
+  await expectOk('SQA legit: fresh account registers as client', () => setDoc(doc(fresh2, 'users', 'fresh2'), { uid: 'fresh2', role: 'client', email: 'f2@f' }));
+
+  console.log(' [2] plan gratis / suscripciones');
+  await expectDeny('SQA owner sets own sub active', () => updateDoc(doc(o2, 'subscriptions', 'c3'), { status: 'active' }));
+  await expectDeny('SQA owner sets own sub free (merge)', () => setDoc(doc(o2, 'subscriptions', 'c3'), { status: 'free' }, { merge: true }));
+  await expectDeny('SQA owner extends currentPeriodEnd', () => updateDoc(doc(o1, 'subscriptions', 'c1'), { currentPeriodEnd: future(3650) }));
+  await expectDeny('SQA owner changes plan', () => updateDoc(doc(o1, 'subscriptions', 'c1'), { plan: 'semestral' }));
+  await expectDeny('SQA owner sets lastPaymentDate', () => updateDoc(doc(o1, 'subscriptions', 'c1'), { lastPaymentDate: serverTimestamp() }));
+  await expectDeny('SQA owner extends trialEndDate', () => updateDoc(doc(o2, 'subscriptions', 'c3'), { trialEndDate: future(3650) }));
+  await expectDeny('SQA owner deletes own sub (to recreate)', () => deleteDoc(doc(o2, 'subscriptions', 'c3')));
+  await expectDeny('SQA create sub already active', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'active', plan: 'semestral', currentPeriodEnd: future(3650) }));
+  await expectDeny('SQA create sub status free', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'free', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
+  await expectDeny('SQA create trial 10 years', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(3650) }));
+  await expectDeny('SQA create trial + currentPeriodEnd extra', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30), currentPeriodEnd: future(3650) }));
+  await expectDeny('SQA create trial with future trialStartDate', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: future(300), trialEndDate: future(30) }));
+  await expectDeny('SQA create trial with mismatched companyId', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c1', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
+  await expectDeny('SQA company A creates sub of company B', () => setDoc(doc(o1, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
+  await expectDeny('SQA company A updates sub of company B', () => updateDoc(doc(o1, 'subscriptions', 'c3'), { status: 'expired' }));
+  await expectDeny('SQA company A reads sub of company B', () => getDoc(doc(o1, 'subscriptions', 'c3')));
+  await expectDeny('SQA owner lists all subscriptions', () => getDocs(collection(o1, 'subscriptions')));
+  await expectDeny('SQA owner lists active subscriptions', () => getDocs(query(collection(o1, 'subscriptions'), where('status', '==', 'active'))));
+  await expectDeny('SQA client creates trial', () => setDoc(doc(c1, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
+  await expectDeny('SQA BLOCKED owner creates trial', () => setDoc(doc(o3, 'subscriptions', 'c5'), { companyId: 'c5', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
+  await expectOk('SQA legit: owner creates trial for own new company', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
+
+  console.log(' [3] pagos falsos');
+  const fakePay = (cid) => ({ companyId: cid, plan: 'semestral', amount: 1, status: 'approved', source: 'manual', createdAt: serverTimestamp() });
+  await expectDeny('SQA owner creates approved payment (own)', () => setDoc(doc(o1, 'payments', 'fake-1'), fakePay('c1')));
+  await expectDeny('SQA owner addDoc approved payment', () => addDoc(collection(o1, 'payments'), fakePay('c1')));
+  await expectDeny('SQA owner creates payment for other company', () => setDoc(doc(o1, 'payments', 'fake-2'), fakePay('c3')));
+  await expectDeny('SQA owner edits own payment', () => updateDoc(doc(o1, 'payments', 'manual-REF1'), { amount: 999999, periodEnd: future(3650) }));
+  await expectDeny('SQA owner deletes own payment', () => deleteDoc(doc(o1, 'payments', 'manual-REF1')));
+  await expectDeny('SQA client creates payment', () => setDoc(doc(c1, 'payments', 'fake-3'), fakePay('c1')));
+  await expectDeny('SQA guest creates payment', () => setDoc(doc(guest, 'payments', 'fake-4'), fakePay('c1')));
+  await expectDeny('SQA company B reads company A payment by id', () => getDoc(doc(o2, 'payments', 'manual-REF1')));
+  await expectDeny('SQA owner lists all payments', () => getDocs(collection(o1, 'payments')));
+  await expectDeny('SQA owner closes own claim (registered)', () => updateDoc(doc(o1, 'paymentClaims', '88888-1700-999'), { status: 'registered' }));
+  await expectDeny('SQA owner edits claim amount/plan', () => updateDoc(doc(o1, 'paymentClaims', '88888-1700-999'), { amount: 179000, plan: 'semestral' }));
+  await expectDeny('SQA owner moves claim to other company', () => updateDoc(doc(o1, 'paymentClaims', '88888-1700-999'), { companyId: 'c3' }));
+  await expectDeny('SQA owner deletes own claim', () => deleteDoc(doc(o1, 'paymentClaims', '88888-1700-999')));
+  await expectDeny('SQA company B overwrites A claim (same txId)', () => setDoc(doc(o2, 'paymentClaims', '88888-1700-999'), claim({ companyId: 'c3', transactionId: '88888-1700-999' })));
+  await expectDeny('SQA company B steals A claim (update companyId)', () => updateDoc(doc(o2, 'paymentClaims', '88888-1700-999'), { companyId: 'c3' }));
+  await expectDeny('SQA company B deletes A claim', () => deleteDoc(doc(o2, 'paymentClaims', '88888-1700-999')));
+  await expectDeny('SQA company B queries A claims', () => getDocs(query(collection(o2, 'paymentClaims'), where('companyId', '==', 'c1'))));
+  await expectDeny('SQA owner lists all claims', () => getDocs(collection(o1, 'paymentClaims')));
+  await expectDeny('SQA owner lists pending claims', () => getDocs(query(collection(o2, 'paymentClaims'), where('status', '==', 'pending'))));
+  await expectDeny('SQA guest reads claim (even non-existing)', () => getDoc(doc(guest, 'paymentClaims', '00000-0000-000')));
+  await expectDeny('SQA claim created approved', () => setDoc(doc(o1, 'paymentClaims', 'A0001-1700-999'), claim({ transactionId: 'A0001-1700-999', status: 'approved' })));
+  await expectDeny('SQA claim negative amount', () => setDoc(doc(o1, 'paymentClaims', 'A0002-1700-999'), claim({ transactionId: 'A0002-1700-999', amount: -1 })));
+  await expectDeny('SQA claim backdated createdAt', () => setDoc(doc(o1, 'paymentClaims', 'A0003-1700-999'), claim({ transactionId: 'A0003-1700-999', createdAt: Timestamp.fromDate(new Date('2020-01-01')) })));
+  await expectDeny('SQA claim huge companyName (201)', () => setDoc(doc(o1, 'paymentClaims', 'A0004-1700-999'), claim({ transactionId: 'A0004-1700-999', companyName: 'x'.repeat(201) })));
+  await expectDeny('SQA claim huge payerName (201)', () => setDoc(doc(o1, 'paymentClaims', 'A0005-1700-999'), claim({ transactionId: 'A0005-1700-999', payerName: 'x'.repeat(201) })));
+  await expectDeny('SQA BLOCKED owner creates claim', () => setDoc(doc(o3, 'paymentClaims', 'A0006-1700-999'), claim({ companyId: 'c5', transactionId: 'A0006-1700-999' })));
+  await expectDeny('SQA fresh account (no user doc) creates claim', () => setDoc(doc(fresh, 'paymentClaims', 'A0007-1700-999'), claim({ transactionId: 'A0007-1700-999' })));
+  await expectOk('SQA legit: owner reports a new claim', () => setDoc(doc(o1, 'paymentClaims', 'A0008-1700-999'), claim({ transactionId: 'A0008-1700-999' })));
+  await expectDeny('SQA claim with spoofed ownerEmail', () => setDoc(doc(o1, 'paymentClaims', 'A0009-1700-999'), claim({ transactionId: 'A0009-1700-999', ownerEmail: 'victima@x.co' })));
+  await expectDeny('SQA claim with empty ownerEmail (token has email)', () => setDoc(doc(o1, 'paymentClaims', 'A0010-1700-999'), claim({ transactionId: 'A0010-1700-999', ownerEmail: '' })));
+  await expectDeny('SQA claim ownerEmail case-trick', () => setDoc(doc(o1, 'paymentClaims', 'A0011-1700-999'), claim({ transactionId: 'A0011-1700-999', ownerEmail: 'O@O' })));
+  await expectOk('SQA legit: owner w/o email in token reports with empty ownerEmail', () => setDoc(doc(dbFor('owner1'), 'paymentClaims', 'A0012-1700-999'), claim({ transactionId: 'A0012-1700-999', ownerEmail: '' })));
+  await expectDeny('SQA owner changes ownerEmail after create', () => updateDoc(doc(o1, 'paymentClaims', 'A0008-1700-999'), { ownerEmail: 'otro@x.co' }));
+  await expectOk('SQA legit: admin registers payment with wompiEnv + paymentLinkId', () => setDoc(doc(admin, 'payments', 'manual-REF9'), { ...fakePay('c1'), amount: 29000, plan: 'mensual', wompiEnv: 'production', paymentLinkId: 'p5GJth' }));
+  await expectDeny('SQA owner writes payment with wompiEnv sandbox', () => setDoc(doc(o1, 'payments', 'fake-5'), { ...fakePay('c1'), wompiEnv: 'sandbox', paymentLinkId: 'x' }));
+  let att2;
+  await expectOk('SQA legit: owner records attempt', async () => { att2 = (await addDoc(collection(o1, 'paymentAttempts'), att())).id; });
+  await expectDeny('SQA attempt negative amount', () => addDoc(collection(o1, 'paymentAttempts'), att({ amount: -29000 })));
+  await expectDeny('SQA attempt absurd amount', () => addDoc(collection(o1, 'paymentAttempts'), att({ amount: 1e12 })));
+  await expectDeny('SQA company B reads A attempts (query)', () => getDocs(query(collection(o2, 'paymentAttempts'), where('companyId', '==', 'c1'))));
+  await expectDeny('SQA owner lists all attempts', () => getDocs(collection(o1, 'paymentAttempts')));
+  await expectDeny('SQA company B dismisses A attempt', () => updateDoc(doc(o2, 'paymentAttempts', att2), { status: 'dismissed' }));
+  await expectDeny('SQA owner deletes own attempt', () => deleteDoc(doc(o1, 'paymentAttempts', att2)));
+
+  console.log(' [4] config/app (links de Wompi / precios)');
+  await expectDeny('SQA company changes Wompi link (merge)', () => setDoc(doc(o1, 'config', 'app'), { plans: { mensual: { amount: 1, links: { prod: 'https://evil.co/pay' } } } }, { merge: true }));
+  await expectDeny('SQA company updateDoc nested link', () => updateDoc(doc(o1, 'config', 'app'), { 'plans.mensual.links.prod': 'https://evil.co/pay' }));
+  await expectDeny('SQA company changes amount', () => updateDoc(doc(o1, 'config', 'app'), { 'plans.mensual.amount': 1 }));
+  await expectDeny('SQA client changes support contact', () => updateDoc(doc(c1, 'config', 'app'), { 'support.whatsapp': '570000000000' }));
+  await expectDeny('SQA guest overwrites config/app', () => setDoc(doc(guest, 'config', 'app'), { plans: {} }));
+  await expectDeny('SQA fresh account writes config/app', () => setDoc(doc(fresh, 'config', 'app'), { trialMonths: 12 }, { merge: true }));
+  await expectDeny('SQA company deletes config/app', () => deleteDoc(doc(o1, 'config', 'app')));
+  await expectDeny('SQA company creates config/wompi', () => setDoc(doc(o1, 'config', 'wompi'), { publicKey: 'pub_evil' }));
+  await expectDeny('SQA client creates config/other', () => setDoc(doc(c1, 'config', 'other'), { x: 1 }));
+  await expectDeny('SQA company writes config subcollection', () => setDoc(doc(o1, 'config', 'app', 'x', 'y'), { x: 1 }));
+
+  await expectDeny('SQA admin sets Wompi prod link to other domain', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { links: { prod: 'https://evil.co/l/abc' } } } }, { merge: true }));
+  await expectDeny('SQA admin sets lookalike domain link', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { links: { prod: 'https://checkout.wompi.co.evil.co/l/abc' } } } }, { merge: true }));
+  await expectDeny('SQA admin sets http (no TLS) Wompi link', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { links: { prod: 'http://checkout.wompi.co/l/abc' } } } }, { merge: true }));
+  await expectDeny('SQA admin sets Wompi link with query/redirect', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { links: { prod: 'https://checkout.wompi.co/l/abc?redirect-url=https://evil.co' } } } }, { merge: true }));
+  await expectDeny('SQA admin sets javascript: test link', () => setDoc(doc(admin, 'config', 'app'), { plans: { semestral: { links: { test: 'javascript:alert(1)' } } } }, { merge: true }));
+  await expectDeny('SQA admin sets huge Wompi link id', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { links: { prod: 'https://checkout.wompi.co/l/' + 'a'.repeat(65) } } } }, { merge: true }));
+  await expectDeny('SQA admin adds extra link key', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { links: { prod: '', alt: 'https://evil.co' } } } }, { merge: true }));
+  await expectDeny('SQA admin adds unknown plan key', () => setDoc(doc(admin, 'config', 'app'), { plans: { vip: { amount: 1 } } }, { merge: true }));
+  await expectDeny('SQA admin sets negative plan amount', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { amount: -1 } } }, { merge: true }));
+  await expectDeny('SQA admin sets plan amount as string', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { amount: '29000' } } }, { merge: true }));
+  await expectDeny('SQA admin sets nested invalid link via updateDoc', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.semestral.links.prod': 'https://evil.co' }));
+  await expectOk('SQA legit: admin sets both plans with Wompi links', () => setDoc(doc(admin, 'config', 'app'), { plans: { mensual: { amount: 29000, days: 30, links: { test: 'https://checkout.wompi.co/l/test_WM8ARv', prod: 'https://checkout.wompi.co/l/p5GJth' } }, semestral: { amount: 159000, days: 180, links: { test: '', prod: 'https://checkout.wompi.co/l/3pQr9V' } } } }, { merge: true }));
+  await expectOk('SQA legit: admin updates nested prod link', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.semestral.links.prod': 'https://checkout.wompi.co/l/Zz9_x' }));
+  await expectOk('SQA legit: admin clears a link (empty)', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.semestral.links.test': '' }));
+
+  console.log(' [5] reactivarse / robar empresa');
+  await expectDeny('SQA suspended owner sets isActive true', () => updateDoc(doc(o2, 'companies', 'c2'), { isActive: true }));
+  await expectDeny('SQA suspended owner merge isActive true', () => setDoc(doc(o2, 'companies', 'c2'), { isActive: true, name: 'Off' }, { merge: true }));
+  await expectDeny('SQA suspended owner overwrites doc with isActive true', () => setDoc(doc(o2, 'companies', 'c2'), { ownerId: 'owner2', name: 'Off', isActive: true, isPublic: true, autoConfirm: true }));
+  await expectDeny('SQA owner deletes own company', () => deleteDoc(doc(o2, 'companies', 'c2')));
+  await expectDeny('SQA company A steals B (ownerId)', () => updateDoc(doc(o1, 'companies', 'c3'), { ownerId: 'owner1' }));
+  await expectDeny('SQA company A edits B profile', () => updateDoc(doc(o1, 'companies', 'c3'), { name: 'pwned' }));
+  await expectDeny('SQA company A gives away own company', () => updateDoc(doc(o1, 'companies', 'c1'), { ownerId: 'owner2' }));
+  await expectDeny('SQA create company with ownerId of other', () => setDoc(doc(o2, 'companies', 'c9'), { ownerId: 'owner1', name: 'x', isActive: true, isPublic: true }));
+  await expectDeny('SQA create company over existing id', () => setDoc(doc(o2, 'companies', 'c1'), { ownerId: 'owner2', name: 'x', isActive: true, isPublic: true }));
+  await expectDeny('SQA create company with forged rating', () => setDoc(doc(o2, 'companies', 'c10'), { ownerId: 'owner2', name: 'x', isActive: true, isPublic: true, averageRating: 5, reviewCount: 999 }));
+  await expectDeny('SQA fresh account (no user doc) creates company', () => setDoc(doc(fresh, 'companies', 'c11'), { ownerId: 'fresh1', name: 'x', isActive: true, isPublic: true }));
+  await expectDeny('SQA BLOCKED owner creates new company', () => setDoc(doc(o3, 'companies', 'c12'), { ownerId: 'owner3', name: 'x', isActive: true, isPublic: true }));
+  await expectDeny('SQA BLOCKED owner edits own company', () => updateDoc(doc(o3, 'companies', 'c5'), { name: 'sigo' }));
+  await expectDeny('SQA BLOCKED owner writes services', () => setDoc(doc(o3, 'companies', 'c5', 'services', 'sx'), { name: 'x' }));
+  await expectDeny('SQA BLOCKED owner creates manual apt', () => book(o3, aptData({ companyId: 'c5', source: 'manual', date: '2030-06-01' }), 'scheduled'));
+  await expectDeny('SQA company A writes B services', () => setDoc(doc(o1, 'companies', 'c3', 'services', 'sx'), { name: 'x' }));
+  await expectDeny('SQA company A writes B staff', () => setDoc(doc(o1, 'companies', 'c3', 'staff', 'stx'), { name: 'x', isActive: true, serviceIds: ['s1'] }));
+  await expectDeny('SQA company A deletes B blockedSlots', () => deleteDoc(doc(o1, 'companies', 'c3', 'blockedSlots', 'b1')));
+  await expectDeny('SQA guest reads non-public company', () => getDoc(doc(guest, 'companies', 'c8')));
+  await expectDeny('SQA company A reads B non-public company', () => getDoc(doc(o1, 'companies', 'c8')));
+  await expectDeny('SQA guest lists ALL companies (unfiltered)', () => getDocs(collection(guest, 'companies')));
+  await expectOk('SQA legit: owner creates own company', () => setDoc(doc(o2, 'companies', 'c13'), { ownerId: 'owner2', name: 'Nueva', isActive: true, isPublic: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+
+  console.log(' [6] notificaciones falsas (phishing)');
+  const nf = (over = {}) => ({ recipientId: 'owner1', type: 'new_appointment', title: 'Tu plan vence hoy', body: 'Pagá acá', senderId: 'client1', read: false, createdAt: serverTimestamp(), ...over });
+  await expectDeny('SQA notif with external https link', () => addDoc(collection(c1, 'notifications'), nf({ link: 'https://evil.co/pagar' })));
+  await expectDeny('SQA notif with protocol-relative link', () => addDoc(collection(c1, 'notifications'), nf({ link: '//evil.co/pagar' })));
+  await expectDeny('SQA notif with backslash link', () => addDoc(collection(c1, 'notifications'), nf({ link: '/\\evil.co' })));
+  await expectDeny('SQA notif with javascript: link', () => addDoc(collection(c1, 'notifications'), nf({ link: 'javascript:alert(1)' })));
+  await expectDeny('SQA notif link without leading slash', () => addDoc(collection(c1, 'notifications'), nf({ link: 'evil.co' })));
+  await expectDeny('SQA owner -> admin payment_initiated external link', () => addDoc(collection(o1, 'notifications'), nf({ recipientId: 'admin', type: 'payment_initiated', senderId: 'owner1', link: 'https://evil.co/admin' })));
+  await expectDeny('SQA client -> admin new_company', () => addDoc(collection(c1, 'notifications'), nf({ recipientId: 'admin', type: 'new_company' })));
+  await expectDeny('SQA client -> admin payment_initiated', () => addDoc(collection(c1, 'notifications'), nf({ recipientId: 'admin', type: 'payment_initiated' })));
+  await expectDeny('SQA fresh account -> admin support_message', () => addDoc(collection(fresh, 'notifications'), nf({ recipientId: 'admin', type: 'support_message', senderId: 'fresh1' })));
+  await expectDeny('SQA BLOCKED owner -> admin payment_initiated', () => addDoc(collection(o3, 'notifications'), nf({ recipientId: 'admin', type: 'payment_initiated', senderId: 'owner3' })));
+  await expectDeny('SQA owner forges plan_changed to other owner', () => addDoc(collection(o1, 'notifications'), nf({ recipientId: 'owner2', type: 'plan_changed', senderId: 'owner1' })));
+  await expectDeny('SQA owner forges support_reply', () => addDoc(collection(o1, 'notifications'), nf({ recipientId: 'owner2', type: 'support_reply', senderId: 'owner1' })));
+  await expectDeny('SQA notif pre-read', () => addDoc(collection(c1, 'notifications'), nf({ read: true })));
+  await expectDeny('SQA notif huge body', () => addDoc(collection(c1, 'notifications'), nf({ body: 'x'.repeat(1001) })));
+  await expectDeny('SQA notif extra field (html)', () => addDoc(collection(c1, 'notifications'), { ...nf(), html: '<img onerror=alert(1)>' }));
+  await expectDeny('SQA company reads admin inbox', () => getDocs(query(collection(o1, 'notifications'), where('recipientId', '==', 'admin'))));
+  await expectDeny('SQA client reads owner notifications', () => getDocs(query(collection(c1, 'notifications'), where('recipientId', '==', 'owner1'))));
+  await expectDeny('SQA client lists all notifications', () => getDocs(collection(c1, 'notifications')));
+  let nOwn;
+  await expectOk('SQA legit: client notifies owner with internal link', async () => { nOwn = (await addDoc(collection(c1, 'notifications'), nf({ title: 'Nueva cita', body: 'x', link: '/empresa/dashboard?date=2030-05-10' }))).id; });
+  await expectOk('SQA legit: internal link with encoded query', () => addDoc(collection(o1, 'notifications'), nf({ recipientId: 'client1', type: 'new_message', senderId: 'owner1', link: '/cliente/mensajes?companyId=c1&companyName=Sal%C3%B3n%20%2F%2F' })));
+  await expectOk('SQA legit: owner -> admin new_company (internal link)', () => addDoc(collection(o1, 'notifications'), nf({ recipientId: 'admin', type: 'new_company', senderId: 'owner1', link: '/admin/empresas' })));
+  await expectDeny('SQA sender edits sent notification', () => updateDoc(doc(c1, 'notifications', nOwn), { body: 'cambiado' }));
+  await expectDeny('SQA recipient rewrites link', () => updateDoc(doc(o1, 'notifications', nOwn), { read: true, link: 'https://evil.co' }));
+  await expectDeny('SQA recipient deletes notification', () => deleteDoc(doc(o1, 'notifications', nOwn)));
+
+  console.log(' [7] soporte');
+  await expectDeny('SQA company B injects msg in A thread', () => addDoc(tCol(o2, 'c1_consulta'), smsg({ senderUid: 'owner2' })));
+  await expectDeny('SQA company B injects as admin in A thread', () => addDoc(tCol(o2, 'c1_consulta'), smsg({ sender: 'admin', senderUid: 'owner2' })));
+  await expectDeny('SQA company B edits A thread summary', () => updateDoc(doc(o2, 'supportThreads', 'c1_consulta'), { lastMessage: 'pagá a este link', lastSender: 'company', lastMessageAt: serverTimestamp(), unreadByAdmin: true }));
+  await expectDeny('SQA company B reads A thread messages', () => getDocs(tCol(o2, 'c1_consulta')));
+  await expectDeny('SQA owner moves thread to other company', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { companyId: 'c3' }));
+  await expectDeny('SQA owner creates thread id of B with own companyId', () => setDoc(doc(o1, 'supportThreads', 'c6_consulta'), thread({ companyId: 'c1' })));
+  await expectDeny('SQA thread for non-existing company', () => setDoc(doc(o1, 'supportThreads', 'zzz_consulta'), thread({ companyId: 'zzz' })));
+  await expectDeny('SQA company poses admin via senderUid admin', () => addDoc(tCol(o1, 'c1_consulta'), smsg({ sender: 'admin', senderUid: 'admin' })));
+  await expectDeny('SQA collectionGroup messages (all chats)', () => getDocs(F.collectionGroup(o1, 'messages')));
+  await expectDeny('SQA BLOCKED owner writes support msg', () => addDoc(tCol(o3, 'c5_consulta'), smsg({ senderUid: 'owner3' })));
+  await expectDeny('SQA huge support thread companyName', () => setDoc(doc(o2, 'supportThreads', 'c6_consulta'), thread({ companyId: 'c6', companyName: 'x'.repeat(201) })));
+
+  console.log(' [8] lectura de datos sensibles');
+  await expectDeny('SQA company B reads A appointment', () => getDoc(doc(o2, 'appointments', 'done1')));
+  await expectDeny('SQA client lists all appointments', () => getDocs(collection(c2, 'appointments')));
+  await expectDeny('SQA client queries appointments by date', () => getDocs(query(collection(c2, 'appointments'), where('date', '==', D))));
+  await expectDeny('SQA company B updates A appointment', () => updateDoc(doc(o2, 'appointments', 'done1'), { status: 'cancelled', cancelledBy: 'company' }));
+  await expectDeny('SQA company B deletes A appointment', () => deleteDoc(doc(o2, 'appointments', 'done1')));
+  await expectDeny('SQA guest lists messages', () => getDocs(collection(guest, 'messages')));
+  await expectDeny('SQA client2 reads client1 conversation', () => getDocs(query(collection(c2, 'messages'), where('clientId', '==', 'client1'))));
+  await expectDeny('SQA company B lists A conversations', () => getDocs(query(collection(o2, 'messages'), where('companyId', '==', 'c1'))));
+
+  console.log(' [9] colecciones no declaradas');
+  await expectDeny('SQA write invented collection', () => setDoc(doc(c1, 'hacks', 'x'), { a: 1 }));
+  await expectDeny('SQA write admins/{uid}', () => setDoc(doc(o1, 'admins', 'owner1'), { role: 'superadmin' }));
+  await expectDeny('SQA write roles/{uid}', () => setDoc(doc(guest, 'roles', 'x'), { role: 'superadmin' }));
+  await expectDeny('SQA read invented collection', () => getDocs(collection(o1, 'hacks')));
+  await expectDeny('SQA owner writes companies/{id}/billing', () => setDoc(doc(o1, 'companies', 'c1', 'billing', 'x'), { paid: true }));
+  await expectDeny('SQA owner writes companies/{id}/subscription', () => setDoc(doc(o1, 'companies', 'c1', 'subscription', 'current'), { status: 'active' }));
+  await expectDeny('SQA user writes users/{uid}/private', () => setDoc(doc(c1, 'users', 'client1', 'private', 'x'), { role: 'superadmin' }));
+  await expectDeny('SQA owner writes subscriptions/{id}/history', () => setDoc(doc(o1, 'subscriptions', 'c1', 'history', 'x'), { status: 'active' }));
+  await expectDeny('SQA owner writes payments subcollection', () => setDoc(doc(o1, 'payments', 'manual-REF1', 'x', 'y'), { a: 1 }));
+
+  console.log(' [10] tamaño / abuso');
+  await expectDeny('SQA message companyName > 200', () => addDoc(collection(c1, 'messages'), { companyId: 'c1', companyName: 'x'.repeat(201), clientId: 'client1', senderRole: 'client', text: 'hola', createdAt: serverTimestamp() }));
+  await expectDeny('SQA attempt companyName > 200', () => addDoc(collection(o1, 'paymentAttempts'), att({ companyName: '<script>'.repeat(30) })));
+  await expectDeny('SQA notif title > 200', () => addDoc(collection(c1, 'notifications'), nf({ title: 'x'.repeat(201) })));
 
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
