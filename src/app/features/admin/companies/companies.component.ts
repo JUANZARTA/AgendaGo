@@ -6,6 +6,7 @@ import {
 } from '@angular/fire/firestore';
 import { parseLocalDateEndOfDay, toLocalDateKey } from '../../../core/utils/date.utils';
 import { NotificationService } from '../../../core/services/notification.service';
+import { SubscriptionService } from '../../../core/services/subscription.service';
 import { categoryMeta } from '../../../core/domain/categories';
 
 const SUB_CLASS: Record<string, string> = {
@@ -181,6 +182,13 @@ interface AdminCompany {
                 <label style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Fecha de vencimiento</label>
                 <input type="date" [(ngModel)]="editPlanPeriodEnd"
                   style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" />
+                <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+                  <button type="button" (click)="syncWithPayments(company.id)" [disabled]="syncing()"
+                    style="padding:6px 12px;border-radius:8px;border:1.5px solid #ddd6fe;background:#f5f3ff;color:#6d28d9;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+                    {{ syncing() ? 'Calculando…' : '↻ Sincronizar con los pagos' }}
+                  </button>
+                  @if (syncMsg()) { <span style="font-size:12px;color:#666">{{ syncMsg() }}</span> }
+                </div>
               </div>
             }
 
@@ -251,6 +259,7 @@ export class CompaniesComponent implements OnDestroy {
 
   private firestore  = inject(Firestore);
   private notifSvc   = inject(NotificationService);
+  private subSvc     = inject(SubscriptionService);
 
   private rawCompanies = signal<any[]>([]);
   private subsMap      = signal<Record<string, any>>({});
@@ -325,6 +334,26 @@ export class CompaniesComponent implements OnDestroy {
 
   ngOnDestroy() { this.unsub?.(); }
 
+  syncing = signal(false);
+  syncMsg = signal('');
+
+  /** Pone en la fecha el vencimiento que dan los pagos aprobados (sigue siendo editable). */
+  async syncWithPayments(companyId: string): Promise<void> {
+    this.syncing.set(true);
+    this.syncMsg.set('');
+    try {
+      const until = await this.subSvc.paidUntil(companyId);
+      if (!until) { this.syncMsg.set('No hay pagos aprobados.'); return; }
+      this.editPlanPeriodEnd = toLocalDateKey(until);
+      this.syncMsg.set(`Según los pagos: vence el ${until.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}.`);
+    } catch (err) {
+      console.error('[Admin] Error calculando vencimiento por pagos:', err);
+      this.syncMsg.set('No se pudo calcular.');
+    } finally {
+      this.syncing.set(false);
+    }
+  }
+
   openPlanModal(c: { id: string; name: string; ownerId: string }) {
     this.planTarget.set({ id: c.id, name: c.name, ownerId: c.ownerId });
     // Arranca con el estado y el vencimiento vigentes de la suscripción
@@ -333,6 +362,7 @@ export class CompaniesComponent implements OnDestroy {
     const end = sub?.status === 'trial' ? sub?.trialEndDate : sub?.currentPeriodEnd;
     this.editPlanPeriodEnd = end?.toDate ? toLocalDateKey(end.toDate()) : '';
     this.editPlanNote     = '';
+    this.syncMsg.set('');
   }
 
   savePlan() {

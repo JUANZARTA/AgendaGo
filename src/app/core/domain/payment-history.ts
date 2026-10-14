@@ -134,3 +134,14 @@ export function buildPaymentHistory(payments: PaymentDocLike[], claims: ClaimDoc
 
   return rows.sort((a, b) => b.sortMs - a.sortMs);
 }
+
+/** Hasta cuándo cubren los pagos aprobados (el período que termina más tarde), o null si no hay. */
+export function paidUntil(payments: PaymentDocLike[]): Date | null {
+  let max: Date | null = null;
+  for (const p of payments) {
+    if (p.status !== 'approved') continue;
+    const end = toDate(p.periodEnd);
+    if (end && (!max || end > max)) max = end;
+  }
+  return max;
+}

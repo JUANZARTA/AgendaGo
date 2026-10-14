@@ -1,4 +1,4 @@
-import { buildPaymentHistory } from './payment-history';
+import { buildPaymentHistory, paidUntil } from './payment-history';
 
 const ts = (iso: string) => ({ toDate: () => new Date(iso) });
 
@@ -38,5 +38,21 @@ describe('buildPaymentHistory', () => {
     const rows = buildPaymentHistory([payment], [{ id: '333', transactionId: '333', status: 'rejected', createdAt: ts('2026-12-01T00:00:00Z') }]);
     expect(rows.map(r => r.transactionId)).toEqual(['333', '111']);
     expect(rows[0].statusLabel).toBe('Descartado');
+  });
+});
+
+describe('paidUntil', () => {
+  it('toma el período aprobado que termina más tarde e ignora los no aprobados', () => {
+    const until = paidUntil([
+      { id: 'a', status: 'approved', periodEnd: ts('2026-11-13T23:59:59Z') },
+      { id: 'b', status: 'approved', periodEnd: ts('2027-01-12T23:59:59Z') },
+      { id: 'c', status: 'failed',   periodEnd: ts('2027-06-01T23:59:59Z') },
+    ]);
+    expect(until?.toISOString()).toBe('2027-01-12T23:59:59.000Z');
+  });
+
+  it('sin pagos aprobados: null', () => {
+    expect(paidUntil([])).toBeNull();
+    expect(paidUntil([{ id: 'x', status: 'pending', periodEnd: ts('2027-01-01T00:00:00Z') }])).toBeNull();
   });
 });

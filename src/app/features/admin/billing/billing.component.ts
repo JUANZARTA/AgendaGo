@@ -263,6 +263,13 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
               <label style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Fecha de vencimiento</label>
               <input type="date" [(ngModel)]="editPeriodEnd"
                 style="width:100%;margin-top:6px;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box" />
+              <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+                <button type="button" (click)="syncWithPayments(selected()!.companyId)" [disabled]="syncing()"
+                  style="padding:6px 12px;border-radius:8px;border:1.5px solid #ddd6fe;background:#f5f3ff;color:#6d28d9;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">
+                  {{ syncing() ? 'Calculando…' : '↻ Sincronizar con los pagos' }}
+                </button>
+                @if (syncMsg()) { <span style="font-size:12px;color:#666">{{ syncMsg() }}</span> }
+              </div>
               <p style="font-size:11px;color:#aaa;margin:4px 0 0">Es el vencimiento actual; cambialo sólo si querés corregirlo</p>
             </div>
 
@@ -452,6 +459,26 @@ export class AdminBillingComponent implements OnDestroy {
   openDetail(s: AdminSub) { this.detailId.set(s.companyId); window.scrollTo({ top: 0 }); }
   closeDetail() { this.detailId.set(null); }
 
+  syncing = signal(false);
+  syncMsg = signal('');
+
+  /** Pone en la fecha el vencimiento que dan los pagos aprobados (sigue siendo editable). */
+  async syncWithPayments(companyId: string): Promise<void> {
+    this.syncing.set(true);
+    this.syncMsg.set('');
+    try {
+      const until = await this.subSvc.paidUntil(companyId);
+      if (!until) { this.syncMsg.set('No hay pagos aprobados.'); return; }
+      this.editPeriodEnd = toLocalDateKey(until);
+      this.syncMsg.set(`Según los pagos: vence el ${until.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}.`);
+    } catch (err) {
+      console.error('[Admin] Error calculando vencimiento por pagos:', err);
+      this.syncMsg.set('No se pudo calcular.');
+    } finally {
+      this.syncing.set(false);
+    }
+  }
+
   openModal(s: AdminSub) {
     this.selected.set(s);
     this.editStatus   = s.status;
@@ -459,6 +486,7 @@ export class AdminBillingComponent implements OnDestroy {
     const endMs = s.status === 'trial' ? s.trialEndMs : s.periodEndMs;
     this.editPeriodEnd = endMs ? toLocalDateKey(new Date(endMs)) : '';
     this.editNote     = '';
+    this.syncMsg.set('');
     this.payPlan  = '';
     this.payRef   = '';
     this.payError.set('');

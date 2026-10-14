@@ -6,6 +6,7 @@ import {
 import { Observable } from 'rxjs';
 import { PLANS, PlanKey, nextPeriodEnd } from '../domain/plans';
 import { graceEndOf, subscriptionTimeline } from '../domain/subscription-timeline';
+import { PaymentDocLike, paidUntil } from '../domain/payment-history';
 
 /** Datos de quien pagó según Wompi, para el historial (opcionales). */
 export interface PaymentPayer {
@@ -106,6 +107,12 @@ export class SubscriptionService {
    * (Solo superadmin) Suscripciones trial/active cuya fecha de fin ya pasó.
    * Se consulta solo por status y se filtra en memoria: evita índices compuestos.
    */
+  /** (Solo superadmin) Hasta cuándo cubren los pagos aprobados de la empresa, o null si no hay. */
+  async paidUntil(companyId: string): Promise<Date | null> {
+    const snap = await getDocs(query(collection(this.firestore, 'payments'), where('companyId', '==', companyId)));
+    return paidUntil(snap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentDocLike)));
+  }
+
   /**
    * Registro manual de un pago verificado en Wompi (sustituye al webhook, que no corre en plan Spark).
    * Mismo efecto que functions/src/payments/validate-payment.ts: deja el pago en el historial,
