@@ -3,6 +3,15 @@ export const environment = {
   useEmulators: false,
   bypassAuth: false,
   wompiPublicKey: 'pub_test_placeholder',
+  // Wompi en MODO PRUEBAS (sandbox): pagos ficticios. Links creados con el panel en modo pruebas.
+  // Vacío = el botón "Pagar" avisa que falta configurarlo (nunca cae a un link real).
+  wompi: {
+    apiUrl: 'https://sandbox.wompi.co/v1',
+    checkout: {
+      mensual:   'https://checkout.wompi.co/l/test_WM8ARv',
+      semestral: '',
+    },
+  },
   firebase: {
     apiKey: 'AIzaSyDk_So7bgA7t-BfZcZqtR503OSWLYcUZcY',
     authDomain: 'agendago-b8ea6.firebaseapp.com',

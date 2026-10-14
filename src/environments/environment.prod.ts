@@ -3,6 +3,15 @@ export const environment = {
   useEmulators: false,
   bypassAuth: false,
   wompiPublicKey: 'pub_prod_4HbTBjxCLEox6IHck4HIfClWGJ7HAGFg',
+  // Wompi REAL. Sólo producción consulta esta API: una transacción de pruebas no existe acá,
+  // así que nunca puede activar un plan.
+  wompi: {
+    apiUrl: 'https://production.wompi.co/v1',
+    checkout: {
+      mensual:   'https://checkout.wompi.co/l/p5GJth',
+      semestral: 'https://checkout.wompi.co/l/3pQr9V',
+    },
+  },
   firebase: {
     apiKey: 'AIzaSyDk_So7bgA7t-BfZcZqtR503OSWLYcUZcY',
     authDomain: 'agendago-b8ea6.firebaseapp.com',
