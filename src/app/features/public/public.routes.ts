@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
+import { clientHomeGuard } from '../../core/guards/role.guard';
 
 export const PUBLIC_ROUTES: Routes = [
   {
     path: '',
+    canActivate: [clientHomeGuard],
     loadComponent: () => import('./search/search.component').then((m) => m.SearchComponent),
   },
   {

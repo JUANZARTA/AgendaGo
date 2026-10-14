@@ -44,7 +44,9 @@ export class AuthService {
   private injector = inject(Injector);
 
   private _user          = signal<User | null>(null);
-  private _role          = signal<string>('client');
+  // Vacío hasta leer el perfil: antes arrancaba en 'client' y, si el perfil tardaba, el roleGuard
+  // trataba a una empresa como cliente y la mandaba a la búsqueda pública
+  private _role          = signal<string>('');
   private _displayName   = signal<string>('');
   private _profile       = signal<UserProfile | null>(null);
   private _profileLoaded = signal(false);
@@ -72,7 +74,7 @@ export class AuthService {
     this._user.set(user);
     if (user && this.firestore) {
       try {
-        const profile = await this._loadProfile(user.uid);
+        const profile = await this._loadProfileWithRetry(user.uid);
         // Sin doc todavía (registro en curso): rol por defecto 'client', igual que antes
         this._role.set(profile?.role ?? 'client');
         this._displayName.set(profile?.displayName ?? '');
@@ -93,7 +95,7 @@ export class AuthService {
     this._profileLoaded.set(true);
   }
 
-  waitForProfile(timeoutMs = 5000): Promise<void> {
+  waitForProfile(timeoutMs = 20000): Promise<void> {
     if (this._profileLoaded()) return Promise.resolve();
     return new Promise<void>((resolve) => {
       const deadline = Date.now() + timeoutMs;
@@ -115,6 +117,18 @@ export class AuthService {
     // Avoids resolving with role='client' from the transient null auth state on page reload.
     if (this.isLoggedIn()) {
       await this.waitForProfile();
+    }
+  }
+
+  /** Reintenta la lectura del perfil (microcortes al despertar la PC o volver a la pestaña). */
+  private async _loadProfileWithRetry(uid: string, attempts = 3): Promise<UserProfile | null> {
+    for (let i = 0; ; i++) {
+      try {
+        return await this._loadProfile(uid);
+      } catch (err) {
+        if (i >= attempts - 1) throw err;
+        await new Promise(r => setTimeout(r, 1000 * 2 ** i));   // 1s, 2s
+      }
     }
   }
 
