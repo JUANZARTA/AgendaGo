@@ -9,6 +9,7 @@ import { CompanyStore } from '../../../core/services/company-store.service';
 import { StaffService, StaffMember } from '../../../core/services/staff.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { toLocalDateKey } from '../../../core/utils/date.utils';
+import { ShareLinkModalComponent } from '../../../shared/components/share-link-modal.component';
 
 const CANCEL_REASONS = [
   'El cliente no se presentó',
@@ -38,7 +39,7 @@ interface DaySlot {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ShareLinkModalComponent],
   styles: [`
     .dashboard { animation: fadeInUp .35s ease both; }
     @keyframes fadeInUp {
@@ -51,13 +52,19 @@ interface DaySlot {
       to   { opacity:1; transform:scale(1); }
     }
 
+    /* Título centrado en la página; acciones a la derecha (columna izquierda vacía para equilibrar) */
     .page-header {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
       margin-bottom: 28px;
-      flex-wrap: wrap;
       gap: 12px;
+    }
+    .page-header-title { grid-column: 2; text-align: center; }
+    .page-header-actions { grid-column: 3; justify-self: end; }
+    @media (max-width: 1100px) {
+      .page-header { grid-template-columns: 1fr; }
+      .page-header-title, .page-header-actions { grid-column: 1; justify-self: center; }
     }
     .page-title { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin: 0; }
     .page-subtitle { font-size: 13px; color: #888; margin: 2px 0 0; }
@@ -365,11 +372,11 @@ interface DaySlot {
 
       <!-- Header -->
       <div class="page-header">
-        <div>
+        <div class="page-header-title">
           <h1 class="page-title">Dashboard</h1>
           <p class="page-subtitle">{{ selectedDateLabel() }}</p>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="page-header-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
 
           <!-- Navegación de fecha -->
           <div class="date-nav">
@@ -398,6 +405,15 @@ interface DaySlot {
               <button class="btn btn-secondary btn-sm" (click)="goToday()" style="font-size:12px">Hoy</button>
             }
           </div>
+
+          <button class="btn btn-secondary" (click)="shareOpen.set(true)" title="Compartir mi página"
+                  [disabled]="!companyStore.companyId()"
+                  style="display:inline-flex;align-items:center;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            Compartir
+          </button>
 
           <button class="btn btn-primary" (click)="openNewModal()"
                   [disabled]="!companyStore.companyId()"
@@ -662,6 +678,10 @@ interface DaySlot {
       </div>
     }
 
+    @if (shareOpen() && companyStore.companyId()) {
+      <app-share-link-modal [companyId]="companyStore.companyId()!" (closed)="shareOpen.set(false)" />
+    }
+
     <!-- ===== MODAL: Nueva cita ===== -->
     @if (showNewModal()) {
       <div class="modal-overlay" (click)="closeNewModal()">
@@ -880,6 +900,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   cancelReason = signal('');
   cancelOther  = signal('');
   deleteTarget = signal<Appointment | null>(null);
+  shareOpen    = signal(false);
   actionError  = signal('');
   formError    = signal('');
 

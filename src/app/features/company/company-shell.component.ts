@@ -10,6 +10,7 @@ import { SubscriptionService } from '../../core/services/subscription.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { TourService } from '../../core/services/tour.service';
 import { MessageService } from '../../core/services/message.service';
+import { ShareLinkModalComponent } from '../../shared/components/share-link-modal.component';
 import { APP_VERSION } from '../../core/version';
 
 const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
@@ -25,7 +26,7 @@ interface NavItem {
 @Component({
   selector: 'app-company-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CompanyOnboardingComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CompanyOnboardingComponent, ShareLinkModalComponent],
   template: `
     @if (companyStore.loading()) {
       <!-- Pantalla de carga inicial -->
@@ -124,6 +125,15 @@ interface NavItem {
             }
           </nav>
 
+          <!-- Compartir página pública -->
+          <button class="nav-item" (click)="shareOpen.set(true)"
+                  style="border:none;background:none;width:100%;cursor:pointer;font-family:inherit;text-align:left">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            <span class="nav-label">Compartir mi página</span>
+          </button>
+
           <!-- Notificaciones -->
           <button class="nav-item" (click)="notifPanelOpen.set(!notifPanelOpen())"
                   style="border:none;background:none;width:100%;cursor:pointer;font-family:inherit;text-align:left">
@@ -165,6 +175,10 @@ interface NavItem {
           </div>
 
         </aside>
+
+        @if (shareOpen() && companyStore.companyId()) {
+          <app-share-link-modal [companyId]="companyStore.companyId()!" (closed)="shareOpen.set(false)" />
+        }
 
         <!-- ── MOBILE HEADER (hidden on desktop) ────────────────────── -->
         <header class="mobile-header">
@@ -779,6 +793,7 @@ export class CompanyShellComponent implements OnDestroy {
   sub              = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' | 'free' } | null>(null);
   notifPanelOpen   = signal(false);
   moreMenuOpen     = signal(false);
+  shareOpen        = signal(false);
   notifications    = signal<AppNotification[]>([]);
   unreadCount      = computed(() => this.notifications().filter(n => !n.read).length);
 
