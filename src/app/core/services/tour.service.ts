@@ -94,7 +94,7 @@ export class TourService {
     return [
       { popover: { title: '👋 Bienvenido a AgendaZco', description: 'Reservá tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
       { element: '#ctour-brand',           popover: { title: 'AgendaZco',  description: 'Desde acá siempre podés volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
-      { element: '#ctour-search-desktop',  popover: { title: 'Buscar',     description: 'Encontrá salones, barberías y spas. Podés buscar por nombre o categoría.', side: 'bottom' } },
+      { element: '#ctour-search-desktop',  popover: { title: 'Buscar',     description: 'Encontrá negocios con turnos: belleza, salud, bienestar y más. Podés buscar por nombre o rubro.', side: 'bottom' } },
       { element: '#ctour-citas-desktop',   popover: { title: 'Mis citas',  description: 'Todas tus reservas activas e historial. Podés cancelar si necesitás.', side: 'bottom' } },
       { element: '#ctour-mensajes-desktop',popover: { title: 'Mensajes',   description: 'Comunicación directa con el negocio antes y después del turno.', side: 'bottom' } },
       { element: '#ctour-notif',           popover: { title: 'Notificaciones', description: 'Te avisamos cuando tu turno es confirmado, recordatorios y más.', side: 'bottom' } },

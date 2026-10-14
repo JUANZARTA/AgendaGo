@@ -22,7 +22,8 @@ export interface Company {
   ownerId: string;
   name: string;
   slug: string;
-  category: 'salon' | 'spa' | 'barberia' | 'peluqueria';
+  /** Valor de BUSINESS_CATEGORIES (core/domain/categories.ts). */
+  category: string;
   description?: string;
   logoUrl?: string;
   logoIcon?: string;

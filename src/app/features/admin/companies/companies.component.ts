@@ -6,10 +6,8 @@ import {
 } from '@angular/fire/firestore';
 import { parseLocalDateEndOfDay } from '../../../core/utils/date.utils';
 import { NotificationService } from '../../../core/services/notification.service';
+import { categoryMeta } from '../../../core/domain/categories';
 
-const CAT_LABEL: Record<string, string> = {
-  salon: 'Salón', spa: 'Spa', barberia: 'Barbería', peluqueria: 'Peluquería',
-};
 const SUB_CLASS: Record<string, string> = {
   trial: 'badge-blue', active: 'badge-green', expired: 'badge-red',
   disabled: 'badge-red', free: 'badge-purple', '—': 'badge-blue',
@@ -278,7 +276,7 @@ export class CompaniesComponent implements OnDestroy {
       return {
         id:                 c.id,
         name:               c.name ?? '—',
-        category:           CAT_LABEL[c.category] ?? c.category ?? '—',
+        category:           c.category ? categoryMeta(c.category).label : '—',
         ownerId:            c.ownerId,
         ownerEmail:         emails[c.ownerId] ?? '—',
         city:               c.city ?? '—',

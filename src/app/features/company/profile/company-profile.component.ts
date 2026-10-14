@@ -5,6 +5,7 @@ import { CompanyStore } from '../../../core/services/company-store.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
 import { TourService } from '../../../core/services/tour.service';
+import { CATEGORY_GROUPS, categoriesOfGroup } from '../../../core/domain/categories';
 
 const PRESET_ICONS: { key: string; label: string; path: string }[] = [
   { key: 'scissors', label: 'Tijeras',    path: 'M6 3v12M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9v12M18 3L6 15' },
@@ -273,11 +274,13 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         <div class="form-group">
           <label>Categoría</label>
           <select [(ngModel)]="form.category">
-            <option value="salon">Salón de belleza</option>
-            <option value="barberia">Barbería</option>
-            <option value="spa">Spa</option>
-            <option value="peluqueria">Peluquería</option>
-            <option value="otro">Otro</option>
+            @for (g of categoryGroups; track g.key) {
+              <optgroup [label]="g.label">
+                @for (c of categoriesOfGroup(g.key); track c.value) {
+                  <option [value]="c.value">{{ c.label }}</option>
+                }
+              </optgroup>
+            }
           </select>
         </div>
 
@@ -422,6 +425,8 @@ export class CompanyProfileComponent {
   private tourSvc      = inject(TourService);
 
   readonly presetIcons = PRESET_ICONS;
+  readonly categoryGroups = CATEGORY_GROUPS;
+  readonly categoriesOfGroup = categoriesOfGroup;
   readonly presetColors = PRESET_COLORS;
 
   saved       = signal(false);

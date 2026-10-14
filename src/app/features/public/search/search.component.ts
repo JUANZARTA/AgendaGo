@@ -6,6 +6,7 @@ import { PublicNavComponent } from '../../../shared/components/public-nav.compon
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReviewService } from '../../../core/services/review.service';
+import { CATEGORY_GROUPS, CategoryGroupKey, categoriesOfGroup, categoryMeta } from '../../../core/domain/categories';
 
 interface DisplayCompany {
   id: string;
@@ -59,30 +60,14 @@ function toDisplay(c: Company): DisplayCompany {
     reviewCount: 0,
     slots:       countTodaySlots(c),
     logoUrl:     c.logoUrl,
-    logoColor:   c.logoColor ?? CATEGORY_META[c.category]?.color ?? '#7c3aed',
+    logoColor:   c.logoColor ?? categoryMeta(c.category).color,
   };
 }
 
-const SVG_SCISSORS = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>`;
-const SVG_SCISSORS_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/></svg>`;
 const SVG_SEARCH_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 const SVG_SEARCH_LG = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
 
-const CATEGORY_META: Record<string, { label: string; svg: string; color: string }> = {
-  salon:     { label: 'Salón de belleza', svg: SVG_SCISSORS, color: '#f43f5e' },
-  barberia:  { label: 'Barbería',         svg: SVG_SCISSORS, color: '#7c3aed' },
-  spa:       { label: 'Spa',              svg: SVG_SCISSORS, color: '#10b981' },
-  peluqueria:{ label: 'Peluquería',       svg: SVG_SCISSORS, color: '#f59e0b' },
-};
-
-const CATEGORIES = [
-  { value: '',          label: 'Todas',         svg: SVG_SCISSORS_SM },
-  { value: 'salon',     label: 'Salones',        svg: SVG_SCISSORS_SM },
-  { value: 'barberia',  label: 'Barberías',      svg: SVG_SCISSORS_SM },
-  { value: 'spa',       label: 'Spas',           svg: SVG_SCISSORS_SM },
-  { value: 'peluqueria',label: 'Peluquerías',    svg: SVG_SCISSORS_SM },
-];
 
 @Component({
   selector: 'app-search',
@@ -90,6 +75,15 @@ const CATEGORIES = [
   imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent],
   styles: [`
     :host { display: block; }
+    .filter-chip {
+      background: white; color: var(--purple); border: 1.5px solid var(--form-border);
+      font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .filter-chip--sub { font-size: 12px; padding: 6px 12px; }
+    .filter-chip--on {
+      background: var(--gradient); color: white; border-color: transparent;
+      box-shadow: 0 4px 14px rgba(var(--primary-rgb),.35);
+    }
 
     @media (max-width: 768px) {
       h1 { font-size: clamp(1.5rem, 5vw, 2.4rem) !important; }
@@ -111,7 +105,7 @@ const CATEGORIES = [
           Tu cita en segundos
         </h1>
         <p style="font-size:1rem;opacity:.88;margin-bottom:28px;max-width:480px">
-          Salones, barberías, spas y más. Sin llamadas, sin esperas.
+          Belleza, salud, bienestar, mascotas y más. Sin llamadas, sin esperas.
         </p>
 
         <!-- Buscador en hero -->
@@ -146,19 +140,27 @@ const CATEGORIES = [
     </div>
 
     <div class="page" style="padding-top:0">
-      <!-- Filtros por categoría -->
-      <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap">
-        @for (cat of categories; track cat.value) {
-          <button (click)="category.set(cat.value)"
-            class="btn btn-sm"
-            [style.background]="category() === cat.value ? 'var(--gradient)' : 'white'"
-            [style.color]="category() === cat.value ? 'white' : 'var(--purple)'"
-            [style.boxShadow]="category() === cat.value ? '0 4px 14px rgba(var(--primary-rgb),.35)' : '0 2px 8px rgba(0,0,0,.06)'"
-            style="border:1.5px solid var(--form-border);font-weight:700;display:inline-flex;align-items:center;gap:6px">
-            <span style="display:inline-flex;align-items:center;flex-shrink:0" [innerHTML]="cat.svg"></span> {{ cat.label }}
-          </button>
+      <!-- Filtros por rubro: grupo y, dentro del grupo, el rubro puntual -->
+      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <button (click)="pickGroup('')" class="btn btn-sm filter-chip" [class.filter-chip--on]="group() === ''">Todas</button>
+        @for (g of categoryGroups; track g.key) {
+          <button (click)="pickGroup(g.key)" class="btn btn-sm filter-chip" [class.filter-chip--on]="group() === g.key">{{ g.label }}</button>
         }
       </div>
+      @if (group()) {
+        <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
+          <button (click)="category.set('')" class="btn btn-sm filter-chip filter-chip--sub" [class.filter-chip--on]="category() === ''">Todos</button>
+          @for (c of groupCategories(); track c.value) {
+            <button (click)="category.set(c.value)" class="btn btn-sm filter-chip filter-chip--sub" [class.filter-chip--on]="category() === c.value"
+                    style="display:inline-flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="c.icon"/></svg>
+              {{ c.plural }}
+            </button>
+          }
+        </div>
+      } @else {
+        <div style="margin-bottom:12px"></div>
+      }
 
       <!-- Filtro por ciudad -->
       @if (cities().length > 0) {
@@ -201,7 +203,7 @@ const CATEGORIES = [
                     <img [src]="company.logoUrl" alt="logo"
                          style="width:100%;height:100%;object-fit:cover;border-radius:14px" />
                   } @else {
-                    <span [innerHTML]="meta(company.category).svg"></span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="meta(company.category).icon"/></svg>
                   }
                 </div>
                 <span class="badge" [class]="company.slots > 0 ? 'badge-green' : 'badge-red'">
@@ -282,7 +284,9 @@ export class SearchComponent implements OnInit {
   search     = signal('');
   category   = signal('');
   city       = signal('');
-  categories = CATEGORIES;
+  readonly categoryGroups = CATEGORY_GROUPS;
+  group      = signal<CategoryGroupKey | ''>('');
+  groupCategories = computed(() => this.group() ? categoriesOfGroup(this.group() as CategoryGroupKey) : []);
   companies  = signal<DisplayCompany[]>([]);
   loading    = signal(true);
 
@@ -296,10 +300,11 @@ export class SearchComponent implements OnInit {
   filtered = computed(() => {
     const s   = this.search().toLowerCase();
     const cat = this.category();
+    const grp = this.group();
     const cty = this.city();
     return this.companies().filter(c => {
       const matchName = c.name.toLowerCase().includes(s) || c.description.toLowerCase().includes(s);
-      const matchCat  = cat ? c.category === cat : true;
+      const matchCat  = cat ? c.category === cat : grp ? categoryMeta(c.category).group === grp : true;
       const matchCity = cty ? c.city === cty : true;
       return matchName && matchCat && matchCity;
     });
@@ -328,5 +333,10 @@ export class SearchComponent implements OnInit {
     }
   }
 
-  meta(cat: string) { return CATEGORY_META[cat] ?? { label: 'Negocio', svg: SVG_SCISSORS, color: '#7c3aed' }; }
+  meta(cat: string) { return categoryMeta(cat); }
+
+  pickGroup(g: CategoryGroupKey | '') {
+    this.group.set(g);
+    this.category.set('');
+  }
 }

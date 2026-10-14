@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { categoryMeta } from '../../../core/domain/categories';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
@@ -619,8 +620,7 @@ export class CompanyProfileComponent implements OnInit, OnDestroy {
   companyColor = computed(() => this.company()?.logoColor ?? '#7c3aed');
   companyCategory = computed(() => {
     const cat = this.company()?.category;
-    const labels: Record<string, string> = { salon: 'Salón de belleza', barberia: 'Barbería', spa: 'Spa', peluqueria: 'Peluquería' };
-    return cat ? (labels[cat] ?? cat) : '';
+    return cat ? categoryMeta(cat).label : '';
   });
 
   /**
