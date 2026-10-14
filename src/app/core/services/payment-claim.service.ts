@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  Firestore, collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
+  Firestore, addDoc, collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
+import { NotificationService } from './notification.service';
+import { WompiTransaction, formatCop, paymentMethodLabel, planFromAmount, PLANS } from '../domain/plans';
 
 /**
  * Reporte de pago: la empresa avisa "pagué con la transacción X" al volver de Wompi.
@@ -31,10 +33,59 @@ export interface PaymentClaim {
 
 export type ReportResult = 'created' | 'already-reported';
 
+/**
+ * Intento de pago: la empresa tocó "Pagar" y se fue a Wompi. Si nunca vuelve a la app,
+ * el admin lo ve como "intento sin reporte" y sabe qué buscar en Wompi (empresa, monto, hora).
+ */
+export interface PaymentAttempt {
+  id?: string;
+  companyId: string;
+  companyName: string;
+  plan: string;
+  amount: number;
+  status: 'open' | 'dismissed';
+  createdAt?: any;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PaymentClaimService {
   private firestore = inject(Firestore);
+  private notifSvc  = inject(NotificationService);
   private col = collection(this.firestore, 'paymentClaims');
+
+  /**
+   * Reporta una transacción de Wompi a nombre de la empresa (página de gracias o "¿Ya pagaste?")
+   * y avisa al admin. Guarda una copia de lo que dijo Wompi sólo para mostrar.
+   */
+  async reportTransaction(t: WompiTransaction, company: { id: string; name: string }, ownerEmail: string): Promise<ReportResult> {
+    const plan = planFromAmount(t.amountInCents, t.currency);
+    const r = await this.report({
+      companyId:     company.id,
+      companyName:   company.name,
+      ownerEmail,
+      transactionId: t.id,
+      amount:        t.amountInCents / 100,
+      plan:          plan ?? undefined,
+      payerName:     t.customerName ?? undefined,
+      payerEmail:    t.customerEmail ?? undefined,
+      payerPhone:    t.customerPhone ?? undefined,
+      paymentMethod: t.paymentMethod ?? undefined,
+      paidAt:        t.finalizedAt ?? t.createdAt ?? undefined,
+    });
+    if (r === 'created') {
+      const planTxt = plan ? ` (plan ${PLANS[plan].label}, ${formatCop(t.amountInCents / 100)})` : '';
+      const payer   = t.customerName ? `. Pagó: ${t.customerName}` : '';
+      const method  = t.paymentMethod ? ` con ${paymentMethodLabel(t.paymentMethod)}` : '';
+      await this.notifSvc.create({
+        recipientId: 'admin',
+        type:        'payment_initiated',
+        title:       `Pago reportado — ${company.name}`,
+        body:        `${company.name} reportó la transacción ${t.id}${planTxt}${payer}${method}. Verificala en Facturación.`,
+        link:        '/admin/facturacion',
+      }).catch(err => console.error('[PaymentClaims] No se pudo avisar al admin:', err));
+    }
+    return r;
+  }
 
   /**
    * Crea el reporte si no existe. Si ya existe (la empresa recargó la página, o el pago
@@ -52,6 +103,32 @@ export class PaymentClaimService {
     const clean = Object.fromEntries(Object.entries(c).filter(([, v]) => v != null && v !== ''));
     await setDoc(ref, { ...clean, status: 'pending', createdAt: serverTimestamp() });
     return 'created';
+  }
+
+  /** Anota el intento al abrir Wompi. Best-effort: si falla, no bloquea el pago. */
+  async recordAttempt(a: Pick<PaymentAttempt, 'companyId' | 'companyName' | 'plan' | 'amount'>): Promise<void> {
+    await addDoc(collection(this.firestore, 'paymentAttempts'), { ...a, status: 'open', createdAt: serverTimestamp() });
+  }
+
+  /** Intentos abiertos (admin); cuáles ya tienen reporte o pago lo decide quien los muestra. */
+  watchOpenAttempts(): Observable<PaymentAttempt[]> {
+    const q = query(collection(this.firestore, 'paymentAttempts'), where('status', '==', 'open'));
+    return new Observable(observer => onSnapshot(q,
+      snap => observer.next(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PaymentAttempt)),
+      err => observer.error(err),
+    ));
+  }
+
+  /** Todos los reportes (admin): para saber qué intentos ya quedaron cubiertos. */
+  watchAll(): Observable<PaymentClaim[]> {
+    return new Observable(observer => onSnapshot(this.col,
+      snap => observer.next(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PaymentClaim)),
+      err => observer.error(err),
+    ));
+  }
+
+  async dismissAttempt(id: string): Promise<void> {
+    await updateDoc(doc(this.firestore, 'paymentAttempts', id), { status: 'dismissed' });
   }
 
   /** Reportes pendientes de verificación (admin). */

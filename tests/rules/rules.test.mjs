@@ -410,6 +410,22 @@ async function main() {
   await expectOk('admin lists pending claims', () => getDocs(query(collection(admin, 'paymentClaims'), where('status', '==', 'pending'))));
   await expectOk('admin closes claim', () => updateDoc(doc(admin, 'paymentClaims', '12345-1700-999'), { status: 'registered', reviewedAt: serverTimestamp() }));
 
+  console.log('PAYMENT ATTEMPTS (la empresa abrió Wompi)');
+  const att = (over = {}) => ({ companyId: 'c1', companyName: 'Salon', plan: 'mensual', amount: 29000, status: 'open', createdAt: serverTimestamp(), ...over });
+  let attId;
+  await expectOk('owner records attempt', async () => { attId = (await addDoc(collection(o1, 'paymentAttempts'), att())).id; });
+  await expectDeny('owner records attempt for other company', () => addDoc(collection(o1, 'paymentAttempts'), att({ companyId: 'c3' })));
+  await expectDeny('attempt with unknown plan', () => addDoc(collection(o1, 'paymentAttempts'), att({ plan: 'vip' })));
+  await expectDeny('attempt created as dismissed', () => addDoc(collection(o1, 'paymentAttempts'), att({ status: 'dismissed' })));
+  await expectDeny('attempt with extra field', () => addDoc(collection(o1, 'paymentAttempts'), { ...att(), paid: true }));
+  await expectDeny('client records attempt', () => addDoc(collection(c1, 'paymentAttempts'), att()));
+  await expectDeny('owner dismisses own attempt', () => updateDoc(doc(o1, 'paymentAttempts', attId), { status: 'dismissed' }));
+  await expectDeny('other owner reads attempt', () => getDoc(doc(o2, 'paymentAttempts', attId)));
+  await expectOk('admin lists open attempts', () => getDocs(query(collection(admin, 'paymentAttempts'), where('status', '==', 'open'))));
+  await expectOk('admin lists all claims', () => getDocs(collection(admin, 'paymentClaims')));
+  await expectOk('admin lists all payments', () => getDocs(collection(admin, 'payments')));
+  await expectOk('admin dismisses attempt', () => updateDoc(doc(admin, 'paymentAttempts', attId), { status: 'dismissed' }));
+
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

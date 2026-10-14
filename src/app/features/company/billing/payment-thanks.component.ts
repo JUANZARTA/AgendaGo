@@ -2,10 +2,9 @@ import { Component, OnDestroy, computed, effect, inject, signal } from '@angular
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { NotificationService } from '../../../core/services/notification.service';
 import { WompiService } from '../../../core/services/wompi.service';
 import { PaymentClaimService } from '../../../core/services/payment-claim.service';
-import { PLANS, WompiTransaction, formatCop, paymentMethodLabel, planFromAmount } from '../../../core/domain/plans';
+import { PLANS, WompiTransaction, formatCop, planFromAmount } from '../../../core/domain/plans';
 
 type View = 'loading' | 'approved' | 'pending' | 'declined' | 'notfound' | 'error';
 
@@ -125,7 +124,6 @@ export class PaymentThanksComponent implements OnDestroy {
   private router    = inject(Router);
   private store     = inject(CompanyStore);
   private auth      = inject(AuthService);
-  private notifSvc  = inject(NotificationService);
   private wompi     = inject(WompiService);
   private claims    = inject(PaymentClaimService);
 
@@ -191,32 +189,9 @@ export class PaymentThanksComponent implements OnDestroy {
   private async report(t: WompiTransaction, companyId: string): Promise<void> {
     if (this.reported) return;
     this.reported = true;
-    const companyName = this.store.company()?.name ?? 'Empresa';
     try {
-      const r = await this.claims.report({
-        companyId,
-        companyName,
-        ownerEmail:    this.auth.currentUser()?.email ?? '',
-        transactionId: t.id,
-        amount:        t.amountInCents / 100,
-        plan:          planFromAmount(t.amountInCents, t.currency) ?? undefined,
-        payerName:     t.customerName ?? undefined,
-        payerEmail:    t.customerEmail ?? undefined,
-        payerPhone:    t.customerPhone ?? undefined,
-        paymentMethod: t.paymentMethod ?? undefined,
-        paidAt:        t.finalizedAt ?? t.createdAt ?? undefined,
-      });
-      if (r !== 'created') return;
-      const plan = this.planLabel();
-      await this.notifSvc.create({
-        recipientId: 'admin',
-        type:        'payment_initiated',
-        title:       `Pago reportado — ${companyName}`,
-        body:        `${companyName} reportó la transacción ${t.id}${plan ? ` (plan ${plan}, ${formatCop(t.amountInCents / 100)})` : ''}`
-                   + `${t.customerName ? `. Pagó: ${t.customerName}` : ''}${t.paymentMethod ? ` con ${paymentMethodLabel(t.paymentMethod)}` : ''}`
-                   + `. Verificala en Facturación.`,
-        link:        '/admin/facturacion',
-      });
+      await this.claims.reportTransaction(
+        t, { id: companyId, name: this.store.company()?.name ?? 'Empresa' }, this.auth.currentUser()?.email ?? '');
     } catch (err) {
       console.error('[PaymentThanks] No se pudo reportar el pago:', err);
     }

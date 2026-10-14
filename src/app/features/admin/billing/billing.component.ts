@@ -11,6 +11,7 @@ import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/p
 import { PaymentClaimsComponent } from './payment-claims.component';
 import { CompanyBillingDetailComponent } from './company-billing-detail.component';
 import { VerifyPaymentComponent } from './verify-payment.component';
+import { PaymentAttemptsComponent } from './payment-attempts.component';
 import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
 
@@ -18,7 +19,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 @Component({
   selector: 'app-admin-billing',
   standalone: true,
-  imports: [CommonModule, FormsModule, PaymentClaimsComponent, CompanyBillingDetailComponent, VerifyPaymentComponent],
+  imports: [CommonModule, FormsModule, PaymentClaimsComponent, CompanyBillingDetailComponent, VerifyPaymentComponent, PaymentAttemptsComponent],
   // Facturación usa tablas anchas: aprovechar la pantalla en vez de los 920px del .page global
   styles: [`.page { max-width: 1280px; }`],
   template: `
@@ -60,6 +61,9 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
       <!-- Reportes de pago de las empresas (vuelta de Wompi) -->
       <app-payment-claims />
+
+      <!-- Abrieron Wompi y no volvieron: puede haber un pago sin reportar -->
+      <app-payment-attempts (verify)="verifyOpen.set(true)" />
 
       <!-- Resumen -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px">

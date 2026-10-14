@@ -378,6 +378,24 @@ service cloud.firestore {
       allow update, delete: if isSuperAdmin();
     }
 
+    // ───────────────────────── PAYMENT ATTEMPTS ─────────────────────────
+    // La empresa tocó "Pagar": si nunca vuelve de Wompi, el admin ve el intento y sabe qué buscar.
+    // No activa nada; sólo el admin lo descarta.
+    match /paymentAttempts/{attemptId} {
+      allow read: if isSuperAdmin() || (isAuth() && isCompanyOwner(resource.data.companyId));
+      allow create: if isAuth()
+        && request.resource.data.keys().hasOnly(['companyId', 'companyName', 'plan', 'amount', 'status', 'createdAt'])
+        && request.resource.data.keys().hasAll(['companyId', 'companyName', 'plan', 'amount', 'status', 'createdAt'])
+        && request.resource.data.companyId is string
+        && isCompanyOwner(request.resource.data.companyId)
+        && request.resource.data.companyName is string && request.resource.data.companyName.size() <= 200
+        && request.resource.data.plan in ['mensual', 'semestral']
+        && request.resource.data.amount is number
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if isSuperAdmin();
+    }
+
     // ───────────────────────── NOTIFICATIONS ─────────────────────────
     // Sólo usuarios autenticados, tipos conocidos, claves fijas y senderId == uid.
     // (Una reserva de invitado no genera notificación: aceptado.)

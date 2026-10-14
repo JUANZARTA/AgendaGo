@@ -5,8 +5,7 @@ import {
 } from '@angular/fire/firestore';
 import { SubscriptionService, Subscription } from '../../../core/services/subscription.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
-import { NotificationService } from '../../../core/services/notification.service';
-import { PLANS, PlanKey, formatCop } from '../../../core/domain/plans';
+import { PLANS, PlanKey } from '../../../core/domain/plans';
 import { environment } from '../../../../environments/environment';
 import { Payment, SubViewModel } from './billing.models';
 import { ClaimDocLike, buildPaymentHistory } from '../../../core/domain/payment-history';
@@ -14,11 +13,13 @@ import { formatTimestamp } from './billing.utils';
 import { BillingStatusCardComponent } from './components/billing-status-card.component';
 import { BillingPlanCardsComponent } from './components/billing-plan-cards.component';
 import { BillingPaymentHistoryComponent } from './components/billing-payment-history.component';
+import { ReportPaymentComponent } from './components/report-payment.component';
+import { PaymentClaimService } from '../../../core/services/payment-claim.service';
 
 @Component({
   selector: 'app-billing',
   standalone: true,
-  imports: [BillingStatusCardComponent, BillingPlanCardsComponent, BillingPaymentHistoryComponent],
+  imports: [BillingStatusCardComponent, BillingPlanCardsComponent, BillingPaymentHistoryComponent, ReportPaymentComponent],
   styles: [`
     .page { max-width: 860px; margin: 0 auto; padding: 28px 20px; }
     .page-title { font-size: 1.45rem; font-weight: 800; margin: 0 0 4px; }
@@ -56,6 +57,13 @@ import { BillingPaymentHistoryComponent } from './components/billing-payment-his
         <app-billing-payment-history [rows]="historyRows()" />
       </div>
 
+      <!-- ── ¿Pagaste y no volviste a la app? ── -->
+      @if (sub().status !== 'free') {
+        <div style="margin-bottom:32px">
+          <app-report-payment />
+        </div>
+      }
+
       <!-- ── PLANES (solo si no es beneficiario) ── -->
       @if (sub().status !== 'free') {
         <app-billing-plan-cards
@@ -73,8 +81,8 @@ import { BillingPaymentHistoryComponent } from './components/billing-payment-his
 export class BillingComponent implements OnDestroy {
   private subscriptionService = inject(SubscriptionService);
   private companyStore        = inject(CompanyStore);
-  private notifSvc            = inject(NotificationService);
   private firestore           = inject(Firestore);
+  private claimSvc            = inject(PaymentClaimService);
 
   loading  = signal(true);
   noSubscription = signal(false);
@@ -188,13 +196,16 @@ export class BillingComponent implements OnDestroy {
   payMonthly(): void   { this.pay('mensual'); }
   paySemestral(): void { this.pay('semestral'); }
 
+  paying = signal(false);
+
   /**
-   * Abre el checkout de Wompi con una referencia única y avisa al admin CON esa referencia,
-   * para que la busque en Wompi y registre el pago (sin webhook en plan Spark).
+   * Anota el intento (para que el admin lo vea si la empresa nunca vuelve de Wompi) y abre el checkout.
+   * El intento se guarda ANTES de navegar: con location.assign la página se descarga y una escritura
+   * en vuelo se perdería. Si Firestore tarda, se espera hasta 3 s y se sigue igual (no bloquea el pago).
    */
-  private pay(planKey: PlanKey): void {
+  private async pay(planKey: PlanKey): Promise<void> {
     const companyId = this.companyStore.companyId();
-    if (!companyId) return;
+    if (!companyId || this.paying()) return;
     const plan = PLANS[planKey];
     const url  = environment.wompi.checkout[planKey];
     if (!url) {
@@ -202,18 +213,16 @@ export class BillingComponent implements OnDestroy {
       alert('Falta configurar el link de pago de pruebas de Wompi en src/environments/environment.ts.');
       return;
     }
-    const ref = `${planKey}-${companyId}-${Date.now()}`;
-    // Misma pestaña: Wompi redirige de vuelta a /empresa/facturacion/gracias al terminar
-    window.location.assign(`${url}?reference=${encodeURIComponent(ref)}`);
-
-    const name = this.companyStore.company()?.name ?? 'Una empresa';
-    this.notifSvc.create({
-      recipientId: 'admin',
-      type:        'payment_initiated',
-      title:       `Pago iniciado — ${name}`,
-      body:        `${name} abrió el pago del plan ${plan.label} (${formatCop(plan.amount)}). Referencia: ${ref}. Verificalo en Wompi y registralo desde Facturación.`,
-      link:        '/admin/facturacion',
-    }).catch(err => console.error('[Billing] No se pudo avisar al admin:', err));
+    this.paying.set(true);
+    const attempt = this.claimSvc.recordAttempt({
+      companyId,
+      companyName: this.companyStore.company()?.name ?? 'Empresa',
+      plan:        planKey,
+      amount:      plan.amount,
+    }).catch(err => console.error('[Billing] No se pudo anotar el intento de pago:', err));
+    await Promise.race([attempt, new Promise(r => setTimeout(r, 3000))]);
+    // Misma pestaña: al terminar, Wompi redirige a /empresa/facturacion/gracias
+    window.location.assign(url);
   }
 
   ngOnDestroy(): void {
