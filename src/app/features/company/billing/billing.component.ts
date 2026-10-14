@@ -18,6 +18,7 @@ import { PaymentClaimService } from '../../../core/services/payment-claim.servic
 import { AppConfigService } from '../../../core/services/app-config.service';
 import { SupportContactComponent } from '../../../shared/components/support-contact.component';
 import { SupportWidgetComponent } from '../support/support-widget.component';
+import { BRAND_OWNER } from '../../../core/domain/brand';
 import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
 
 @Component({
@@ -33,6 +34,14 @@ import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
     @media (max-width: 640px) {
       .page { padding: 16px 12px 90px; }
     }
+
+    .owner-note {
+      display: flex; align-items: flex-start; justify-content: center; gap: 6px;
+      margin: 14px auto 0; max-width: 480px; text-align: center;
+      font-size: 12px; line-height: 1.5; color: #888; overflow-wrap: anywhere;
+    }
+    .owner-note svg { flex-shrink: 0; margin-top: 2px; }
+    .rn-note { font-size: 12px; color: #777; line-height: 1.5; margin: -8px 0 18px; }
 
     .rn-overlay {
       position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.45);
@@ -94,9 +103,15 @@ import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
           (paySemestral)="paySemestral()" />
       }
 
+      <!-- ── Aviso de titular: el pago en Wompi/Nequi/banco aparece a nombre de Golden Panda ── -->
+      <p class="owner-note">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>AgendaCo es un producto de <strong>{{ brandOwner }}</strong>.</span>
+      </p>
+
       <!-- ── Contacto de soporte (config/app; si no hay, no se muestra) ── -->
       <div style="margin-top:8px">
-        <app-support-contact text="¿Dudas con tu plan o un pago? Escribinos:" />
+        <app-support-contact text="" />
       </div>
 
     </div>
@@ -121,6 +136,7 @@ import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
               quedaría activo hasta el <strong>{{ day(r.newEnd) }}</strong>. No perdés ningún día.
             </p>
           }
+          <p class="rn-note">Vas a pagar en Wompi; el cobro aparece a nombre de {{ brandOwner }} (empresa dueña de AgendaCo).</p>
           <div class="rn-actions">
             <button class="rn-btn rn-btn--ghost" (click)="confirmPlan.set(null)">Cancelar</button>
             <button class="rn-btn" (click)="confirmRenewal()">{{ r.isTrial ? 'Sí, pagar ahora' : 'Sí, renovar' }}</button>
@@ -136,6 +152,9 @@ export class BillingComponent implements OnDestroy {
   private firestore           = inject(Firestore);
   private claimSvc            = inject(PaymentClaimService);
   private appConfig           = inject(AppConfigService);
+
+  /** Titular del comercio en Wompi (para los avisos de "el pago aparece a nombre de..."). */
+  readonly brandOwner = BRAND_OWNER;
 
   loading  = signal(true);
   noSubscription = signal(false);

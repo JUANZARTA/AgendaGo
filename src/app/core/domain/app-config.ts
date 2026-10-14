@@ -9,6 +9,9 @@ import { PLANS, PlanCatalog, PlanKey } from './plans';
 import { GRACE_DAYS, RENEWAL_WARNING_DAYS, TimelineOptions } from './subscription-timeline';
 import { DEFAULT_PRIVACY, DEFAULT_TERMS } from './legal';
 
+/** Titular del comercio en Wompi (definido en brand.ts; re-exportado acá por comodidad). */
+export { BRAND_OWNER } from './brand';
+
 export interface PlanLinks {
   /** Link de pago de Wompi en MODO PRUEBAS (sandbox): lo usa `ng serve`. */
   test: string;

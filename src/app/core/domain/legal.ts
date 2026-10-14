@@ -10,6 +10,8 @@
  * El token {correo_soporte} se reemplaza al mostrar por el email de soporte de config/app.
  */
 
+import { BRAND_OWNER } from './brand';
+
 /** Token que se reemplaza por el email de soporte configurado. */
 export const SUPPORT_EMAIL_TOKEN = '{correo_soporte}';
 
@@ -19,7 +21,7 @@ export const SUPPORT_EMAIL_FALLBACK = 'el canal de soporte indicado dentro de la
 export const DEFAULT_TERMS = `TÉRMINOS Y CONDICIONES DE USO DE AGENDACO
 
 1. OBJETO
-AgendaCo es una plataforma web de agendamiento que permite a negocios y profesionales ("Empresas") publicar sus servicios y horarios, y a las personas ("Clientes") reservar, consultar y cancelar citas. AgendaCo actúa únicamente como intermediario tecnológico: no presta los servicios que ofrecen las Empresas ni es parte de la relación entre la Empresa y el Cliente.
+AgendaCo, operada por ${BRAND_OWNER}, es una plataforma web de agendamiento que permite a negocios y profesionales ("Empresas") publicar sus servicios y horarios, y a las personas ("Clientes") reservar, consultar y cancelar citas. AgendaCo actúa únicamente como intermediario tecnológico: no presta los servicios que ofrecen las Empresas ni es parte de la relación entre la Empresa y el Cliente.
 
 2. ACEPTACIÓN
 Al crear una cuenta o usar la plataforma, el usuario declara haber leído y aceptado estos Términos y la Política de tratamiento de datos personales. Si no está de acuerdo, debe abstenerse de usar AgendaCo.
@@ -33,7 +35,7 @@ Al crear una cuenta o usar la plataforma, el usuario declara haber leído y acep
 4. SUSCRIPCIÓN DE EMPRESAS
 - Las Empresas acceden a la plataforma mediante una suscripción. Al registrarse cuentan con un período de prueba gratuito, cuya duración se informa al momento del registro.
 - Finalizada la prueba, para seguir usando el servicio la Empresa debe contratar uno de los planes pagos vigentes (por ejemplo, mensual o semestral). Los precios se informan en pesos colombianos (COP) dentro de la aplicación.
-- Los pagos se procesan a través de Wompi, pasarela de pagos de un tercero. AgendaCo no almacena datos de tarjetas ni de medios de pago.
+- Los pagos se procesan a través de Wompi, pasarela de pagos de un tercero. AgendaCo no almacena datos de tarjetas ni de medios de pago. El cobro aparece a nombre de ${BRAND_OWNER}, titular de AgendaCo.
 - La renovación NO es automática: la Empresa debe realizar manualmente el pago de cada período. La plataforma avisa con anticipación la fecha de vencimiento.
 - Vencido el período pagado, la cuenta puede seguir funcionando durante un período de gracia informado en la aplicación. Si no se registra el pago al terminar ese período, la cuenta de la Empresa se suspende y deja de recibir reservas hasta que se regularice el pago.
 - Salvo disposición legal en contrario, los valores pagados por períodos ya iniciados no son reembolsables.
@@ -74,7 +76,7 @@ Para consultas sobre estos Términos, escribe a ${SUPPORT_EMAIL_TOKEN}.`;
 export const DEFAULT_PRIVACY = `POLÍTICA DE TRATAMIENTO DE DATOS PERSONALES DE AGENDACO
 
 1. RESPONSABLE DEL TRATAMIENTO
-AgendaCo es responsable del tratamiento de los datos personales recolectados a través de la plataforma, en cumplimiento de la Ley 1581 de 2012, el Decreto 1377 de 2013 (compilado en el Decreto 1074 de 2015) y demás normas que las modifiquen o complementen.
+AgendaCo es una plataforma operada por ${BRAND_OWNER}, que es el responsable del tratamiento de los datos personales recolectados a través de la plataforma, en cumplimiento de la Ley 1581 de 2012, el Decreto 1377 de 2013 (compilado en el Decreto 1074 de 2015) y demás normas que las modifiquen o complementen.
 Canal de contacto: ${SUPPORT_EMAIL_TOKEN}.
 
 2. DATOS QUE RECOLECTAMOS

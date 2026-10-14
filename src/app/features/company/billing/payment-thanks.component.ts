@@ -6,6 +6,7 @@ import { WompiService } from '../../../core/services/wompi.service';
 import { PaymentClaimService } from '../../../core/services/payment-claim.service';
 import { AppConfigService } from '../../../core/services/app-config.service';
 import { SupportContactComponent } from '../../../shared/components/support-contact.component';
+import { BRAND_OWNER } from '../../../core/domain/brand';
 import { PLANS, WompiTransaction, formatCop, planFromAmount } from '../../../core/domain/plans';
 
 type View = 'loading' | 'approved' | 'pending' | 'declined' | 'notfound' | 'error';
@@ -44,6 +45,7 @@ const POLL_TRIES = 24;   // ~2 minutos
     }
     .detail div { display: flex; justify-content: space-between; gap: 12px; }
     .detail span:last-child { font-weight: 700; color: #1a1a2e; text-align: right; word-break: break-all; }
+    .owner-note { font-size: 12px; color: #888; line-height: 1.5; margin: -10px 0 20px; }
     .btn-main {
       display: inline-flex; align-items: center; justify-content: center; width: 100%;
       padding: 12px; border-radius: 12px; border: none; background: var(--gradient); color: white;
@@ -110,7 +112,9 @@ const POLL_TRIES = 24;   // ~2 minutos
           <div class="detail">
             <div><span>Transacción</span><span>{{ t.id }}</span></div>
             <div><span>Valor</span><span>{{ fmtCop(t.amountInCents / 100) }}</span></div>
+            <div><span>Aparece como</span><span>{{ brandOwner }}</span></div>
           </div>
+          <p class="owner-note">El pago aparece a nombre de {{ brandOwner }} (empresa dueña de AgendaCo) en Wompi, Nequi o tu extracto.</p>
         }
 
         @if (view() !== 'loading') {
@@ -132,6 +136,7 @@ export class PaymentThanksComponent implements OnDestroy {
   private appConfig = inject(AppConfigService);
 
   readonly fmtCop = formatCop;
+  readonly brandOwner = BRAND_OWNER;
 
   view    = signal<View>('loading');
   tx      = signal<WompiTransaction | null>(null);
