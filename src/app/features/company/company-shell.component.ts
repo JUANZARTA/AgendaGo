@@ -18,6 +18,7 @@ import { CompanyBottomBarComponent } from './shell/company-bottom-bar.component'
 import { NotificationsPanelComponent } from './shell/notifications-panel.component';
 import { DisabledAccountModalComponent } from './shell/disabled-account-modal.component';
 import { SubscriptionBannerComponent } from './shell/subscription-banner.component';
+import { AnnouncementBannerComponent } from './shell/announcement-banner.component';
 
 const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
   'new_appointment', 'appointment_confirmed', 'appointment_cancelled',
@@ -33,7 +34,7 @@ const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
   imports: [
     RouterOutlet, CompanyOnboardingComponent, ShareLinkModalComponent,
     CompanySidebarComponent, CompanyMobileHeaderComponent, CompanyBottomBarComponent,
-    NotificationsPanelComponent, DisabledAccountModalComponent, SubscriptionBannerComponent,
+    NotificationsPanelComponent, DisabledAccountModalComponent, SubscriptionBannerComponent, AnnouncementBannerComponent,
   ],
   template: `
     @if (companyStore.loading()) {
@@ -79,6 +80,7 @@ const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
 
         <!-- ── MAIN CONTENT ────────────────────────────────────────── -->
         <main class="content">
+          <app-announcement-banner />
           <app-subscription-banner [subscription]="sub()" />
           <router-outlet/>
         </main>

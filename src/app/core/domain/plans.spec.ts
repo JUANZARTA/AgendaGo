@@ -60,4 +60,15 @@ describe('verificación de pagos de Wompi', () => {
     expect(checkWompiPayment(tx({ amountInCents: 100_000 })).ok).toBe(false);
     expect(checkWompiPayment(tx({ currency: 'USD' })).ok).toBe(false);
   });
+
+  it('planFromAmount / checkWompiPayment usan el catálogo configurado', () => {
+    const custom = {
+      mensual:   { ...PLANS.mensual,   amount: 35_000 },
+      semestral: { ...PLANS.semestral, amount: 180_000 },
+    };
+    expect(planFromAmount(3_500_000, 'COP', custom)).toBe('mensual');
+    expect(planFromAmount(2_900_000, 'COP', custom)).toBeNull();
+    const tx = { id: 't', status: 'APPROVED', amountInCents: 18_000_000, currency: 'COP', reference: 'r', customerEmail: null, createdAt: '' };
+    expect(checkWompiPayment(tx, custom)).toEqual({ ok: true, plan: 'semestral' });
+  });
 });

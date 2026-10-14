@@ -4,6 +4,8 @@ import { CompanyStore } from '../../../../core/services/company-store.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WompiService } from '../../../../core/services/wompi.service';
 import { PaymentClaimService } from '../../../../core/services/payment-claim.service';
+import { AppConfigService } from '../../../../core/services/app-config.service';
+import { SupportContactComponent } from '../../../../shared/components/support-contact.component';
 import { formatCop, planFromAmount } from '../../../../core/domain/plans';
 
 /**
@@ -14,7 +16,7 @@ import { formatCop, planFromAmount } from '../../../../core/domain/plans';
 @Component({
   selector: 'app-report-payment',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, SupportContactComponent],
   styles: [`
     :host { display: block; }
     .box {
@@ -61,6 +63,9 @@ import { formatCop, planFromAmount } from '../../../../core/domain/plans';
         </div>
         @if (message(); as m) {
           <p class="msg" [class.ok]="m.ok" [class.bad]="!m.ok">{{ m.text }}</p>
+          @if (!m.ok) {
+            <div style="margin-top:8px"><app-support-contact align="left" /></div>
+          }
         }
       }
     </div>
@@ -71,6 +76,7 @@ export class ReportPaymentComponent {
   private auth   = inject(AuthService);
   private wompi  = inject(WompiService);
   private claims = inject(PaymentClaimService);
+  private appConfig = inject(AppConfigService);
 
   open    = signal(false);
   busy    = signal(false);
@@ -94,7 +100,7 @@ export class ReportPaymentComponent {
         this.message.set({ ok: false, text: 'Wompi informa que ese pago no se completó, así que no se te cobró. Podés intentarlo de nuevo.' });
         return;
       }
-      if (!planFromAmount(t.amountInCents, t.currency)) {
+      if (!planFromAmount(t.amountInCents, t.currency, this.appConfig.plans())) {
         this.message.set({ ok: false, text: `Ese pago es por ${formatCop(t.amountInCents / 100)}, que no corresponde a ningún plan. Escribinos para revisarlo.` });
         return;
       }

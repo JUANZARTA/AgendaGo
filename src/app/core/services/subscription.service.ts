@@ -4,7 +4,9 @@ import {
   collection, getDocs, query, where, writeBatch,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
-import { PLANS, PlanKey, nextPeriodEnd } from '../domain/plans';
+import { PlanKey, nextPeriodEnd } from '../domain/plans';
+import { mergeAppConfig } from '../domain/app-config';
+import { AppConfigService } from './app-config.service';
 import { graceEndOf, subscriptionTimeline } from '../domain/subscription-timeline';
 import { PaymentDocLike, paidUntil } from '../domain/payment-history';
 
@@ -17,7 +19,10 @@ export interface PaymentPayer {
   paidAt?: string | null;
 }
 
-/** Duración del trial en meses calendario (igual que functions/src/subscriptions/on-company-created.ts). */
+/**
+ * Duración del trial POR DEFECTO en meses calendario (igual que functions/src/subscriptions/on-company-created.ts).
+ * El valor efectivo es config/app.trialMonths (lo edita el superadmin).
+ */
 export const TRIAL_MONTHS = 2;
 
 // Cada doc genera 2 operaciones; 220 docs = 440 ops (< límite de 500 por batch)
@@ -64,6 +69,7 @@ export interface ManualPaymentResult {
 @Injectable({ providedIn: 'root' })
 export class SubscriptionService {
   private firestore = inject(Firestore);
+  private appConfig = inject(AppConfigService);
 
   async getStatus(companyId: string): Promise<Subscription | null> {
     const snap = await getDoc(doc(this.firestore, 'subscriptions', companyId));
@@ -90,14 +96,18 @@ export class SubscriptionService {
    */
   async createTrialIfMissing(companyId: string): Promise<boolean> {
     const ref = doc(this.firestore, 'subscriptions', companyId);
+    const cfgRef = doc(this.firestore, 'config', 'app');
     return runTransaction(this.firestore, async (tx) => {
       const snap = await tx.get(ref);
       if (snap.exists()) return false;
+      // Se lee config/app en la misma transacción: las reglas topean trialEndDate con ese mismo valor
+      const cfgSnap = await tx.get(cfgRef);
+      const months = mergeAppConfig(cfgSnap.exists() ? cfgSnap.data() : null).trialMonths;
       tx.set(ref, {
         companyId,
         status: 'trial',
         trialStartDate: serverTimestamp(),
-        trialEndDate: Timestamp.fromDate(addMonthsClamped(new Date(), TRIAL_MONTHS)),
+        trialEndDate: Timestamp.fromDate(addMonthsClamped(new Date(), months)),
       });
       return true;
     });
@@ -120,7 +130,8 @@ export class SubscriptionService {
    * Con referencia, el id del pago se deriva de ella: registrar dos veces el mismo pago falla.
    */
   async registerManualPayment(companyId: string, planKey: PlanKey, reference: string, payer: PaymentPayer = {}): Promise<ManualPaymentResult> {
-    const plan       = PLANS[planKey];
+    // Monto y días configurados por el admin (config/app)
+    const plan       = this.appConfig.plans()[planKey];
     const ref        = reference.trim();
     const paymentRef = ref
       ? doc(this.firestore, 'payments', 'manual-' + ref.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120))
@@ -170,6 +181,8 @@ export class SubscriptionService {
   }
 
   async findOverdue(): Promise<OverdueSub[]> {
+    await this.appConfig.ready();
+    const graceDays = this.appConfig.timeline().graceDays;
     const now = Date.now();
     const out: OverdueSub[] = [];
     for (const status of ['trial', 'active'] as const) {
@@ -179,7 +192,7 @@ export class SubscriptionService {
         const raw = status === 'trial' ? data.trialEndDate : data.currentPeriodEnd;
         const end: Date | null = raw?.toDate ? raw.toDate() : null;
         // Sólo las que pasaron la gracia: durante esos días la cuenta sigue funcionando
-        if (end && graceEndOf(end).getTime() < now) out.push({ companyId: d.id, status, endDate: end });
+        if (end && graceEndOf(end, graceDays).getTime() < now) out.push({ companyId: d.id, status, endDate: end });
       }
     }
     return out;
@@ -215,7 +228,7 @@ export class SubscriptionService {
   /** Estado efectivo: un trial vencido cuenta como expired aunque el cron aún no lo haya actualizado. */
   /** 'expired' también si pasó la gracia aunque el admin todavía no la marcó (trial o plan pago). */
   effectiveStatus(sub: Subscription): Subscription['status'] {
-    return subscriptionTimeline(sub).phase === 'suspended' ? 'expired' : sub.status;
+    return subscriptionTimeline(sub, new Date(), this.appConfig.timeline()).phase === 'suspended' ? 'expired' : sub.status;
   }
 
   daysRemaining(sub: Subscription): number {

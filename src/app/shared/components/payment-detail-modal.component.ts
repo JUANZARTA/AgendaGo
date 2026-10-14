@@ -2,6 +2,7 @@ import { Component, effect, inject, input, output, signal } from '@angular/core'
 import { HistoryRow } from '../../core/domain/payment-history';
 import { PLANS, WompiTransaction, formatCop, paymentMethodLabel, planFromAmount } from '../../core/domain/plans';
 import { WompiService } from '../../core/services/wompi.service';
+import { AppConfigService } from '../../core/services/app-config.service';
 
 const WOMPI_STATUS: Record<string, string> = {
   APPROVED: 'Aprobada', PENDING: 'En proceso', DECLINED: 'Rechazada', VOIDED: 'Anulada', ERROR: 'Con error',
@@ -97,6 +98,7 @@ const WOMPI_STATUS: Record<string, string> = {
 })
 export class PaymentDetailModalComponent {
   private wompi = inject(WompiService);
+  private appConfig = inject(AppConfigService);
 
   readonly row    = input.required<HistoryRow>();
   readonly closed = output<void>();
@@ -131,7 +133,7 @@ export class PaymentDetailModalComponent {
   /** Para reportes sin confirmar: el plan que corresponde al monto que dice Wompi. */
   wompiPlanHint(): string {
     const t = this.tx();
-    const key = t ? planFromAmount(t.amountInCents, t.currency) : null;
+    const key = t ? planFromAmount(t.amountInCents, t.currency, this.appConfig.plans()) : null;
     return key ? PLANS[key].label : '';
   }
 

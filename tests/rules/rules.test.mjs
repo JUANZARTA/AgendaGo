@@ -311,9 +311,30 @@ async function main() {
   await expectDeny('owner creates active sub', () => setDoc(doc(o2, 'subscriptions', 'c2'), { companyId: 'c2', status: 'active', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(2)) }));
   await expectDeny('owner creates trial 70 days', () => setDoc(doc(o2, 'subscriptions', 'c2'), { companyId: 'c2', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(new Date(Date.now() + 70 * 86400000)) }));
   await expectDeny('owner creates trial for other company', () => setDoc(doc(o2, 'subscriptions', 'c1x'), { companyId: 'c1x', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(2)) }));
-  await expectOk('owner reads own subscription', () => getDoc(doc(o1, 'subscriptions', 'c1')));
+  // Tope del trial según config/app (sin doc = 2 meses → 63 días)
+  const trial = (cid, months) => ({ companyId: cid, status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(months)) });
+  await expectDeny('owner creates trial 3 months without config (63d cap)', () => setDoc(doc(o2, 'subscriptions', 'c3'), trial('c3', 3)));
+  await expectOk('admin sets config trialMonths=3', () => setDoc(doc(admin, 'config', 'app'), { trialMonths: 3, updatedAt: serverTimestamp() }, { merge: true }));
+  await expectOk('owner creates trial 3 months with config trialMonths=3', () => setDoc(doc(o2, 'subscriptions', 'c3'), trial('c3', 3)));
+  await expectOk(`owner reads own subscription`, () => getDoc(doc(o1, 'subscriptions', 'c1')));
   await expectDeny('client reads subscription', () => getDoc(doc(c1, 'subscriptions', 'c1')));
   await expectOk('admin updates subscription', () => updateDoc(doc(admin, 'subscriptions', 'c1'), { status: 'active' }));
+
+  console.log('CONFIG');
+  await expectOk('guest reads config/app', () => getDoc(doc(guest, 'config', 'app')));
+  await expectOk('client reads config/app', () => getDoc(doc(c1, 'config', 'app')));
+  await expectOk('admin writes full config/app', () => setDoc(doc(admin, 'config', 'app'), {
+    plans: { mensual: { amount: 30000, days: 30, links: { test: '', prod: 'https://checkout.wompi.co/l/x' } } },
+    trialMonths: 2, warningDays: 7, graceDays: 3,
+    support: { whatsapp: '573001234567', email: 'soporte@agendago.co' },
+    announcement: { active: true, text: 'Hola', level: 'info' },
+    updatedAt: serverTimestamp(),
+  }, { merge: true }));
+  await expectDeny('admin writes trialMonths out of range', () => setDoc(doc(admin, 'config', 'app'), { trialMonths: 13 }, { merge: true }));
+  await expectDeny('admin writes graceDays as string', () => setDoc(doc(admin, 'config', 'app'), { graceDays: '5' }, { merge: true }));
+  await expectDeny('company writes config/app', () => setDoc(doc(o1, 'config', 'app'), { trialMonths: 12 }, { merge: true }));
+  await expectDeny('client writes config/app', () => setDoc(doc(c1, 'config', 'app'), { announcement: { active: true, text: 'x', level: 'info' } }, { merge: true }));
+  await expectDeny('guest writes config/app', () => setDoc(doc(guest, 'config', 'app'), { trialMonths: 12 }, { merge: true }));
 
   console.log('REVIEWS');
   const rev = (over = {}) => ({ companyId: 'c1', clientId: 'client1', clientName: 'Ana', rating: 5, comment: 'genial', createdAt: Date.now(), appointmentId: 'done1', ...over });

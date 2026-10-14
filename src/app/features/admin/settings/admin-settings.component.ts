@@ -1,16 +1,41 @@
 import { Component, signal } from '@angular/core';
 import { APP_VERSION } from '../../../core/version';
 import { CHANGELOG, ChangelogEntry } from '../../../core/changelog';
+import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
+import { SettingsPlansComponent } from './settings-plans.component';
+import { SettingsTimesComponent } from './settings-times.component';
+import { SettingsSupportComponent } from './settings-support.component';
+import { SettingsAnnouncementComponent } from './settings-announcement.component';
+import { SettingsSectionComponent } from './settings-section.component';
 
+/**
+ * Configuración del superadmin. Planes, tiempos, contacto y anuncio se guardan en Firestore
+ * (config/app, para toda la app); los colores sólo en este navegador; al final, las versiones.
+ */
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
+  imports: [
+    ThemeSwitcherComponent, SettingsSectionComponent, SettingsPlansComponent, SettingsTimesComponent,
+    SettingsSupportComponent, SettingsAnnouncementComponent,
+  ],
   template: `
     <div class="page">
       <div style="margin-bottom:24px">
         <h1 style="font-size:1.4rem;margin:0 0 4px">Configuración</h1>
-        <p style="color:#888;font-size:13px;margin:0">Historial de versiones de AgendaGo</p>
+        <p style="color:#888;font-size:13px;margin:0">Planes, tiempos, contacto y anuncios para todas las empresas. Cada sección se guarda por separado.</p>
       </div>
+
+      <app-settings-plans />
+      <app-settings-times />
+      <app-settings-support />
+      <app-settings-announcement />
+
+      <app-settings-section title="Colores de la interfaz" subtitle="Se guarda en este navegador (no cambia los colores de las empresas)." [saveable]="false">
+        <app-theme-switcher />
+      </app-settings-section>
+
+      <h2 style="font-size:1rem;font-weight:800;color:#1a1a2e;margin:28px 0 12px">Versiones</h2>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">
         @for (entry of changelog; track entry.version) {

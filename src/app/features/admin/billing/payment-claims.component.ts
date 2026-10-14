@@ -4,6 +4,7 @@ import { PaymentClaim, PaymentClaimService } from '../../../core/services/paymen
 import { WompiService } from '../../../core/services/wompi.service';
 import { SubscriptionService } from '../../../core/services/subscription.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { AppConfigService } from '../../../core/services/app-config.service';
 import {
   PLANS, PaymentCheck, WompiTransaction, checkWompiPayment, formatCop, nextPeriodEnd, paymentMethodLabel,
 } from '../../../core/domain/plans';
@@ -124,6 +125,9 @@ export class PaymentClaimsComponent {
   private wompi    = inject(WompiService);
   private subSvc   = inject(SubscriptionService);
   private notifSvc = inject(NotificationService);
+  private appConfig = inject(AppConfigService);
+  /** Catálogo con monto/días configurados (config/app). */
+  private get plans() { return this.appConfig.plans(); }
 
   readonly fmtCop = formatCop;
 
@@ -153,12 +157,12 @@ export class PaymentClaimsComponent {
     this.setError(c.transactionId, '');
     try {
       const tx = await this.wompi.getTransaction(c.transactionId);
-      const check: PaymentCheck = tx ? checkWompiPayment(tx) : { ok: false, reason: 'No existe en Wompi' };
+      const check: PaymentCheck = tx ? checkWompiPayment(tx, this.plans) : { ok: false, reason: 'No existe en Wompi' };
       let period: Verification['period'] = null;
       if (check.ok) {
         const sub = await this.subSvc.getStatus(c.companyId);
         const currentEnd = sub?.status === 'active' && sub.currentPeriodEnd?.toDate ? sub.currentPeriodEnd.toDate() : null;
-        period = nextPeriodEnd(currentEnd, PLANS[check.plan].days);
+        period = nextPeriodEnd(currentEnd, this.plans[check.plan].days);
       }
       const emailMatches = !!tx?.customerEmail && !!c.ownerEmail
         && tx.customerEmail.trim().toLowerCase() === c.ownerEmail.trim().toLowerCase();
@@ -177,10 +181,10 @@ export class PaymentClaimsComponent {
     this.setError(c.transactionId, '');
     try {
       const tx = await this.wompi.getTransaction(c.transactionId);
-      const check: PaymentCheck = tx ? checkWompiPayment(tx) : { ok: false, reason: 'No existe en Wompi' };
+      const check: PaymentCheck = tx ? checkWompiPayment(tx, this.plans) : { ok: false, reason: 'No existe en Wompi' };
       if (!check.ok) { this.setError(c.transactionId, `No se activó: ${check.reason}`); return; }
 
-      const plan = PLANS[check.plan];
+      const plan = this.plans[check.plan];
       const r = await this.subSvc.registerManualPayment(c.companyId, plan.key, c.transactionId, {
         payerName:     tx!.customerName,
         payerEmail:    tx!.customerEmail,
@@ -230,7 +234,7 @@ export class PaymentClaimsComponent {
 
   reason(check: PaymentCheck): string { return check.ok ? '' : check.reason; }
   planLabel(check: PaymentCheck): string {
-    return check.ok ? `${PLANS[check.plan].label} (${formatCop(PLANS[check.plan].amount)})` : '';
+    return check.ok ? `${this.plans[check.plan].label} (${formatCop(this.plans[check.plan].amount)})` : '';
   }
 
   fmtDay(d: Date): string { return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }); }

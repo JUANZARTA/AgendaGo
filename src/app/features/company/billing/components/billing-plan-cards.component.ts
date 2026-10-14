@@ -1,5 +1,6 @@
-import { Component, input, output } from '@angular/core';
-import { PLANS, formatCop } from '../../../../core/domain/plans';
+import { Component, computed, inject, input, output } from '@angular/core';
+import { formatCop } from '../../../../core/domain/plans';
+import { AppConfigService } from '../../../../core/services/app-config.service';
 import { SubViewModel } from '../billing.models';
 
 /** Título + grilla de planes (gratuito / mensual / semestral). Presentacional. */
@@ -84,7 +85,7 @@ import { SubViewModel } from '../billing.models';
       <div class="plan-price-row">
         <span class="plan-price free">$0</span>
       </div>
-      <div style="font-size:12px;color:#888;margin-top:-8px">60 días · una sola vez</div>
+      <div style="font-size:12px;color:#888;margin-top:-8px">{{ trialLabel() }} · una sola vez</div>
       <ul class="plan-features">
         <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Agenda completa</li>
         <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Servicios ilimitados</li>
@@ -117,8 +118,8 @@ import { SubViewModel } from '../billing.models';
     <div class="plan-card">
       <div class="plan-name">Mensual</div>
       <div class="plan-price-row">
-        <span class="plan-price">{{ fmtCop(plans.mensual.amount) }}</span>
-        <span class="plan-period">/mes</span>
+        <span class="plan-price">{{ fmtCop(plans().mensual.amount) }}</span>
+        <span class="plan-period">{{ monthlyPeriod() }}</span>
       </div>
       <ul class="plan-features">
         <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Agenda completa</li>
@@ -134,7 +135,7 @@ import { SubViewModel } from '../billing.models';
       <div class="plan-footer">
         <button class="btn btn-primary plan-cta" (click)="payMonthly.emit()" [disabled]="!companyReady()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          {{ sub().status === 'active' ? 'Renovar' : 'Pagar' }} {{ fmtCop(plans.mensual.amount) }}
+          {{ sub().status === 'active' ? 'Renovar' : 'Pagar' }} {{ fmtCop(plans().mensual.amount) }}
         </button>
       </div>
     </div>
@@ -144,23 +145,27 @@ import { SubViewModel } from '../billing.models';
       <div class="plan-badge">Mejor precio</div>
       <div class="plan-name">Semestral</div>
       <div class="plan-price-row">
-        <span class="plan-price">{{ fmtCop(plans.semestral.amount) }}</span>
+        <span class="plan-price">{{ fmtCop(plans().semestral.amount) }}</span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <span class="plan-saving">Ahorrás $17.400</span>
-        <span class="plan-effective">$26.100/mes efectivo</span>
-      </div>
+      @if (semestral(); as s) {
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          @if (s.saving > 0) { <span class="plan-saving">Ahorrás {{ fmtCop(s.saving) }}</span> }
+          <span class="plan-effective">{{ fmtCop(s.perMonth) }}/mes efectivo</span>
+        </div>
+      }
       <ul class="plan-features">
         <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Todo lo del plan mensual</li>
-        <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 6 meses sin preocupaciones</li>
-        <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 10% de descuento aplicado</li>
+        <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ semestral().months }} meses sin preocupaciones</li>
+        @if (semestral().discountPct > 0) {
+          <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ semestral().discountPct }}% de descuento aplicado</li>
+        }
         <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Factura única</li>
         <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Soporte prioritario</li>
       </ul>
       <div class="plan-footer">
         <button class="btn btn-primary plan-cta" (click)="paySemestral.emit()" [disabled]="!companyReady()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          {{ sub().status === 'active' ? 'Renovar' : 'Pagar' }} {{ fmtCop(plans.semestral.amount) }}
+          {{ sub().status === 'active' ? 'Renovar' : 'Pagar' }} {{ fmtCop(plans().semestral.amount) }}
         </button>
       </div>
     </div>
@@ -177,6 +182,33 @@ export class BillingPlanCardsComponent {
   readonly payMonthly   = output<void>();
   readonly paySemestral = output<void>();
 
-  readonly plans  = PLANS;
+  private appConfig = inject(AppConfigService);
+
+  /** Monto y días configurados por el admin (config/app). */
+  readonly plans  = this.appConfig.plans;
   readonly fmtCop = formatCop;
+
+  readonly trialLabel = computed(() => {
+    const m = this.appConfig.config().trialMonths;
+    return m === 1 ? '1 mes' : `${m} meses`;
+  });
+
+  readonly monthlyPeriod = computed(() => {
+    const d = this.plans().mensual.days;
+    return d === 30 ? '/mes' : `/${d} días`;
+  });
+
+  /** Equivalencias del semestral contra pagar mes a mes (con los precios configurados). */
+  readonly semestral = computed(() => {
+    const { mensual, semestral } = this.plans();
+    const months   = Math.max(1, Math.round(semestral.days / 30));
+    const full     = mensual.amount * months;
+    const saving   = full - semestral.amount;
+    return {
+      months,
+      saving,
+      perMonth:    Math.round(semestral.amount / months),
+      discountPct: saving > 0 ? Math.round((saving / full) * 100) : 0,
+    };
+  });
 }

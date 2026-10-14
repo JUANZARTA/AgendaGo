@@ -1,7 +1,8 @@
 /**
- * Planes pagos. Mismos valores que functions/src/payments/validate-payment.ts (webhook de Wompi,
- * no desplegado en plan Spark): si cambian precios o duración, cambiar en ambos lados.
- * Los links de pago dependen del entorno (pruebas / real): están en environments/.
+ * Planes pagos. PLANS son los valores POR DEFECTO: el admin puede cambiar monto y días desde
+ * Configuración (doc config/app, ver app-config.ts) y los consumidores pasan ese catálogo.
+ * functions/src/payments/validate-payment.ts (webhook, no desplegado en plan Spark) usa los defaults.
+ * Los links de pago también viven en config/app (uno de pruebas y uno real por plan).
  */
 export type PlanKey = 'mensual' | 'semestral';
 
@@ -14,7 +15,9 @@ export interface Plan {
   amount: number;
 }
 
-export const PLANS: Record<PlanKey, Plan> = {
+export type PlanCatalog = Record<PlanKey, Plan>;
+
+export const PLANS: PlanCatalog = {
   mensual:   { key: 'mensual',   label: 'Mensual',   days: 30,  amount: 29_000 },
   semestral: { key: 'semestral', label: 'Semestral', days: 180, amount: 156_600 },
 };
@@ -35,9 +38,9 @@ export function nextPeriodEnd(currentEnd: Date | null, days: number, now = new D
 }
 
 /** Plan que corresponde a un monto cobrado por Wompi (en centavos, COP). null si no coincide con ninguno. */
-export function planFromAmount(amountInCents: number, currency: string): PlanKey | null {
+export function planFromAmount(amountInCents: number, currency: string, plans: PlanCatalog = PLANS): PlanKey | null {
   if (currency !== 'COP') return null;
-  const plan = Object.values(PLANS).find(p => p.amount * 100 === amountInCents);
+  const plan = Object.values(plans).find(p => p.amount * 100 === amountInCents);
   return plan?.key ?? null;
 }
 
@@ -74,14 +77,14 @@ export type PaymentCheck =
   | { ok: false; reason: string };
 
 /** ¿La transacción alcanza para activar un plan? Aprobada, en COP y por el monto exacto de un plan. */
-export function checkWompiPayment(tx: WompiTransaction): PaymentCheck {
+export function checkWompiPayment(tx: WompiTransaction, plans: PlanCatalog = PLANS): PaymentCheck {
   if (tx.status !== 'APPROVED') {
     const label: Record<string, string> = {
       PENDING: 'pendiente', DECLINED: 'rechazada', VOIDED: 'anulada', ERROR: 'con error',
     };
     return { ok: false, reason: `Wompi dice: ${label[tx.status] ?? tx.status}` };
   }
-  const plan = planFromAmount(tx.amountInCents, tx.currency);
+  const plan = planFromAmount(tx.amountInCents, tx.currency, plans);
   if (!plan) {
     return { ok: false, reason: `El monto ${tx.currency} ${tx.amountInCents / 100} no corresponde a ningún plan` };
   }

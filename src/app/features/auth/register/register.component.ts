@@ -1,9 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import { AuthService } from '../../../core/services/auth.service';
+import { AppConfigService } from '../../../core/services/app-config.service';
+import { formatCop } from '../../../core/domain/plans';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -17,6 +19,14 @@ export class RegisterComponent {
   private router = inject(Router);
   private fb = inject(FormBuilder);
   private firestore = inject(Firestore);
+  private appConfig = inject(AppConfigService);
+
+  /** Prueba gratis y precio mensual configurados por el admin (config/app). */
+  readonly trialText = computed(() => {
+    const m = this.appConfig.config().trialMonths;
+    return m === 1 ? '1 mes gratis' : `${m} meses gratis`;
+  });
+  readonly monthlyPrice = computed(() => formatCop(this.appConfig.config().plans.mensual.amount));
 
   form = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2)]],

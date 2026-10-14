@@ -7,9 +7,10 @@ import {
 import { parseLocalDateEndOfDay, toLocalDateKey } from '../../../core/utils/date.utils';
 import { SubscriptionService, OverdueSub } from '../../../core/services/subscription.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
+import { PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
 import { PaymentClaimsComponent } from './payment-claims.component';
-import { GRACE_DAYS, graceEndOf } from '../../../core/domain/subscription-timeline';
+import { graceEndOf } from '../../../core/domain/subscription-timeline';
+import { AppConfigService } from '../../../core/services/app-config.service';
 import { CompanyBillingDetailComponent } from './company-billing-detail.component';
 import { VerifyPaymentComponent } from './verify-payment.component';
 import { PaymentAttemptsComponent } from './payment-attempts.component';
@@ -49,7 +50,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
       @if (pendingOverdueCount() > 0) {
         <div style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;font-weight:600">
-          Hay {{ pendingOverdueCount() }} suscripción(es) que vencieron y ya pasaron los {{ graceDays }} días de gracia. Usá "Revisar vencimientos" para suspenderlas.
+          Hay {{ pendingOverdueCount() }} suscripción(es) que vencieron y ya pasaron los {{ graceDays() }} días de gracia. Usá "Revisar vencimientos" para suspenderlas.
         </div>
       }
 
@@ -215,7 +216,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <select [(ngModel)]="payPlan" style="flex:1;min-width:150px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px">
                 <option value="">Plan pagado…</option>
-                @for (p of planList; track p.key) {
+                @for (p of planList(); track p.key) {
                   <option [value]="p.key">{{ p.label }} — {{ fmtCop(p.amount) }}</option>
                 }
               </select>
@@ -304,6 +305,7 @@ export class AdminBillingComponent implements OnDestroy {
   private firestore = inject(Firestore);
   private subSvc    = inject(SubscriptionService);
   private notifSvc  = inject(NotificationService);
+  private appConfig = inject(AppConfigService);
 
   private rawSubs    = signal<any[]>([]);
   private companyMap = signal<Record<string, { name: string; ownerEmail: string }>>({});
@@ -326,7 +328,8 @@ export class AdminBillingComponent implements OnDestroy {
   editNote     = '';
 
   // Registro manual de pagos
-  readonly planList = Object.values(PLANS);
+  // Monto/días configurados por el admin (config/app)
+  readonly planList = computed(() => Object.values(this.appConfig.plans()));
   readonly fmtCop   = formatCop;
   payPlan  = '' as PlanKey | '';
   payRef   = '';
@@ -379,10 +382,11 @@ export class AdminBillingComponent implements OnDestroy {
    */
   pendingOverdueCount = computed(() => {
     const now = Date.now();
+    const graceDays = this.appConfig.timeline().graceDays;
     return this.rawSubs().filter(s => {
       const raw = s.status === 'trial' ? s.trialEndDate : s.status === 'active' ? s.currentPeriodEnd : null;
       const end = raw?.toDate ? raw.toDate() : null;
-      return end !== null && graceEndOf(end).getTime() < now;
+      return end !== null && graceEndOf(end, graceDays).getTime() < now;
     }).length;
   });
 
@@ -453,7 +457,7 @@ export class AdminBillingComponent implements OnDestroy {
   // Detalle por empresa: se guarda el id y se lee de subs() para que refleje los cambios en vivo
   private detailId = signal<string | null>(null);
   verifyOpen = signal(false);
-  readonly graceDays = GRACE_DAYS;
+  readonly graceDays = computed(() => this.appConfig.timeline().graceDays);
   detailSub = computed(() => this.subs().find(s => s.companyId === this.detailId()) ?? null);
 
   openDetail(s: AdminSub) { this.detailId.set(s.companyId); window.scrollTo({ top: 0 }); }
@@ -497,14 +501,14 @@ export class AdminBillingComponent implements OnDestroy {
     const s = this.selected();
     if (!s || !this.payPlan) return '';
     const currentEnd = s.status === 'active' && s.periodEndMs ? new Date(s.periodEndMs) : null;
-    return nextPeriodEnd(currentEnd, PLANS[this.payPlan].days).end
+    return nextPeriodEnd(currentEnd, this.appConfig.plans()[this.payPlan].days).end
       .toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   async registerPayment() {
     const s = this.selected();
     if (!s || !this.payPlan) return;
-    const plan = PLANS[this.payPlan];
+    const plan = this.appConfig.plans()[this.payPlan];
     this.paying.set(true);
     this.payError.set('');
     try {

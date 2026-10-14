@@ -4,6 +4,7 @@ import {
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { NotificationService } from './notification.service';
+import { AppConfigService } from './app-config.service';
 import { WompiTransaction, formatCop, paymentMethodLabel, planFromAmount, PLANS } from '../domain/plans';
 
 /**
@@ -51,6 +52,7 @@ export interface PaymentAttempt {
 export class PaymentClaimService {
   private firestore = inject(Firestore);
   private notifSvc  = inject(NotificationService);
+  private appConfig = inject(AppConfigService);
   private col = collection(this.firestore, 'paymentClaims');
 
   /**
@@ -58,7 +60,7 @@ export class PaymentClaimService {
    * y avisa al admin. Guarda una copia de lo que dijo Wompi sólo para mostrar.
    */
   async reportTransaction(t: WompiTransaction, company: { id: string; name: string }, ownerEmail: string): Promise<ReportResult> {
-    const plan = planFromAmount(t.amountInCents, t.currency);
+    const plan = planFromAmount(t.amountInCents, t.currency, this.appConfig.plans());
     const r = await this.report({
       companyId:     company.id,
       companyName:   company.name,

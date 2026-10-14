@@ -56,4 +56,16 @@ describe('subscriptionTimeline', () => {
     expect(canUseApp(subscriptionTimeline({ status: 'expired', currentPeriodEnd: ts(END) }))).toBe(false);
     expect(canUseApp(subscriptionTimeline({ status: 'disabled' }))).toBe(false);
   });
+
+  it('acepta días de aviso y gracia configurados por el admin', () => {
+    const opts = { warningDays: 10, graceDays: 2 };
+    expect(subscriptionTimeline(active, at(2026, 11, 3), opts).phase).toBe('warning');   // 10 días
+    expect(subscriptionTimeline(active, at(2026, 11, 2), opts).phase).toBe('ok');        // 11 días
+    const g = subscriptionTimeline(active, at(2026, 11, 15), opts);
+    expect(g.phase).toBe('grace');
+    expect(g.graceEnd).toEqual(new Date(2026, 11, 15, 23, 59, 59, 999));
+    expect(subscriptionTimeline(active, at(2026, 11, 16, 0), opts).phase).toBe('suspended');
+    // Sin gracia: al día siguiente ya está suspendida
+    expect(subscriptionTimeline(active, at(2026, 11, 14, 1), { graceDays: 0 }).phase).toBe('suspended');
+  });
 });

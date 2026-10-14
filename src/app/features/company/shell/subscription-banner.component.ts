@@ -1,10 +1,11 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { SubscriptionLike, subscriptionTimeline } from '../../../core/domain/subscription-timeline';
+import { AppConfigService } from '../../../core/services/app-config.service';
 
 /**
  * Aviso de vencimiento arriba del contenido de la empresa:
- * amarillo (vence en ≤5 días) · naranja (vence HOY) · rojo (venció, en gracia).
+ * amarillo (vence en ≤N días, config/app.warningDays) · naranja (vence HOY) · rojo (venció, en gracia).
  * Fuera de esas fases no muestra nada.
  */
 @Component({
@@ -68,9 +69,10 @@ import { SubscriptionLike, subscriptionTimeline } from '../../../core/domain/sub
 })
 export class SubscriptionBannerComponent {
   private router = inject(Router);
+  private appConfig = inject(AppConfigService);
   readonly subscription = input<SubscriptionLike | null>(null);
 
-  t = computed(() => subscriptionTimeline(this.subscription()));
+  t = computed(() => subscriptionTimeline(this.subscription(), new Date(), this.appConfig.timeline()));
   label = computed(() => this.subscription()?.status === 'trial' ? 'prueba gratis' : 'plan');
 
   /** Va a Facturación (aunque ya estés ahí) y baja hasta los planes cuando se renderizan. */

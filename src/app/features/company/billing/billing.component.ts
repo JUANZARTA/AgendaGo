@@ -7,7 +7,6 @@ import { SubscriptionService, Subscription } from '../../../core/services/subscr
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
 import { subscriptionTimeline } from '../../../core/domain/subscription-timeline';
-import { environment } from '../../../../environments/environment';
 import { Payment, SubViewModel } from './billing.models';
 import { ClaimDocLike, buildPaymentHistory } from '../../../core/domain/payment-history';
 import { formatTimestamp } from './billing.utils';
@@ -16,11 +15,13 @@ import { BillingPlanCardsComponent } from './components/billing-plan-cards.compo
 import { BillingPaymentHistoryComponent } from './components/billing-payment-history.component';
 import { ReportPaymentComponent } from './components/report-payment.component';
 import { PaymentClaimService } from '../../../core/services/payment-claim.service';
+import { AppConfigService } from '../../../core/services/app-config.service';
+import { SupportContactComponent } from '../../../shared/components/support-contact.component';
 
 @Component({
   selector: 'app-billing',
   standalone: true,
-  imports: [BillingStatusCardComponent, BillingPlanCardsComponent, BillingPaymentHistoryComponent, ReportPaymentComponent],
+  imports: [BillingStatusCardComponent, BillingPlanCardsComponent, BillingPaymentHistoryComponent, ReportPaymentComponent, SupportContactComponent],
   styles: [`
     .page { max-width: 860px; margin: 0 auto; padding: 28px 20px; }
     .page-title { font-size: 1.45rem; font-weight: 800; margin: 0 0 4px; }
@@ -90,6 +91,11 @@ import { PaymentClaimService } from '../../../core/services/payment-claim.servic
           (paySemestral)="paySemestral()" />
       }
 
+      <!-- ── Contacto de soporte (config/app; si no hay, no se muestra) ── -->
+      <div style="margin-top:8px">
+        <app-support-contact text="¿Dudas con tu plan o un pago? Escribinos:" />
+      </div>
+
     </div>
 
     @if (renewal(); as r) {
@@ -123,6 +129,7 @@ export class BillingComponent implements OnDestroy {
   private companyStore        = inject(CompanyStore);
   private firestore           = inject(Firestore);
   private claimSvc            = inject(PaymentClaimService);
+  private appConfig           = inject(AppConfigService);
 
   loading  = signal(true);
   noSubscription = signal(false);
@@ -142,13 +149,14 @@ export class BillingComponent implements OnDestroy {
     const key = this.confirmPlan();
     const sub = this.rawSub();
     if (!key || !sub) return null;
-    const t = subscriptionTimeline(sub);
+    const t = subscriptionTimeline(sub, new Date(), this.appConfig.timeline());
+    const plans = this.appConfig.plans();
     const current = t.endDate && t.endDate.getTime() > Date.now() ? t.endDate : null;
     return {
-      plan:      PLANS[key],
+      plan:      plans[key],
       isTrial:   sub.status === 'trial',
       current,
-      newEnd:    nextPeriodEnd(sub.status === 'active' ? current : null, PLANS[key].days).end,
+      newEnd:    nextPeriodEnd(sub.status === 'active' ? current : null, plans[key].days).end,
     };
   });
 
@@ -261,7 +269,7 @@ export class BillingComponent implements OnDestroy {
    */
   private askPay(planKey: PlanKey): void {
     const sub = this.rawSub();
-    const phase = sub ? subscriptionTimeline(sub).phase : null;
+    const phase = sub ? subscriptionTimeline(sub, new Date(), this.appConfig.timeline()).phase : null;
     const vigente = (sub?.status === 'active' || sub?.status === 'trial')
       && (phase === 'ok' || phase === 'warning' || phase === 'due-today');
     if (vigente) this.confirmPlan.set(planKey);
@@ -289,11 +297,13 @@ export class BillingComponent implements OnDestroy {
   private async pay(planKey: PlanKey): Promise<void> {
     const companyId = this.companyStore.companyId();
     if (!companyId || this.paying()) return;
-    const plan = PLANS[planKey];
-    const url  = environment.wompi.checkout[planKey];
+    await this.appConfig.ready();
+    const plan = this.appConfig.plans()[planKey];
+    // Link de config/app: el real en producción, el de pruebas (sandbox) en ng serve
+    const url  = this.appConfig.checkoutLink(planKey);
     if (!url) {
-      // Desarrollo sin link de PRUEBAS configurado: nunca caer a un link real
-      alert('Falta configurar el link de pago de pruebas de Wompi en src/environments/environment.ts.');
+      // Sin link para este entorno: nunca caer al de la otra modalidad
+      alert('Este plan todavía no tiene link de pago configurado. Escribinos para pagarlo.');
       return;
     }
     this.paying.set(true);

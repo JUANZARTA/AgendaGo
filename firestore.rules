@@ -313,6 +313,34 @@ service cloud.firestore {
         || (isAuth() && resource.data.clientId == request.auth.uid);
     }
 
+    // ───────────────────────── CONFIG ─────────────────────────
+    // config/app: configuración global que edita el superadmin (planes, tiempos, contacto, anuncio).
+    // La leen todos (también páginas públicas sin login); sólo el superadmin escribe.
+    function appConfigPath() { return /databases/$(database)/documents/config/app; }
+    function optIntIn(d, key, lo, hi) {
+      return !(key in d) || (d[key] is int && d[key] >= lo && d[key] <= hi);
+    }
+    function optMap(d, key) { return !(key in d) || d[key] is map; }
+    function validAppConfig(d) {
+      return optIntIn(d, 'trialMonths', 1, 12)
+        && optIntIn(d, 'warningDays', 0, 30)
+        && optIntIn(d, 'graceDays', 0, 30)
+        && optMap(d, 'plans') && optMap(d, 'support') && optMap(d, 'announcement');
+    }
+    // Tope del trial que crea el dueño: trialMonths*31+1 días (2 meses = 63, el valor histórico).
+    // exists() antes de get(): get() de un doc inexistente hace fallar la regla.
+    function trialMaxDays() {
+      return exists(appConfigPath())
+        ? get(appConfigPath()).data.get('trialMonths', 2) * 31 + 1
+        : 63;
+    }
+
+    match /config/{docId} {
+      allow read: if true;
+      allow create, update: if isSuperAdmin() && (docId != 'app' || validAppConfig(request.resource.data));
+      allow delete: if isSuperAdmin();
+    }
+
     // ───────────────────────── SUBSCRIPTIONS ─────────────────────────
     // Sin Functions el trial lo crea el dueño en el onboarding, UNA vez (create sólo aplica si no existe).
     // Forma exacta (= functions/src/subscriptions/on-company-created.ts):
@@ -330,7 +358,7 @@ service cloud.firestore {
         && request.resource.data.trialStartDate < request.time + duration.value(1, 'd')
         && request.resource.data.trialEndDate is timestamp
         && request.resource.data.trialEndDate > request.time
-        && request.resource.data.trialEndDate <= request.time + duration.value(63, 'd')
+        && request.resource.data.trialEndDate <= request.time + duration.value(trialMaxDays(), 'd')
       );
       allow update, delete: if isSuperAdmin();
     }

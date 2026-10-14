@@ -4,6 +4,8 @@ import { CompanyStore } from '../../../core/services/company-store.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { WompiService } from '../../../core/services/wompi.service';
 import { PaymentClaimService } from '../../../core/services/payment-claim.service';
+import { AppConfigService } from '../../../core/services/app-config.service';
+import { SupportContactComponent } from '../../../shared/components/support-contact.component';
 import { PLANS, WompiTransaction, formatCop, planFromAmount } from '../../../core/domain/plans';
 
 type View = 'loading' | 'approved' | 'pending' | 'declined' | 'notfound' | 'error';
@@ -19,7 +21,7 @@ const POLL_TRIES = 24;   // ~2 minutos
 @Component({
   selector: 'app-payment-thanks',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, SupportContactComponent],
   styles: [`
     .wrap { min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 28px 16px; }
     .card {
@@ -93,6 +95,7 @@ const POLL_TRIES = 24;   // ~2 minutos
             </div>
             <p class="title">No encontramos esa transacción</p>
             <p class="text">Si pagaste y ves este mensaje, escribinos con el comprobante de Wompi.</p>
+            <app-support-contact text="" />
           }
           @case ('error') {
             <div class="icon icon--bad">
@@ -126,6 +129,7 @@ export class PaymentThanksComponent implements OnDestroy {
   private auth      = inject(AuthService);
   private wompi     = inject(WompiService);
   private claims    = inject(PaymentClaimService);
+  private appConfig = inject(AppConfigService);
 
   readonly fmtCop = formatCop;
 
@@ -135,7 +139,7 @@ export class PaymentThanksComponent implements OnDestroy {
 
   planLabel = computed(() => {
     const t = this.tx();
-    const key = t ? planFromAmount(t.amountInCents, t.currency) : null;
+    const key = t ? planFromAmount(t.amountInCents, t.currency, this.appConfig.plans()) : null;
     return key ? PLANS[key].label : '';
   });
 

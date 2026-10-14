@@ -5,8 +5,9 @@ import { WompiService } from '../../../core/services/wompi.service';
 import { SubscriptionService } from '../../../core/services/subscription.service';
 import { PaymentClaimService } from '../../../core/services/payment-claim.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { AppConfigService } from '../../../core/services/app-config.service';
 import {
-  PLANS, PaymentCheck, WompiTransaction, checkWompiPayment, formatCop, nextPeriodEnd, paymentMethodLabel,
+  PaymentCheck, WompiTransaction, checkWompiPayment, formatCop, nextPeriodEnd, paymentMethodLabel,
 } from '../../../core/domain/plans';
 
 /**
@@ -122,6 +123,9 @@ export class VerifyPaymentComponent {
   private subSvc   = inject(SubscriptionService);
   private claimSvc = inject(PaymentClaimService);
   private notifSvc = inject(NotificationService);
+  private appConfig = inject(AppConfigService);
+  /** Catálogo con monto/días configurados (config/app). */
+  private get plans() { return this.appConfig.plans(); }
 
   readonly companies = input.required<AdminSub[]>();
   readonly closed    = output<void>();
@@ -136,8 +140,8 @@ export class VerifyPaymentComponent {
   tx        = signal<WompiTransaction | null>(null);
   companyId = signal('');
 
-  check     = computed<PaymentCheck | null>(() => { const t = this.tx(); return t ? checkWompiPayment(t) : null; });
-  planLabel = computed(() => { const c = this.check(); return c?.ok ? `${PLANS[c.plan].label} (${formatCop(PLANS[c.plan].amount)})` : ''; });
+  check     = computed<PaymentCheck | null>(() => { const t = this.tx(); return t ? checkWompiPayment(t, this.plans) : null; });
+  planLabel = computed(() => { const c = this.check(); return c?.ok ? `${this.plans[c.plan].label} (${formatCop(this.plans[c.plan].amount)})` : ''; });
   /** Empresa cuyo correo de cuenta coincide con el de quien pagó. */
   emailMatch = computed(() => {
     const email = this.tx()?.customerEmail?.trim().toLowerCase();
@@ -150,7 +154,7 @@ export class VerifyPaymentComponent {
     const sub = this.companies().find(s => s.companyId === this.companyId());
     if (!c?.ok || !sub) return null;
     const currentEnd = sub.status === 'active' && sub.periodEndMs ? new Date(sub.periodEndMs) : null;
-    return nextPeriodEnd(currentEnd, PLANS[c.plan].days);
+    return nextPeriodEnd(currentEnd, this.plans[c.plan].days);
   });
 
   reason(): string { const c = this.check(); return c && !c.ok ? c.reason : ''; }
@@ -183,10 +187,10 @@ export class VerifyPaymentComponent {
     this.busy.set(true); this.error.set('');
     try {
       const t = await this.wompi.getTransaction(id);
-      const c = t ? checkWompiPayment(t) : null;
+      const c = t ? checkWompiPayment(t, this.plans) : null;
       if (!t || !c?.ok) { this.error.set(`No se activó: ${c && !c.ok ? c.reason : 'Wompi no encontró la transacción'}`); return; }
 
-      const plan = PLANS[c.plan];
+      const plan = this.plans[c.plan];
       const r = await this.subSvc.registerManualPayment(sub.companyId, plan.key, t.id, {
         payerName: t.customerName, payerEmail: t.customerEmail, payerPhone: t.customerPhone,
         paymentMethod: t.paymentMethod, paidAt: t.finalizedAt ?? t.createdAt,

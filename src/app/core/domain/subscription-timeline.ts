@@ -12,12 +12,18 @@ export const GRACE_DAYS = 5;
 
 const DAY_MS = 86_400_000;
 
+/** Días de aviso y de gracia (el admin los configura en config/app; default = constantes). */
+export interface TimelineOptions {
+  warningDays?: number;
+  graceDays?: number;
+}
+
 export type SubscriptionPhase =
   | 'free'        // beneficiario: nunca vence
   | 'disabled'    // deshabilitada por el admin
   | 'expired'     // marcada vencida (por el admin, tras la gracia)
   | 'ok'          // vigente, lejos del vencimiento
-  | 'warning'     // vence en ≤ RENEWAL_WARNING_DAYS días (no hoy)
+  | 'warning'     // vence en ≤ warningDays días (no hoy)
   | 'due-today'   // vence hoy (día calendario local)
   | 'grace'       // venció, pero sigue funcionando hasta graceEnd
   | 'suspended';  // venció y pasó la gracia (aunque el admin aún no la marcó)
@@ -56,13 +62,19 @@ function dayDiff(a: Date, b: Date): number {
   return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS);
 }
 
-export function graceEndOf(endDate: Date): Date {
-  const g = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + GRACE_DAYS);
+export function graceEndOf(endDate: Date, graceDays = GRACE_DAYS): Date {
+  const g = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + graceDays);
   g.setHours(23, 59, 59, 999);
   return g;
 }
 
-export function subscriptionTimeline(sub: SubscriptionLike | null | undefined, now = new Date()): SubscriptionTimeline {
+export function subscriptionTimeline(
+  sub: SubscriptionLike | null | undefined,
+  now = new Date(),
+  opts: TimelineOptions = {},
+): SubscriptionTimeline {
+  const warningDays = opts.warningDays ?? RENEWAL_WARNING_DAYS;
+  const graceDays   = opts.graceDays ?? GRACE_DAYS;
   const none = { endDate: null, graceEnd: null, daysToEnd: null, graceDaysLeft: null };
   if (!sub) return { phase: 'ok', ...none };
   if (sub.status === 'free')     return { phase: 'free', ...none };
@@ -70,18 +82,18 @@ export function subscriptionTimeline(sub: SubscriptionLike | null | undefined, n
 
   const endDate = toDate(sub.status === 'trial' ? sub.trialEndDate : sub.currentPeriodEnd);
   if (sub.status === 'expired') {
-    return { phase: 'expired', endDate, graceEnd: endDate ? graceEndOf(endDate) : null, daysToEnd: endDate ? dayDiff(now, endDate) : null, graceDaysLeft: null };
+    return { phase: 'expired', endDate, graceEnd: endDate ? graceEndOf(endDate, graceDays) : null, daysToEnd: endDate ? dayDiff(now, endDate) : null, graceDaysLeft: null };
   }
   if (!endDate) return { phase: 'ok', ...none };
 
-  const graceEnd  = graceEndOf(endDate);
+  const graceEnd  = graceEndOf(endDate, graceDays);
   const daysToEnd = dayDiff(now, endDate);
 
   let phase: SubscriptionPhase;
   if (now.getTime() > graceEnd.getTime())       phase = 'suspended';
   else if (now.getTime() > endDate.getTime())   phase = daysToEnd === 0 ? 'due-today' : 'grace';
   else if (daysToEnd === 0)                     phase = 'due-today';
-  else if (daysToEnd <= RENEWAL_WARNING_DAYS)   phase = 'warning';
+  else if (daysToEnd <= warningDays)            phase = 'warning';
   else                                          phase = 'ok';
 
   return {

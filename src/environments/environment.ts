@@ -3,14 +3,10 @@ export const environment = {
   useEmulators: false,
   bypassAuth: false,
   wompiPublicKey: 'pub_test_placeholder',
-  // Wompi en MODO PRUEBAS (sandbox): pagos ficticios. Links creados con el panel en modo pruebas.
-  // Vacío = el botón "Pagar" avisa que falta configurarlo (nunca cae a un link real).
+  // Wompi en MODO PRUEBAS (sandbox): pagos ficticios. Los links de pago viven en Firestore
+  // (config/app, los edita el superadmin): acá se usa el link "de pruebas" de cada plan.
   wompi: {
     apiUrl: 'https://sandbox.wompi.co/v1',
-    checkout: {
-      mensual:   'https://checkout.wompi.co/l/test_WM8ARv',
-      semestral: '',
-    },
   },
   firebase: {
     apiKey: 'AIzaSyDk_So7bgA7t-BfZcZqtR503OSWLYcUZcY',

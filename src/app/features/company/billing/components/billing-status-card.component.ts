@@ -1,10 +1,12 @@
 import { Component, input } from '@angular/core';
 import { SubViewModel } from '../billing.models';
+import { SupportContactComponent } from '../../../../shared/components/support-contact.component';
 
 /** Banner de estado de la suscripción (cargando / error / estado actual). Presentacional. */
 @Component({
   selector: 'app-billing-status-card',
   standalone: true,
+  imports: [SupportContactComponent],
   styles: [`
     :host { display: contents; }
     @keyframes fadeInUp {
@@ -98,6 +100,7 @@ import { SubViewModel } from '../billing.models';
               ? 'Revisá tu conexión y recargá la página. Si el problema continúa, contactá a soporte.'
               : 'Podés elegir un plan abajo para activar tu cuenta. Si creés que es un error, contactá a soporte.' }}
         </p>
+        <div style="margin-top:8px"><app-support-contact align="left" text="Soporte:" /></div>
       </div>
     </div>
   } @else {

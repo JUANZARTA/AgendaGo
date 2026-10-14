@@ -4,6 +4,7 @@ import { CanActivateFn, Router } from '@angular/router';
 import { filter, firstValueFrom, timeout } from 'rxjs';
 import { SubscriptionService } from '../services/subscription.service';
 import { CompanyStore } from '../services/company-store.service';
+import { AppConfigService } from '../services/app-config.service';
 import { canUseApp, subscriptionTimeline } from '../domain/subscription-timeline';
 
 export const subscriptionGuard: CanActivateFn = async () => {
@@ -11,6 +12,7 @@ export const subscriptionGuard: CanActivateFn = async () => {
   const subService = inject(SubscriptionService);
   const companyStore = inject(CompanyStore);
   const router = inject(Router);
+  const appConfig = inject(AppConfigService);
   const injector = inject(Injector);
 
   let companyId = companyStore.companyId();
@@ -32,9 +34,9 @@ export const subscriptionGuard: CanActivateFn = async () => {
   if (!companyId) return true;
 
   try {
-    const sub = await subService.getStatus(companyId);
+    const [sub] = await Promise.all([subService.getStatus(companyId), appConfig.ready()]);
     // Vencida, deshabilitada o pasada la gracia (aunque el admin aún no la marcó)
-    if (sub && !canUseApp(subscriptionTimeline(sub))) {
+    if (sub && !canUseApp(subscriptionTimeline(sub, new Date(), appConfig.timeline()))) {
       router.navigate(['/empresa/facturacion']);
       return false;
     }
