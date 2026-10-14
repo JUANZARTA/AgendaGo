@@ -30,9 +30,12 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
 
     /* Escritorio: dos columnas; en pantallas chicas, una sola */
-    .profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 20px; align-items:start; }
+    .profile-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 20px; align-items:start; }
+    /* minmax(0,…) + min-width:0: si no, una columna nunca se achica por debajo de su contenido
+       más ancho (el link de la página pública en una línea) y la página se desborda en el celular */
+    .profile-grid > * { min-width:0; }
     .profile-grid > .full { grid-column:1 / -1; }
-    @media (max-width: 900px) { .profile-grid { grid-template-columns:1fr; } }
+    @media (max-width: 900px) { .profile-grid { grid-template-columns:minmax(0,1fr); } }
 
     .page-title { font-size:1.45rem; font-weight:800; color:#1a1a2e; margin:0 0 24px; }
 
@@ -114,7 +117,8 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     }
 
     /* Grid 2 columnas → 1 en mobile */
-    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-2col { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+    .grid-2col > * { min-width: 0; }
 
     @media (max-width: 560px) {
       .icon-grid { grid-template-columns: repeat(4, 1fr); }
@@ -122,7 +126,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
 
     @media (max-width: 480px) {
       /* Grid de teléfono/ciudad apilado */
-      .grid-2col { grid-template-columns: 1fr; }
+      .grid-2col { grid-template-columns: minmax(0,1fr); }
 
       /* Icon grid: reducir tamaño mínimo de las celdas */
       .icon-option { min-height: 56px; font-size: 10px; }
@@ -157,7 +161,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         <p style="font-size:13px;color:#666;margin:0 0 14px">Compartí este link con tus clientes para que agenden directamente, sin pasar por la búsqueda.</p>
 
         <div style="display:flex;gap:8px;align-items:center">
-          <div style="flex:1;background:white;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:13px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          <div style="flex:1;min-width:0;background:white;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:13px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
             {{ shareUrl }}
           </div>
           <button (click)="copyLink()"
