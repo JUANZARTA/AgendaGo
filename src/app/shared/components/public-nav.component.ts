@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeSwitcherComponent } from './theme-switcher.component';
 import { NotificationBellComponent } from './notification-bell.component';
+import { ClientActivityService } from '../../core/services/client-activity.service';
 
 @Component({
   selector: 'app-public-nav',
@@ -70,10 +71,23 @@ import { NotificationBellComponent } from './notification-bell.component';
         font-weight: 600;
         border-radius: 10px;
         transition: color .15s;
+        position: relative;
       }
+      .nav-dot--bottom { top: 8px; right: calc(50% - 14px); width: 10px; height: 10px; }
       .bn-item:hover { color: var(--purple); }
       .bn-item--active { color: var(--purple); }
       .bn-item--search { color: var(--purple); }
+    }
+
+    /* Punto de novedades (estilo Messenger): toma el color del tema */
+    .nav-dot {
+      position: absolute;
+      top: -3px; right: -3px;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: var(--purple);
+      box-shadow: 0 0 0 2px #ffffff;
+      pointer-events: none;
     }
 
     /* Active state for client nav links */
@@ -156,7 +170,7 @@ import { NotificationBellComponent } from './notification-bell.component';
                 Buscar
               </a>
               <a routerLink="/cliente/citas" routerLinkActive="pn-nav--active"
-                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
+                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap;position:relative"
                  onmouseover="this.style.background='var(--btn-secondary-hover)'"
                  onmouseout="this.style.background='var(--btn-secondary-bg)'">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -165,15 +179,17 @@ import { NotificationBellComponent } from './notification-bell.component';
                   <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
                 Mis citas
+                @if (activity.hasAptNews()) { <span class="nav-dot" aria-label="Novedades"></span> }
               </a>
               <a routerLink="/cliente/mensajes" routerLinkActive="pn-nav--active"
-                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
+                 style="display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap;position:relative"
                  onmouseover="this.style.background='var(--btn-secondary-hover)'"
                  onmouseout="this.style.background='var(--btn-secondary-bg)'">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                 </svg>
                 Mensajes
+                @if (activity.hasUnreadMessages()) { <span class="nav-dot" aria-label="Mensajes sin leer"></span> }
               </a>
               <app-notification-bell [recipientId]="auth.currentUser()?.uid ?? ''" />
               <a routerLink="/cliente/perfil"
@@ -289,12 +305,14 @@ import { NotificationBellComponent } from './notification-bell.component';
             <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
             <line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
+          @if (activity.hasAptNews()) { <span class="nav-dot nav-dot--bottom" aria-label="Novedades"></span> }
           <span>Mis citas</span>
         </a>
         <a routerLink="/cliente/mensajes" routerLinkActive="bn-item--active" class="bn-item">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
+          @if (activity.hasUnreadMessages()) { <span class="nav-dot nav-dot--bottom" aria-label="Mensajes sin leer"></span> }
           <span>Mensajes</span>
         </a>
         <a routerLink="/cliente/perfil" routerLinkActive="bn-item--active" class="bn-item">
@@ -310,6 +328,7 @@ import { NotificationBellComponent } from './notification-bell.component';
 })
 export class PublicNavComponent {
   auth = inject(AuthService);
+  readonly activity = inject(ClientActivityService);
   private router = inject(Router);
   menuOpen = signal(false);
 

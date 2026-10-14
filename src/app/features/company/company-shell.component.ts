@@ -9,6 +9,11 @@ import { AuthService } from '../../core/services/auth.service';
 import { SubscriptionService } from '../../core/services/subscription.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { TourService } from '../../core/services/tour.service';
+import { MessageService } from '../../core/services/message.service';
+
+const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
+  'new_appointment', 'appointment_confirmed', 'appointment_cancelled',
+];
 
 interface NavItem {
   label: string;
@@ -113,6 +118,7 @@ interface NavItem {
                   }
                 </svg>
                 <span class="nav-label">{{ item.label }}</span>
+                @if (hasDot(item.route)) { <span class="nav-dot" aria-label="Novedades"></span> }
               </a>
             }
           </nav>
@@ -217,6 +223,7 @@ interface NavItem {
                 }
               </svg>
               <span class="bottom-label">{{ item.label }}</span>
+              @if (hasDot(item.route)) { <span class="nav-dot nav-dot--bottom" aria-label="Novedades"></span> }
             </a>
           }
           <!-- Más -->
@@ -511,6 +518,22 @@ interface NavItem {
       background: var(--gradient);
     }
 
+    /* Punto de novedades (estilo Messenger): toma el color del tema; sobre el ítem activo va en blanco */
+    .nav-item, .bottom-item { position: relative; }
+    .nav-dot {
+      position: absolute;
+      top: 8px;
+      left: 29px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--purple);
+      box-shadow: 0 0 0 2px var(--sidebar-bg);
+      pointer-events: none;
+    }
+    .nav-item--active .nav-dot { background: #ffffff; box-shadow: none; }
+    .nav-dot--bottom { top: 6px; left: calc(50% + 6px); box-shadow: 0 0 0 2px #ffffff; }
+
     .nav-icon {
       width: 18px;
       height: 18px;
@@ -741,6 +764,7 @@ export class CompanyShellComponent implements OnDestroy {
   private subscriptionService  = inject(SubscriptionService);
   private router               = inject(Router);
   private notifSvc             = inject(NotificationService);
+  private messageSvc           = inject(MessageService);
   private tourSvc              = inject(TourService);
 
   sub              = signal<{ status: 'trial' | 'active' | 'expired' | 'disabled' | 'free' } | null>(null);
@@ -748,6 +772,19 @@ export class CompanyShellComponent implements OnDestroy {
   moreMenuOpen     = signal(false);
   notifications    = signal<AppNotification[]>([]);
   unreadCount      = computed(() => this.notifications().filter(n => !n.read).length);
+
+  /** Citas nuevas/confirmadas/canceladas sin ver → punto en Dashboard. */
+  private unreadAptNotifs = computed(() =>
+    this.notifications().filter(n => !n.read && APPOINTMENT_NOTIF_TYPES.includes(n.type))
+  );
+  /** Mensajes de clientes sin leer → punto en Mensajes. */
+  unreadMessages   = signal(false);
+
+  hasDot(route: string): boolean {
+    if (route === '/empresa/dashboard') return this.unreadAptNotifs().length > 0;
+    if (route === '/empresa/mensajes')  return this.unreadMessages();
+    return false;
+  }
 
   private currentUrl = toSignal(
     this.router.events.pipe(
@@ -766,6 +803,7 @@ export class CompanyShellComponent implements OnDestroy {
 
   private rxSub: RxSubscription | null    = null;
   private notifSub: RxSubscription | null = null;
+  private msgSub: RxSubscription | null   = null;
 
   constructor() {
     effect(() => {
@@ -793,6 +831,23 @@ export class CompanyShellComponent implements OnDestroy {
         this.notifications.set(list.slice(0, 30));
       });
     });
+
+    effect(() => {
+      const companyId = this.companyStore.companyId();
+      if (!companyId) return;
+      this.msgSub?.unsubscribe();
+      this.msgSub = this.messageSvc.watchConversations(companyId).subscribe({
+        next: msgs => this.unreadMessages.set(msgs.some(m => m.senderRole === 'client' && !m.read && !m.deleted)),
+        error: err => console.error('[CompanyShell] watchConversations error', err),
+      });
+    });
+
+    // Estando en el Dashboard, las novedades de citas se dan por vistas (se apaga el punto)
+    effect(() => {
+      if (!this.currentUrl().startsWith('/empresa/dashboard')) return;
+      const pending = this.unreadAptNotifs();
+      pending.forEach(n => { if (n.id) this.notifSvc.markRead(n.id).catch(() => {}); });
+    });
   }
 
   subDaysLeft(): number {
@@ -804,6 +859,7 @@ export class CompanyShellComponent implements OnDestroy {
   ngOnDestroy(): void {
     this.rxSub?.unsubscribe();
     this.notifSub?.unsubscribe();
+    this.msgSub?.unsubscribe();
   }
 
   async markNotifRead(n: AppNotification): Promise<void> {

@@ -1,10 +1,12 @@
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs/operators';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { AuthService } from '../../core/services/auth.service';
-import { MessageService } from '../../core/services/message.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { TourService } from '../../core/services/tour.service';
+import { ClientActivityService } from '../../core/services/client-activity.service';
 import { ClientOnboardingComponent } from './onboarding/client-onboarding.component';
 import { Subscription } from 'rxjs';
 
@@ -46,13 +48,14 @@ import { Subscription } from 'rxjs';
               </svg>
               Buscar
             </a>
-            <a id="ctour-citas-desktop" routerLink="/cliente/citas" routerLinkActive="action-nav--active" class="action-btn action-btn--nav">
+            <a id="ctour-citas-desktop" routerLink="/cliente/citas" routerLinkActive="action-nav--active" class="action-btn action-btn--nav" style="position:relative">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
               Mis citas
+              @if (activity.hasAptNews()) { <span class="nav-dot" aria-label="Novedades"></span> }
             </a>
             <a id="ctour-mensajes-desktop" routerLink="/cliente/mensajes" routerLinkActive="action-nav--active"
                class="action-btn action-btn--nav" style="position:relative">
@@ -60,7 +63,7 @@ import { Subscription } from 'rxjs';
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
               Mensajes
-              @if (unreadCount() > 0) { <span class="msg-badge">{{ unreadCount() }}</span> }
+              @if (activity.hasUnreadMessages()) { <span class="nav-dot" aria-label="Mensajes sin leer"></span> }
             </a>
           </div>
 
@@ -176,13 +179,14 @@ import { Subscription } from 'rxjs';
             <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
             <line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
+          @if (activity.hasAptNews()) { <span class="nav-dot nav-dot--bottom" aria-label="Novedades"></span> }
           <span>Mis citas</span>
         </a>
         <a id="ctour-mensajes-mobile" routerLink="/cliente/mensajes" routerLinkActive="bn-item--active" class="bn-item" style="position:relative">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          @if (unreadCount() > 0) { <span class="bn-badge">{{ unreadCount() }}</span> }
+          @if (activity.hasUnreadMessages()) { <span class="nav-dot nav-dot--bottom" aria-label="Mensajes sin leer"></span> }
           <span>Mensajes</span>
         </a>
         <a id="ctour-perfil-mobile" routerLink="/cliente/perfil" routerLinkActive="bn-item--active" class="bn-item">
@@ -308,15 +312,15 @@ import { Subscription } from 'rxjs';
     }
     .action-btn--exit:hover { border-color: var(--purple); color: var(--purple); }
 
-    .msg-badge {
+    /* Punto de novedades (estilo Messenger): toma el color del tema */
+    .nav-dot {
       position: absolute;
-      top: 4px; right: 4px;
-      background: var(--pink, #ec4899);
-      color: white;
-      border-radius: 20px;
-      font-size: 10px; font-weight: 800;
-      padding: 1px 5px; min-width: 16px;
-      text-align: center;
+      top: -3px; right: -3px;
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: var(--purple);
+      box-shadow: 0 0 0 2px #ffffff;
+      pointer-events: none;
     }
 
     .icon-btn {
@@ -448,35 +452,33 @@ import { Subscription } from 'rxjs';
       .bn-item:hover { color: var(--purple); }
       .bn-item--active { color: var(--purple); }
 
-      .bn-badge {
-        position: absolute;
-        top: 6px; right: calc(50% - 18px);
-        background: #ec4899;
-        color: white;
-        border-radius: 20px;
-        font-size: 9px; font-weight: 800;
-        padding: 1px 4px; min-width: 14px;
-        text-align: center;
-      }
+      .nav-dot--bottom { top: 8px; right: calc(50% - 14px); width: 10px; height: 10px; }
     }
   `],
 })
 export class ClientShellComponent implements OnDestroy {
   readonly authSvc  = inject(AuthService);
-  private msgSvc    = inject(MessageService);
   private notifSvc  = inject(NotificationService);
   private firestore = inject(Firestore);
   private router    = inject(Router);
   private tourSvc   = inject(TourService);
 
   isBlocked         = signal(false);
-  unreadCount       = signal(0);
   unreadNotifCount  = signal(0);
   notifications     = signal<AppNotification[]>([]);
   notifPanelOpen    = signal(false);
-  private msgSub:    Subscription | null = null;
   private notifSub:  Subscription | null = null;
   private unsubDoc?: () => void;
+
+  readonly activity = inject(ClientActivityService);
+
+  private currentUrl = toSignal(
+    this.router.events.pipe(
+      filter(e => e instanceof NavigationEnd),
+      map(() => this.router.url)
+    ),
+    { initialValue: this.router.url }
+  );
 
   initials = computed(() => {
     const name = this.authSvc.displayName() || this.authSvc.profile()?.email || '?';
@@ -485,25 +487,38 @@ export class ClientShellComponent implements OnDestroy {
 
   constructor() {
     this.tourSvc.startClientTour();
-    const uid = this.authSvc.currentUser()?.uid;
-    if (uid) {
+
+    // Estando en "Mis citas", las novedades de citas se dan por vistas (se apaga el punto)
+    effect(() => {
+      if (!this.currentUrl().startsWith('/cliente/citas')) return;
+      if (this.activity.hasAptNews()) this.activity.markAptNewsSeen();
+    });
+
+    // Suscripciones atadas al uid: si la sesión se resuelve después de crear el shell, igual arrancan
+    effect(() => {
+      const uid = this.authSvc.currentUser()?.uid;
+      this.stopWatchers();
+      if (!uid) return;
+
       this.unsubDoc = onSnapshot(doc(this.firestore, 'users', uid), snap => {
         const data = snap.data() as any;
         this.isBlocked.set(data?.isActive === false);
       });
 
-      this.msgSub = this.msgSvc.watchByClient(uid).subscribe({
-        next: (msgs) => this.unreadCount.set(msgs.filter(m => m.senderRole === 'company' && !m.read).length),
-        error: () => {},
-      });
       this.notifSub = this.notifSvc.watch(uid).subscribe({
         next: (notifs) => {
           this.notifications.set(notifs);
           this.unreadNotifCount.set(notifs.filter(n => !n.read).length);
         },
-        error: () => {},
+        error: (err) => console.error('[ClientShell] notifications error', err),
       });
-    }
+    });
+  }
+
+  private stopWatchers() {
+    this.unsubDoc?.();
+    this.unsubDoc = undefined;
+    this.notifSub?.unsubscribe();
   }
 
   toggleNotifPanel() { this.notifPanelOpen.update(v => !v); }
@@ -530,8 +545,6 @@ export class ClientShellComponent implements OnDestroy {
   }
 
   ngOnDestroy() {
-    this.unsubDoc?.();
-    this.msgSub?.unsubscribe();
-    this.notifSub?.unsubscribe();
+    this.stopWatchers();
   }
 }
