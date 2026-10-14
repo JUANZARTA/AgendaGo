@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { Company, CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ReviewService } from '../../../core/services/review.service';
 
 interface DisplayCompany {
   id: string;
@@ -54,8 +55,8 @@ function toDisplay(c: Company): DisplayCompany {
     description: c.description ?? '',
     phone:       c.phone ?? '',
     city:        c.city,
-    rating:      c.averageRating ?? 5,
-    reviewCount: c.reviewCount ?? 0,
+    rating:      0,
+    reviewCount: 0,
     slots:       countTodaySlots(c),
     logoUrl:     c.logoUrl,
     logoColor:   c.logoColor ?? CATEGORY_META[c.category]?.color ?? '#7c3aed',
@@ -219,11 +220,11 @@ const CATEGORIES = [
 
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                <span style="font-weight:700;font-size:13px">{{ company.rating }}</span>
                 @if (company.reviewCount > 0) {
+                  <span style="font-weight:700;font-size:13px">{{ company.rating }}</span>
                   <span style="font-size:12px;color:#aaa">({{ company.reviewCount }})</span>
                 } @else {
-                  <span style="font-size:12px;color:#bbb">· Nuevo</span>
+                  <span style="font-size:12px;color:#bbb">Nuevo</span>
                 }
                 <a [routerLink]="['/negocio', company.id, 'resenas']"
                    style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--purple);text-decoration:none;padding:3px 8px;border-radius:8px;background:#f5f0ff"
@@ -273,6 +274,7 @@ const CATEGORIES = [
 })
 export class SearchComponent implements OnInit {
   private companySvc = inject(CompanyService);
+  private reviewSvc  = inject(ReviewService);
   readonly auth      = inject(AuthService);
 
   isAuthClient = computed(() => this.auth.isLoggedIn() && this.auth.role() === 'client');
@@ -311,6 +313,18 @@ export class SearchComponent implements OnInit {
       this.companies.set(list.map(toDisplay));
     } finally {
       this.loading.set(false);
+    }
+    this.loadRatings();
+  }
+
+  /** Ratings calculados desde las reseñas; se completan después de mostrar la lista. */
+  private loadRatings() {
+    for (const c of this.companies()) {
+      this.reviewSvc.getRatingSummary(c.id)
+        .then(r => this.companies.update(list =>
+          list.map(x => x.id === c.id ? { ...x, rating: r.average, reviewCount: r.count } : x)
+        ))
+        .catch(err => console.error('[Search] rating error', c.id, err));
     }
   }
 

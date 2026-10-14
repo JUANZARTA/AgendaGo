@@ -40,8 +40,6 @@ export interface Company {
   schedule: DaySchedule[];
   blockedDates?: BlockedDate[];
   disabledSlots?: Record<string, boolean>;
-  averageRating?: number;
-  reviewCount?: number;
   autoConfirm?: boolean;
 }
 

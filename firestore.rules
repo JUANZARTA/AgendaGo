@@ -51,17 +51,6 @@ service cloud.firestore {
     }
 
     // ───────────────────────── COMPANIES ─────────────────────────
-    function ratingOnlyUpdate() {
-      let before = resource.data.get('reviewCount', 0);
-      let after  = request.resource.data.get('reviewCount', 0);
-      return changedKeys().hasOnly(['averageRating', 'reviewCount'])
-          && request.resource.data.get('averageRating', 0) is number
-          && request.resource.data.get('averageRating', 0) >= 0
-          && request.resource.data.get('averageRating', 0) <= 5
-          && after is number && after >= 0
-          && math.abs(after - before) <= 1;
-    }
-
     match /companies/{companyId} {
       allow read: if resource.data.isPublic == true
                   || (isAuth() && request.auth.uid == resource.data.ownerId)
@@ -69,11 +58,10 @@ service cloud.firestore {
       allow create: if isSuperAdmin()
                     || (isCompany() && request.resource.data.ownerId == request.auth.uid);
       allow update: if
-        // Dueño: todo menos ownerId / isActive (lo maneja superadmin) y el agregado de rating
+        // Dueño: todo menos ownerId / isActive (lo maneja superadmin). El rating ya no se guarda acá:
+        // se calcula con una agregación sobre /reviews (campos legacy bloqueados).
         (isAuth() && resource.data.ownerId == request.auth.uid
           && !changedKeys().hasAny(['ownerId', 'isActive', 'createdAt', 'averageRating', 'reviewCount']))
-        // Cualquier usuario autenticado: SÓLO el agregado de rating, acotado
-        || (isAuth() && ratingOnlyUpdate())
         || isSuperAdmin();
       allow delete: if isSuperAdmin();
 
@@ -202,6 +190,28 @@ service cloud.firestore {
               'startTime': d.startTime, 'endTime': d.endTime} in getAfter(lockPath).data.entries;
     }
 
+    // Día de la semana de 'YYYY-MM-DD' con las claves de horario de la app (dayOfWeek: 1=lunes … 7=domingo)
+    function dayKeyOf(dateKey) {
+      let p = dateKey.split('-');
+      return ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'][
+        timestamp.date(int(p[0]), int(p[1]), int(p[2])).dayOfWeek() - 1];
+    }
+
+    // Reserva con profesional elegido: debe estar activo, hacer ese servicio y trabajar en ese horario.
+    // Sin horario propio (schedule vacío) usa el de la empresa.
+    function aptStaffOk(d) {
+      let staffPath = /databases/$(database)/documents/companies/$(d.companyId)/staff/$(d.staffId);
+      let staff = get(staffPath).data;
+      let sched = staff.get('schedule', {});
+      let day = sched.get(dayKeyOf(d.date), null);
+      return exists(staffPath)
+          && staff.get('isActive', false) == true
+          && d.serviceId in staff.get('serviceIds', [])
+          && (sched.size() == 0
+              || (day != null && day.get('enabled', false) == true
+                  && day.open <= d.startTime && d.endTime <= day.close));
+    }
+
     function aptCreateOk(aptId) {
       let d = request.resource.data;
       let company = companyDoc(d.companyId).data;
@@ -215,6 +225,7 @@ service cloud.firestore {
               && (!('clientId' in d) || d.clientId == request.auth.uid))
             // Cliente logueado o invitado: reserva desde la app
             || (d.source == 'app'
+              && (!('staffId' in d) || aptStaffOk(d))
               && (d.status == 'pending' || (d.status == 'scheduled' && company.get('autoConfirm', false) == true))
               && (('clientId' in d)
                     ? (isAuth() && d.clientId == request.auth.uid && d.isGuestClient == false)

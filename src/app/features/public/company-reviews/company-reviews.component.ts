@@ -493,7 +493,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
         comment:        this.reviewComment.trim(),
         createdAt:      Date.now(),
         appointmentId:  this.selectedAptId() || undefined,
-      }, this.reviews());
+      });
       this.reviewSent.set(true);
       this.reviewRating.set(0);
       this.reviewComment = '';
@@ -528,7 +528,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
     if (this.editRating() === 0) { this.editError.set('Seleccioná al menos una estrella.'); return; }
     this.updatingReview.set(true);
     try {
-      await this.reviewSvc.updateReview(review.id, this.editRating(), this.editComment, review, this.reviews());
+      await this.reviewSvc.updateReview(review.id, this.editRating(), this.editComment);
       this.editingReview.set(null);
     } catch {
       this.editError.set('Error al guardar. Intentá de nuevo.');
@@ -542,7 +542,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
     if (!review?.id) return;
     this.deletingReview.set(true);
     try {
-      await this.reviewSvc.deleteReview(review.id, review, this.reviews());
+      await this.reviewSvc.deleteReview(review.id);
       this.showDeleteConfirm.set(null);
     } catch {
     } finally {
