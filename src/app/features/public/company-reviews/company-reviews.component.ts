@@ -1,7 +1,6 @@
 import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { PublicNavComponent } from '../../../shared/components/public-nav.component';
 import { CompanyService, Company } from '../../../core/services/company.service';
@@ -9,11 +8,22 @@ import { AuthService } from '../../../core/services/auth.service';
 import { AppointmentService, Appointment } from '../../../core/services/appointment.service';
 import { ReviewService, Review } from '../../../core/services/review.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { averageRating } from './company-reviews.utils';
+import { RatingSummaryComponent } from './components/rating-summary.component';
+import { ReviewCardComponent } from './components/review-card.component';
+import { NewReviewFormComponent } from './components/new-review-form.component';
+import { EditReviewModalComponent } from './components/edit-review-modal.component';
+import { PublishConfirmModalComponent } from './components/publish-confirm-modal.component';
+import { DeleteReviewModalComponent } from './components/delete-review-modal.component';
 
 @Component({
   selector: 'app-company-reviews',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, PublicNavComponent],
+  imports: [
+    CommonModule, RouterLink, PublicNavComponent,
+    RatingSummaryComponent, ReviewCardComponent, NewReviewFormComponent,
+    EditReviewModalComponent, PublishConfirmModalComponent, DeleteReviewModalComponent,
+  ],
   styles: [`
     :host { display: block; }
 
@@ -24,63 +34,6 @@ import { NotificationService } from '../../../core/services/notification.service
     }
 
     .inner { max-width: 640px; margin: 0 auto; }
-
-    .star-btn {
-      background: none; border: none; cursor: pointer;
-      padding: 2px; line-height: 0;
-      transition: transform .1s;
-    }
-    .star-btn:hover { transform: scale(1.15); }
-
-    .review-card {
-      background: white;
-      border-radius: 14px;
-      padding: 16px 18px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.05);
-    }
-
-    .review-textarea {
-      width: 100%; padding: 12px 14px;
-      border: 1.5px solid #e5e0ff; border-radius: 12px;
-      font-size: 14px; font-family: inherit;
-      resize: vertical; min-height: 80px;
-      box-sizing: border-box; outline: none;
-      color: inherit; background: white;
-      transition: border-color .18s;
-    }
-    .review-textarea:focus { border-color: var(--purple); }
-
-    .apt-select {
-      width: 100%; padding: 10px 14px;
-      border: 1.5px solid #e5e0ff; border-radius: 12px;
-      font-size: 13px; font-family: inherit;
-      background: white; outline: none; color: inherit;
-      transition: border-color .18s; margin-bottom: 14px;
-    }
-    .apt-select:focus { border-color: var(--purple); }
-
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.45);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 300; padding: 16px;
-      -webkit-backdrop-filter: blur(2px);
-      backdrop-filter: blur(2px);
-    }
-    .modal-card {
-      background: white; border-radius: 20px; padding: 28px;
-      width: 100%; max-width: 380px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.25);
-    }
-
-    .icon-btn {
-      background: none; border: none; cursor: pointer;
-      padding: 6px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .15s;
-    }
-    .icon-btn:hover { background: #f3f4f6; }
-    .icon-btn.danger:hover { background: #fee2e2; color: #ef4444; }
   `],
   template: `
     <app-public-nav />
@@ -100,24 +53,7 @@ import { NotificationService } from '../../../core/services/notification.service
           {{ company()?.name ?? '...' }}
         </h1>
 
-        @if (reviews().length > 0) {
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="display:flex;gap:3px">
-              @for (i of starRange; track i) {
-                <svg width="16" height="16" viewBox="0 0 24 24"
-                     [attr.fill]="i <= avgRating() ? '#fbbf24' : 'rgba(255,255,255,.3)'"
-                     [attr.stroke]="i <= avgRating() ? '#fbbf24' : 'rgba(255,255,255,.3)'"
-                     stroke-width="1">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              }
-            </div>
-            <span style="font-size:15px;font-weight:800">{{ avgRating() }}</span>
-            <span style="font-size:13px;opacity:.75">({{ reviews().length }} reseña{{ reviews().length !== 1 ? 's' : '' }})</span>
-          </div>
-        } @else if (!loadingReviews()) {
-          <p style="opacity:.72;font-size:14px;margin:0">Todavía sin reseñas · ¡Sé el primero!</p>
-        }
+        <app-rating-summary [count]="reviews().length" [avgRating]="avgRating()" [loading]="loadingReviews()" />
       </div>
     </div>
 
@@ -148,54 +84,14 @@ import { NotificationService } from '../../../core/services/notification.service
             Ya dejaste reseña en todos tus turnos completados.
           </div>
         } @else {
-          <!-- Formulario nueva reseña -->
-          <div style="background:white;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.05)">
-            <p style="font-size:13px;font-weight:700;color:var(--purple);margin:0 0 14px">Dejá tu reseña</p>
-
-            <!-- Selector de turno si hay más de uno -->
-            @if (reviewableApts().length > 1) {
-              <select class="apt-select" [ngModel]="selectedAptId()" (ngModelChange)="selectedAptId.set($event)">
-                <option value="">Seleccioná el turno a reseñar</option>
-                @for (a of reviewableApts(); track a.id) {
-                  <option [value]="a.id">{{ a.serviceName }} · {{ formatAptDate(a.date) }} {{ a.startTime }}</option>
-                }
-              </select>
-            } @else {
-              <div style="font-size:12px;color:#888;background:#f8f7ff;border-radius:10px;padding:8px 12px;margin-bottom:14px">
-                Turno: <strong>{{ reviewableApts()[0]?.serviceName }}</strong> · {{ formatAptDate(reviewableApts()[0]?.date) }} {{ reviewableApts()[0]?.startTime }}
-              </div>
-            }
-
-            <div style="display:flex;gap:4px;margin-bottom:14px">
-              @for (i of starRange; track i) {
-                <button type="button" class="star-btn"
-                  (click)="reviewRating.set(i)"
-                  (mouseover)="reviewHover.set(i)"
-                  (mouseout)="reviewHover.set(0)">
-                  <svg width="30" height="30" viewBox="0 0 24 24"
-                       [attr.fill]="i <= (reviewHover() || reviewRating()) ? '#f59e0b' : '#e5e7eb'"
-                       [attr.stroke]="i <= (reviewHover() || reviewRating()) ? '#f59e0b' : '#d1d5db'"
-                       stroke-width="1" style="transition:fill .12s">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                  </svg>
-                </button>
-              }
-            </div>
-
-            <textarea class="review-textarea" [(ngModel)]="reviewComment"
-                      placeholder="Contá tu experiencia...">
-            </textarea>
-
-            @if (reviewError()) {
-              <p style="color:#ef4444;font-size:13px;margin-top:6px">{{ reviewError() }}</p>
-            }
-
-            <button class="btn btn-primary" style="margin-top:12px;width:100%"
-                    [disabled]="submittingReview()"
-                    (click)="askConfirm()">
-              @if (submittingReview()) { Enviando... } @else { Publicar reseña }
-            </button>
-          </div>
+          <app-new-review-form
+            [reviewableApts]="reviewableApts()"
+            [error]="reviewError()"
+            [submitting]="submittingReview()"
+            [(selectedAptId)]="selectedAptId"
+            [(rating)]="reviewRating"
+            [(comment)]="reviewComment"
+            (publish)="askConfirm()" />
         }
 
         <!-- Lista de reseñas -->
@@ -211,62 +107,11 @@ import { NotificationService } from '../../../core/services/notification.service
             </div>
           } @else {
             @for (r of reviews(); track r.id) {
-              <div class="review-card">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-                  <div style="width:36px;height:36px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0;overflow:hidden">
-                    @if (r.clientPhotoUrl) {
-                      <img [src]="r.clientPhotoUrl" style="width:100%;height:100%;object-fit:cover" alt="" />
-                    } @else {
-                      {{ r.clientName[0]?.toUpperCase() }}
-                    }
-                  </div>
-                  <div style="flex:1;min-width:0">
-                    <div style="font-weight:700;font-size:14px">{{ r.clientName }}</div>
-                    <div style="display:flex;gap:2px;margin-top:2px">
-                      @for (i of starRange; track i) {
-                        <svg width="12" height="12" viewBox="0 0 24 24"
-                             [attr.fill]="i <= r.rating ? '#f59e0b' : '#e5e7eb'"
-                             [attr.stroke]="i <= r.rating ? '#f59e0b' : '#d1d5db'"
-                             stroke-width="1">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                        </svg>
-                      }
-                    </div>
-                  </div>
-                  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-                    <span style="font-size:11px;color:#bbb">{{ formatDate(r.createdAt) }}{{ r.updatedAt ? ' (editada)' : '' }}</span>
-                    @if (r.clientId === authSvc.profile()?.uid) {
-                      <button class="icon-btn" title="Editar reseña" (click)="openEdit(r)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                      </button>
-                      <button class="icon-btn danger" title="Eliminar reseña" (click)="showDeleteConfirm.set(r)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6"/><path d="M14 11v6"/>
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
-                      </button>
-                    }
-                  </div>
-                </div>
-                @if (r.comment) {
-                  <p style="font-size:13px;color:#444;line-height:1.65;margin:0">{{ r.comment }}</p>
-                }
-                @if (r.reply) {
-                  <div style="background:rgba(124,58,237,.06);border-left:3px solid var(--purple);border-radius:0 10px 10px 0;padding:10px 14px;margin-top:12px">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
-                      </svg>
-                      <span style="font-size:11px;font-weight:700;color:var(--purple)">Respuesta del negocio</span>
-                    </div>
-                    <p style="font-size:13px;color:#555;line-height:1.6;margin:0">{{ r.reply }}</p>
-                  </div>
-                }
-              </div>
+              <app-review-card
+                [review]="r"
+                [isOwn]="r.clientId === authSvc.profile()?.uid"
+                (edit)="openEdit($event)"
+                (remove)="showDeleteConfirm.set($event)" />
             }
           }
         </div>
@@ -276,92 +121,31 @@ import { NotificationService } from '../../../core/services/notification.service
 
     <!-- Modal: confirmar publicación -->
     @if (showConfirm()) {
-      <div class="modal-overlay" (click)="showConfirm.set(false)">
-        <div class="modal-card" (click)="$event.stopPropagation()">
-          <h3 style="font-size:1.05rem;font-weight:800;margin:0 0 6px">¿Publicar reseña?</h3>
-          <p style="font-size:13px;color:#888;margin:0 0 18px">Podés editarla o eliminarla después si querés.</p>
-
-          <div style="display:flex;gap:3px;margin-bottom:10px">
-            @for (i of starRange; track i) {
-              <svg width="22" height="22" viewBox="0 0 24 24"
-                   [attr.fill]="i <= reviewRating() ? '#f59e0b' : '#e5e7eb'"
-                   [attr.stroke]="i <= reviewRating() ? '#f59e0b' : '#d1d5db'"
-                   stroke-width="1">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
-            }
-          </div>
-
-          @if (reviewComment.trim()) {
-            <p style="font-size:13px;color:#444;background:#f8f7ff;border-radius:10px;padding:10px 14px;margin:0 0 20px;line-height:1.6">
-              "{{ reviewComment }}"
-            </p>
-          }
-
-          <div style="display:flex;gap:10px">
-            <button class="btn btn-secondary" style="flex:1" (click)="showConfirm.set(false)">Cancelar</button>
-            <button class="btn btn-primary" style="flex:1" [disabled]="submittingReview()" (click)="submitReview()">
-              @if (submittingReview()) { Enviando... } @else { Confirmar }
-            </button>
-          </div>
-        </div>
-      </div>
+      <app-publish-confirm-modal
+        [rating]="reviewRating()"
+        [comment]="reviewComment()"
+        [submitting]="submittingReview()"
+        (cancel)="showConfirm.set(false)"
+        (confirm)="submitReview()" />
     }
 
     <!-- Modal: editar reseña -->
     @if (editingReview()) {
-      <div class="modal-overlay" (click)="editingReview.set(null)">
-        <div class="modal-card" (click)="$event.stopPropagation()">
-          <h3 style="font-size:1.05rem;font-weight:800;margin:0 0 16px">Editar reseña</h3>
-
-          <div style="display:flex;gap:4px;margin-bottom:14px">
-            @for (i of starRange; track i) {
-              <button type="button" class="star-btn"
-                (click)="editRating.set(i)"
-                (mouseover)="editHover.set(i)"
-                (mouseout)="editHover.set(0)">
-                <svg width="28" height="28" viewBox="0 0 24 24"
-                     [attr.fill]="i <= (editHover() || editRating()) ? '#f59e0b' : '#e5e7eb'"
-                     [attr.stroke]="i <= (editHover() || editRating()) ? '#f59e0b' : '#d1d5db'"
-                     stroke-width="1" style="transition:fill .12s">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              </button>
-            }
-          </div>
-
-          <textarea class="review-textarea" [(ngModel)]="editComment"
-                    placeholder="Contá tu experiencia...">
-          </textarea>
-
-          @if (editError()) {
-            <p style="color:#ef4444;font-size:13px;margin-top:6px">{{ editError() }}</p>
-          }
-
-          <div style="display:flex;gap:10px;margin-top:16px">
-            <button class="btn btn-secondary" style="flex:1" (click)="editingReview.set(null)">Cancelar</button>
-            <button class="btn btn-primary" style="flex:1" [disabled]="updatingReview()" (click)="submitEdit()">
-              @if (updatingReview()) { Guardando... } @else { Guardar cambios }
-            </button>
-          </div>
-        </div>
-      </div>
+      <app-edit-review-modal
+        [error]="editError()"
+        [updating]="updatingReview()"
+        [(rating)]="editRating"
+        [(comment)]="editComment"
+        (cancel)="editingReview.set(null)"
+        (save)="submitEdit()" />
     }
 
     <!-- Modal: confirmar eliminación -->
     @if (showDeleteConfirm()) {
-      <div class="modal-overlay" (click)="showDeleteConfirm.set(null)">
-        <div class="modal-card" (click)="$event.stopPropagation()">
-          <h3 style="font-size:1.05rem;font-weight:800;margin:0 0 8px">¿Eliminar reseña?</h3>
-          <p style="font-size:13px;color:#888;margin:0 0 20px;line-height:1.6">Esta acción no se puede deshacer. La reseña se eliminará permanentemente.</p>
-          <div style="display:flex;gap:10px">
-            <button class="btn btn-secondary" style="flex:1" (click)="showDeleteConfirm.set(null)">Cancelar</button>
-            <button class="btn btn-danger" style="flex:1" [disabled]="deletingReview()" (click)="confirmDelete()">
-              @if (deletingReview()) { Eliminando... } @else { Eliminar }
-            </button>
-          </div>
-        </div>
-      </div>
+      <app-delete-review-modal
+        [deleting]="deletingReview()"
+        (cancel)="showDeleteConfirm.set(null)"
+        (confirm)="confirmDelete()" />
     }
   `,
 })
@@ -402,8 +186,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
 
   selectedAptId    = signal('');
   reviewRating     = signal(0);
-  reviewHover      = signal(0);
-  reviewComment    = '';
+  reviewComment    = signal('');
   submittingReview = signal(false);
   reviewSent       = signal(false);
   reviewError      = signal('');
@@ -411,21 +194,14 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
 
   editingReview  = signal<Review | null>(null);
   editRating     = signal(0);
-  editHover      = signal(0);
-  editComment    = '';
+  editComment    = signal('');
   editError      = signal('');
   updatingReview = signal(false);
 
   showDeleteConfirm = signal<Review | null>(null);
   deletingReview    = signal(false);
 
-  readonly starRange = [1, 2, 3, 4, 5];
-
-  avgRating = computed(() => {
-    const list = this.reviews();
-    if (!list.length) return 0;
-    return Math.round(list.reduce((s, r) => s + r.rating, 0) / list.length * 10) / 10;
-  });
+  avgRating = computed(() => averageRating(this.reviews().map(r => r.rating)));
 
   private reviewSub: Subscription | null = null;
 
@@ -490,13 +266,13 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
         clientName:     name,
         clientPhotoUrl: this.authSvc.profile()?.photoUrl,
         rating,
-        comment:        this.reviewComment.trim(),
+        comment:        this.reviewComment().trim(),
         createdAt:      Date.now(),
         appointmentId:  this.selectedAptId() || undefined,
       });
       this.reviewSent.set(true);
       this.reviewRating.set(0);
-      this.reviewComment = '';
+      this.reviewComment.set('');
       this.selectedAptId.set('');
       const owner = this.company()?.ownerId;
       if (owner) {
@@ -518,7 +294,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
   openEdit(review: Review) {
     this.editingReview.set(review);
     this.editRating.set(review.rating);
-    this.editComment = review.comment;
+    this.editComment.set(review.comment);
     this.editError.set('');
   }
 
@@ -528,7 +304,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
     if (this.editRating() === 0) { this.editError.set('Seleccioná al menos una estrella.'); return; }
     this.updatingReview.set(true);
     try {
-      await this.reviewSvc.updateReview(review.id, this.editRating(), this.editComment);
+      await this.reviewSvc.updateReview(review.id, this.editRating(), this.editComment());
       this.editingReview.set(null);
     } catch {
       this.editError.set('Error al guardar. Intentá de nuevo.');
@@ -551,15 +327,4 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
   }
 
   goBack() { this.router.navigate(['/']); }
-
-  formatDate(ts: number): string {
-    return new Date(ts).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
-  }
-
-  formatAptDate(date: string | undefined): string {
-    if (!date) return '';
-    const [y, m, d] = date.split('-');
-    const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    return `${+d} ${months[+m - 1]}`;
-  }
 }
