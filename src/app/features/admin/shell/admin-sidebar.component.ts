@@ -36,6 +36,9 @@ import { AdminNavIconComponent } from './admin-nav-icon.component';
                    stroke-linecap="round" stroke-linejoin="round"
                    [appAdminNavIcon]="item.icon"></svg>
               <span class="nav-label">{{ item.label }}</span>
+              @if (badges()[item.route]; as count) {
+                <span class="nav-badge" aria-label="Sin leer">{{ count > 99 ? '99+' : count }}</span>
+              }
             </a>
           }
         </nav>
@@ -181,6 +184,22 @@ import { AdminNavIconComponent } from './admin-nav-icon.component';
       white-space: nowrap;
     }
 
+    /* Contador de novedades por ítem (p.ej. hilos de soporte sin leer) */
+    .nav-badge {
+      margin-left: auto;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 99px;
+      background: #f43f5e;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     /* Admin info */
     .admin-info {
       display: flex;
@@ -240,6 +259,8 @@ import { AdminNavIconComponent } from './admin-nav-icon.component';
 export class AdminSidebarComponent {
   readonly navItems = input.required<AdminNavItem[]>();
   readonly unreadCount = input.required<number>();
+  /** Contador por ruta (route → cantidad); 0 o ausente = sin badge. */
+  readonly badges = input<Record<string, number>>({});
   readonly email = input<string | null | undefined>();
   readonly version = input.required<string>();
 

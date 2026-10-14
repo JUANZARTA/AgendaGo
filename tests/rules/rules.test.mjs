@@ -482,6 +482,75 @@ async function main() {
   await expectOk('admin lists all payments', () => getDocs(collection(admin, 'payments')));
   await expectOk('admin dismisses attempt', () => updateDoc(doc(admin, 'paymentAttempts', attId), { status: 'dismissed' }));
 
+  console.log('SUPPORT (chat Empresa <-> Admin)');
+  const thread = (over = {}) => ({ companyId: 'c1', companyName: 'Salon', kind: 'consulta', lastMessage: 'hola',
+    lastMessageAt: serverTimestamp(), lastSender: 'company', unreadByAdmin: true, unreadByCompany: false,
+    status: 'open', createdAt: serverTimestamp(), ...over });
+  const smsg = (over = {}) => ({ sender: 'company', senderUid: 'owner1', text: 'hola', createdAt: serverTimestamp(), ...over });
+  const tCol = (db, id) => collection(db, 'supportThreads', id, 'messages');
+  await expectOk('owner reads own non-existing thread', () => getDoc(doc(o1, 'supportThreads', 'c1_consulta')));
+  await expectOk('owner creates own thread', () => setDoc(doc(o1, 'supportThreads', 'c1_consulta'), thread()));
+  await expectOk('owner writes message as company', () => addDoc(tCol(o1, 'c1_consulta'), smsg()));
+  await expectOk('owner creates urgente thread + msg in a batch', async () => {
+    const b = writeBatch(o1);
+    b.set(doc(o1, 'supportThreads', 'c1_urgente'), thread({ kind: 'urgente' }));
+    b.set(doc(tCol(o1, 'c1_urgente')), smsg({ text: 'no carga' }));
+    await b.commit();
+  });
+  await expectDeny('thread id != companyId_kind', () => setDoc(doc(o1, 'supportThreads', 'c1_urgente2'), thread({ kind: 'urgente' })));
+  await expectDeny('thread with unknown kind', () => setDoc(doc(o1, 'supportThreads', 'c1_otro'), thread({ kind: 'otro' })));
+  await expectDeny('owner creates thread for other company', () => setDoc(doc(o1, 'supportThreads', 'c3_consulta'), thread({ companyId: 'c3' })));
+  await expectDeny('thread created as resolved', () => setDoc(doc(o2, 'supportThreads', 'c3_consulta'), thread({ companyId: 'c3', status: 'resolved' })));
+  await expectDeny('thread with extra field', () => setDoc(doc(o2, 'supportThreads', 'c3_consulta'), { ...thread({ companyId: 'c3' }), vip: true }));
+  await expectOk('owner2 creates own thread (c3)', () => setDoc(doc(o2, 'supportThreads', 'c3_consulta'), thread({ companyId: 'c3' })));
+  await expectDeny('company A reads company B thread', () => getDoc(doc(o1, 'supportThreads', 'c3_consulta')));
+  await expectDeny('company A reads company B messages', () => getDocs(tCol(o1, 'c3_consulta')));
+  await expectDeny('company A lists company B threads', () => getDocs(query(collection(o1, 'supportThreads'), where('companyId', '==', 'c3'))));
+  await expectDeny('company A lists all threads', () => getDocs(collection(o1, 'supportThreads')));
+  await expectOk('owner lists own threads', () => getDocs(query(collection(o1, 'supportThreads'), where('companyId', '==', 'c1'))));
+  await expectOk('owner reads own messages', () => getDocs(query(tCol(o1, 'c1_consulta'), orderBy('createdAt', 'asc'))));
+  await expectDeny('company writes as admin', () => addDoc(tCol(o1, 'c1_consulta'), smsg({ sender: 'admin' })));
+  await expectDeny('company spoofs senderUid', () => addDoc(tCol(o1, 'c1_consulta'), smsg({ senderUid: 'admin' })));
+  await expectDeny('company writes in other company thread', () => addDoc(tCol(o1, 'c3_consulta'), smsg()));
+  await expectDeny('empty message', () => addDoc(tCol(o1, 'c1_consulta'), smsg({ text: '' })));
+  await expectDeny('message too long', () => addDoc(tCol(o1, 'c1_consulta'), smsg({ text: 'x'.repeat(2001) })));
+  await expectDeny('message with client createdAt', () => addDoc(tCol(o1, 'c1_consulta'), smsg({ createdAt: Timestamp.now() })));
+  await expectDeny('client reads thread', () => getDoc(doc(c1, 'supportThreads', 'c1_consulta')));
+  await expectDeny('client reads messages', () => getDocs(tCol(c1, 'c1_consulta')));
+  await expectDeny('client writes message', () => addDoc(tCol(c1, 'c1_consulta'), smsg({ senderUid: 'client1' })));
+  await expectDeny('client creates thread', () => setDoc(doc(c1, 'supportThreads', 'c1_consulta'), thread()));
+  await expectDeny('guest reads thread', () => getDoc(doc(guest, 'supportThreads', 'c1_consulta')));
+  await expectDeny('company resolves own thread', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { status: 'resolved' }));
+  await expectDeny('company marks read for admin', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { unreadByAdmin: false }));
+  await expectDeny('company poses as admin in summary', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { lastMessage: 'x', lastSender: 'admin', lastMessageAt: serverTimestamp() }));
+  await expectDeny('company changes kind', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { kind: 'urgente' }));
+  await expectOk('company updates summary', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { lastMessage: 'otra', lastSender: 'company', lastMessageAt: serverTimestamp(), unreadByAdmin: true }));
+  await expectOk('admin lists all threads', () => getDocs(collection(admin, 'supportThreads')));
+  await expectOk('admin reads messages', () => getDocs(tCol(admin, 'c3_consulta')));
+  await expectOk('admin replies + summary in a batch', async () => {
+    const b = writeBatch(admin);
+    b.update(doc(admin, 'supportThreads', 'c1_consulta'), { lastMessage: 'listo', lastSender: 'admin', lastMessageAt: serverTimestamp(), unreadByCompany: true, unreadByAdmin: false });
+    b.set(doc(tCol(admin, 'c1_consulta')), smsg({ sender: 'admin', senderUid: 'admin', text: 'listo' }));
+    await b.commit();
+  });
+  await expectDeny('admin writes as company', () => addDoc(tCol(admin, 'c1_consulta'), smsg({ senderUid: 'admin' })));
+  await expectOk('company marks own thread read', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { unreadByCompany: false }));
+  await expectDeny('company marks unread for itself', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { unreadByCompany: true }));
+  await expectOk('admin resolves thread', () => updateDoc(doc(admin, 'supportThreads', 'c1_consulta'), { status: 'resolved' }));
+  await expectDeny('admin sets unknown status', () => updateDoc(doc(admin, 'supportThreads', 'c1_consulta'), { status: 'archived' }));
+  await expectOk('company writing reopens resolved thread', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta'), { lastMessage: 'de nuevo', lastSender: 'company', lastMessageAt: serverTimestamp(), unreadByAdmin: true, status: 'open' }));
+  let smsgId;
+  await expectOk('owner writes another message', async () => { smsgId = (await addDoc(tCol(o1, 'c1_consulta'), smsg())).id; });
+  await expectDeny('company edits message', () => updateDoc(doc(o1, 'supportThreads', 'c1_consulta', 'messages', smsgId), { text: 'cambio' }));
+  await expectDeny('company deletes message', () => deleteDoc(doc(o1, 'supportThreads', 'c1_consulta', 'messages', smsgId)));
+  await expectDeny('admin deletes message', () => deleteDoc(doc(admin, 'supportThreads', 'c1_consulta', 'messages', smsgId)));
+  await expectDeny('company deletes thread', () => deleteDoc(doc(o1, 'supportThreads', 'c1_urgente')));
+  await expectOk('company notifies admin support_message', () => addDoc(collection(o1, 'notifications'), { recipientId: 'admin', type: 'support_message', title: 'Urgente de Salon', body: 'no carga', link: '/admin/soporte?hilo=c1_urgente', read: false, createdAt: serverTimestamp(), senderId: 'owner1' }));
+  await expectDeny('support_message to a non-admin inbox', () => addDoc(collection(o1, 'notifications'), { recipientId: 'owner2', type: 'support_message', title: 'x', body: 'x', read: false, createdAt: serverTimestamp(), senderId: 'owner1' }));
+  await expectOk('admin notifies owner support_reply', () => addDoc(collection(admin, 'notifications'), { recipientId: 'owner1', type: 'support_reply', title: 'Soporte respondio', body: 'listo', link: '/empresa/facturacion?soporte=consulta', read: false, createdAt: serverTimestamp(), senderId: 'admin' }));
+  await expectDeny('owner sends support_reply', () => addDoc(collection(o1, 'notifications'), { recipientId: 'owner2', type: 'support_reply', title: 'x', body: 'x', read: false, createdAt: serverTimestamp(), senderId: 'owner1' }));
+  await expectOk('admin deletes thread', () => deleteDoc(doc(admin, 'supportThreads', 'c1_urgente')));
+
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

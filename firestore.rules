@@ -466,11 +466,14 @@ service cloud.firestore {
         && request.resource.data.recipientId.size() > 0 && request.resource.data.recipientId.size() <= 128
         && request.resource.data.type in ['new_appointment', 'appointment_confirmed', 'appointment_cancelled',
                                           'new_review', 'new_company', 'plan_changed',
-                                          'payment_initiated', 'new_message']
-        // Bandeja 'admin' sólo para avisos de alta de empresa / pago iniciado
+                                          'payment_initiated', 'new_message',
+                                          'support_message', 'support_reply']
+        // Bandeja 'admin' sólo para avisos de alta de empresa / pago iniciado / mensaje de soporte
         && ((request.resource.data.recipientId == 'admin')
-              == (request.resource.data.type in ['new_company', 'payment_initiated']))
+              == (request.resource.data.type in ['new_company', 'payment_initiated', 'support_message']))
         && (request.resource.data.type != 'plan_changed' || isSuperAdmin())
+        // La respuesta de soporte a una empresa sólo la manda el admin
+        && (request.resource.data.type != 'support_reply' || isSuperAdmin())
         && request.resource.data.title is string && request.resource.data.title.size() <= 200
         && request.resource.data.body is string && request.resource.data.body.size() <= 1000
         && optString(request.resource.data, 'link', 500)
@@ -535,6 +538,91 @@ service cloud.firestore {
         resource.data.clientId == request.auth.uid ||
         isCompanyOwner(resource.data.companyId)
       );
+    }
+
+    // ───────────────────────── SOPORTE (Empresa ↔ Admin) ─────────────────────────
+    // supportThreads/{companyId}_{kind}, kind ∈ consulta | urgente (un hilo por empresa y tipo).
+    // El id lleva el companyId: así se valida el dueño aunque el hilo todavía no exista
+    // (la empresa lo lee antes de crearlo y sus mensajes se validan sin get() del hilo).
+    function supportThreadIdOk(threadId) { return threadId.matches('^[A-Za-z0-9-]+_(consulta|urgente)$'); }
+    function supportCompanyId(threadId)  { return threadId.split('_')[0]; }
+    function isSupportOwner(threadId) {
+      return isAuth() && supportThreadIdOk(threadId) && isCompanyOwner(supportCompanyId(threadId));
+    }
+
+    function supportThreadCreateOk(threadId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['companyId', 'companyName', 'kind', 'lastMessage', 'lastMessageAt', 'lastSender',
+                               'unreadByAdmin', 'unreadByCompany', 'status', 'createdAt'])
+          && d.keys().hasAll(['companyId', 'companyName', 'kind', 'lastMessage', 'lastMessageAt', 'lastSender',
+                              'unreadByAdmin', 'unreadByCompany', 'status', 'createdAt'])
+          && d.companyId is string
+          && d.kind in ['consulta', 'urgente']
+          && threadId == d.companyId + '_' + d.kind
+          && isSupportOwner(threadId)
+          && d.companyName is string && d.companyName.size() <= 200
+          && d.lastMessage is string && d.lastMessage.size() <= 2000
+          && d.lastMessageAt == request.time
+          && d.lastSender == 'company'
+          && d.unreadByAdmin == true
+          && d.unreadByCompany == false
+          && d.status == 'open'
+          && d.createdAt == request.time;
+    }
+
+    // Empresa: sólo resumen / leído. Al escribir: lastSender 'company', unreadByAdmin true y
+    // (si estaba resuelto) status vuelve a 'open'. Nunca puede resolver ni "leer por el admin".
+    function supportCompanyUpdateOk() {
+      let d = request.resource.data;
+      return changedKeys().hasOnly(['companyName', 'lastMessage', 'lastMessageAt', 'lastSender',
+                                    'unreadByAdmin', 'unreadByCompany', 'status'])
+          && d.companyName is string && d.companyName.size() <= 200
+          && d.lastMessage is string && d.lastMessage.size() <= 2000
+          && (!changedKeys().hasAny(['lastMessage', 'lastMessageAt', 'lastSender'])
+              || (d.lastSender == 'company' && d.lastMessageAt == request.time))
+          && (!changedKeys().hasAny(['unreadByAdmin'])   || d.unreadByAdmin == true)
+          && (!changedKeys().hasAny(['unreadByCompany']) || d.unreadByCompany == false)
+          && (!changedKeys().hasAny(['status'])          || d.status == 'open');
+    }
+
+    // Admin: resumen, leídos y estado (abrir / resolver).
+    function supportAdminUpdateOk() {
+      let d = request.resource.data;
+      return changedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'lastSender',
+                                    'unreadByAdmin', 'unreadByCompany', 'status'])
+          && d.lastMessage is string && d.lastMessage.size() <= 2000
+          && (!changedKeys().hasAny(['lastMessage', 'lastMessageAt', 'lastSender'])
+              || (d.lastSender == 'admin' && d.lastMessageAt == request.time))
+          && d.unreadByAdmin is bool
+          && d.unreadByCompany is bool
+          && d.status in ['open', 'resolved'];
+    }
+
+    match /supportThreads/{threadId} {
+      // get por id (aunque no exista); list: la empresa filtra companyId == la suya
+      allow get:  if isSuperAdmin() || isSupportOwner(threadId);
+      allow list: if isSuperAdmin() || (isAuth() && isCompanyOwner(resource.data.companyId));
+      allow create: if supportThreadCreateOk(threadId);
+      allow update: if (isSupportOwner(threadId) && supportCompanyUpdateOk())
+                    || (isSuperAdmin() && supportAdminUpdateOk());
+      // Sólo el admin borra hilos (los mensajes de la subcolección no se borran)
+      allow delete: if isSuperAdmin();
+
+      match /messages/{msgId} {
+        allow read: if isSuperAdmin() || isSupportOwner(threadId);
+        allow create: if isAuth()
+          && request.resource.data.keys().hasOnly(['sender', 'senderUid', 'text', 'createdAt'])
+          && request.resource.data.keys().hasAll(['sender', 'senderUid', 'text', 'createdAt'])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+          && request.resource.data.createdAt == request.time
+          && (
+            (request.resource.data.sender == 'company' && isSupportOwner(threadId))
+            || (request.resource.data.sender == 'admin' && isSuperAdmin())
+          );
+        allow update, delete: if false;
+      }
     }
   }
 }

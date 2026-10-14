@@ -22,6 +22,7 @@ import { AdminNavIconComponent } from './admin-nav-icon.component';
                stroke-linecap="round" stroke-linejoin="round"
                [appAdminNavIcon]="item.icon"></svg>
           <span class="bottom-label">{{ item.label }}</span>
+          @if (badges()[item.route]) { <span class="bottom-dot" aria-label="Novedades"></span> }
         </a>
       }
     </nav>
@@ -60,6 +61,18 @@ import { AdminNavIconComponent } from './admin-nav-icon.component';
         padding: 8px 4px;
         border-radius: 10px;
         transition: color 0.18s ease;
+        position: relative;
+      }
+
+      .bottom-dot {
+        position: absolute;
+        top: 6px;
+        left: calc(50% + 6px);
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #f43f5e;
+        box-shadow: 0 0 0 2px #ffffff;
       }
 
       .bottom-item--active {
@@ -83,4 +96,6 @@ import { AdminNavIconComponent } from './admin-nav-icon.component';
 })
 export class AdminBottomBarComponent {
   readonly navItems = input.required<AdminNavItem[]>();
+  /** Novedades por ruta (route → cantidad): se muestra un puntito. */
+  readonly badges = input<Record<string, number>>({});
 }

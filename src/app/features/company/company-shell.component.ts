@@ -10,6 +10,7 @@ import { SubscriptionService, Subscription } from '../../core/services/subscript
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { TourService } from '../../core/services/tour.service';
 import { MessageService } from '../../core/services/message.service';
+import { SupportService } from '../../core/services/support.service';
 import { ShareLinkModalComponent } from '../../shared/components/share-link-modal.component';
 import { NavItem } from './shell/nav-item.model';
 import { CompanySidebarComponent } from './shell/company-sidebar.component';
@@ -171,6 +172,7 @@ export class CompanyShellComponent implements OnDestroy {
   private notifSvc             = inject(NotificationService);
   private messageSvc           = inject(MessageService);
   private tourSvc              = inject(TourService);
+  private supportSvc           = inject(SupportService);
 
   sub              = signal<Subscription | null>(null);
   notifPanelOpen   = signal(false);
@@ -184,12 +186,15 @@ export class CompanyShellComponent implements OnDestroy {
   );
   /** Mensajes de clientes sin leer → punto en Mensajes. */
   unreadMessages   = signal(false);
+  /** Respuestas de soporte sin leer → punto en Facturación (ahí vive el chat de soporte). */
+  unreadSupport    = signal(false);
 
   /** Rutas de navegación que muestran el punto de "novedades". */
   dotRoutes = computed(() => {
     const routes: string[] = [];
     if (this.unreadAptNotifs().length > 0) routes.push('/empresa/dashboard');
     if (this.unreadMessages())             routes.push('/empresa/mensajes');
+    if (this.unreadSupport())              routes.push('/empresa/facturacion');
     return routes;
   });
 
@@ -211,6 +216,7 @@ export class CompanyShellComponent implements OnDestroy {
   private rxSub: RxSubscription | null    = null;
   private notifSub: RxSubscription | null = null;
   private msgSub: RxSubscription | null   = null;
+  private supportSub: RxSubscription | null = null;
 
   constructor() {
     effect(() => {
@@ -249,6 +255,16 @@ export class CompanyShellComponent implements OnDestroy {
       });
     });
 
+    effect(() => {
+      const companyId = this.companyStore.companyId();
+      if (!companyId) return;
+      this.supportSub?.unsubscribe();
+      this.supportSub = this.supportSvc.watchCompanyThreads(companyId).subscribe({
+        next: threads => this.unreadSupport.set(threads.some(t => t.unreadByCompany)),
+        error: err => console.error('[CompanyShell] support threads error', err),
+      });
+    });
+
     // Estando en el Dashboard, las novedades de citas se dan por vistas (se apaga el punto)
     effect(() => {
       if (!this.currentUrl().startsWith('/empresa/dashboard')) return;
@@ -267,6 +283,7 @@ export class CompanyShellComponent implements OnDestroy {
     this.rxSub?.unsubscribe();
     this.notifSub?.unsubscribe();
     this.msgSub?.unsubscribe();
+    this.supportSub?.unsubscribe();
   }
 
   async markNotifRead(n: AppNotification): Promise<void> {

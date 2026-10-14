@@ -64,6 +64,12 @@ import { AppNotification } from '../../../core/services/notification.service';
                   @case ('new_message') {
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                   }
+                  @case ('support_message') {
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  }
+                  @case ('support_reply') {
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  }
                 }
               </svg>
             </div>
@@ -113,6 +119,8 @@ export class NotificationsPanelComponent {
       plan_changed:          'icon-company',
       payment_initiated:     'icon-appointment',
       new_message:           'icon-appointment',
+      support_message:       'icon-company',
+      support_reply:         'icon-company',
     } as any)[type] ?? 'icon-appointment';
   }
 

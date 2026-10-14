@@ -1,4 +1,4 @@
-export type AdminNavIconName = 'bar-chart' | 'home' | 'users' | 'credit-card' | 'settings';
+export type AdminNavIconName = 'bar-chart' | 'home' | 'users' | 'credit-card' | 'settings' | 'message';
 
 export interface AdminNavItem {
   label: string;

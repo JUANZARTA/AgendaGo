@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { NavIconComponent } from './nav-icon.component';
 import { NavItem } from './nav-item.model';
@@ -28,6 +28,7 @@ import { NavItem } from './nav-item.model';
           <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
         </svg>
         <span class="bottom-label">Más</span>
+        @if (extraHasDot()) { <span class="nav-dot nav-dot--bottom" aria-label="Novedades"></span> }
       </button>
 
       <!-- More sheet -->
@@ -52,7 +53,8 @@ import { NavItem } from './nav-item.model';
             <a class="more-item" [routerLink]="item.route" (click)="moreMenuOpen.set(false)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                    [appNavIcon]="item.icon"></svg>
-              {{ item.label }}
+              <span style="flex:1">{{ item.label }}</span>
+              @if (dotRoutes().includes(item.route)) { <span style="width:8px;height:8px;border-radius:50%;background:#f43f5e" aria-label="Novedades"></span> }
             </a>
           }
         </div>
@@ -164,4 +166,6 @@ export class CompanyBottomBarComponent {
   readonly notificationsOpen = output<void>();
 
   readonly moreMenuOpen = signal(false);
+  /** Alguna ruta del menú "Más" tiene novedades (p.ej. respuesta de soporte en Facturación). */
+  readonly extraHasDot = computed(() => this.extraItems().some(i => this.dotRoutes().includes(i.route)));
 }

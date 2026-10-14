@@ -3,6 +3,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
+import { SupportService } from '../../core/services/support.service';
 import { APP_VERSION } from '../../core/version';
 import { AdminNavItem } from './shell/admin-nav-item.model';
 import { AdminSidebarComponent } from './shell/admin-sidebar.component';
@@ -20,6 +21,7 @@ import { AdminNotificationsPanelComponent } from './shell/admin-notifications-pa
       <app-admin-sidebar
         [navItems]="navItems"
         [unreadCount]="unreadCount()"
+        [badges]="navBadges()"
         [email]="authSvc.currentUser()?.email"
         [version]="APP_VERSION"
         (notificationsToggle)="notifPanelOpen.set(!notifPanelOpen())"
@@ -32,7 +34,7 @@ import { AdminNotificationsPanelComponent } from './shell/admin-notifications-pa
       </main>
 
       <!-- ── BOTTOM BAR (mobile) ────────────────────────────────── -->
-      <app-admin-bottom-bar [navItems]="navItems" />
+      <app-admin-bottom-bar [navItems]="navItems" [badges]="navBadges()" />
 
       <!-- ── NOTIFICATION DRAWER ────────────────────────────────── -->
       @if (notifPanelOpen()) {
@@ -87,21 +89,32 @@ export class AdminShellComponent implements OnDestroy {
   readonly authSvc = inject(AuthService);
   private router   = inject(Router);
   private notifSvc = inject(NotificationService);
+  private supportSvc = inject(SupportService);
 
   notifPanelOpen = signal(false);
   notifications  = signal<AppNotification[]>([]);
   unreadCount    = computed(() => this.notifications().filter(n => !n.read).length);
 
+  /** Hilos de soporte sin leer por el admin → contador en "Soporte". */
+  supportUnread = signal(0);
+  navBadges     = computed<Record<string, number>>(() => ({ '/admin/soporte': this.supportUnread() }));
+
   private notifSub: Subscription | null = null;
+  private supportSub: Subscription | null = null;
 
   constructor() {
     this.notifSub = this.notifSvc.watch('admin').subscribe(list => {
       this.notifications.set(list.slice(0, 30));
     });
+    this.supportSub = this.supportSvc.watchAllThreads().subscribe({
+      next: threads => this.supportUnread.set(threads.filter(t => t.unreadByAdmin).length),
+      error: err => console.error('[AdminShell] support threads error', err),
+    });
   }
 
   ngOnDestroy(): void {
     this.notifSub?.unsubscribe();
+    this.supportSub?.unsubscribe();
   }
 
   async markNotifRead(n: AppNotification): Promise<void> {
@@ -125,6 +138,7 @@ export class AdminShellComponent implements OnDestroy {
     { label: 'Empresas',     route: '/admin/empresas',     icon: 'home'       },
     { label: 'Usuarios',     route: '/admin/usuarios',     icon: 'users'      },
     { label: 'Facturación',  route: '/admin/facturacion',  icon: 'credit-card'},
+    { label: 'Soporte',      route: '/admin/soporte',      icon: 'message'    },
     { label: 'Configuración',route: '/admin/configuracion',icon: 'settings'   },
   ];
 }

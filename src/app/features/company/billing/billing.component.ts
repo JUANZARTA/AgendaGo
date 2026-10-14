@@ -17,18 +17,20 @@ import { ReportPaymentComponent } from './components/report-payment.component';
 import { PaymentClaimService } from '../../../core/services/payment-claim.service';
 import { AppConfigService } from '../../../core/services/app-config.service';
 import { SupportContactComponent } from '../../../shared/components/support-contact.component';
+import { SupportWidgetComponent } from '../support/support-widget.component';
 
 @Component({
   selector: 'app-billing',
   standalone: true,
-  imports: [BillingStatusCardComponent, BillingPlanCardsComponent, BillingPaymentHistoryComponent, ReportPaymentComponent, SupportContactComponent],
+  imports: [BillingStatusCardComponent, BillingPlanCardsComponent, BillingPaymentHistoryComponent, ReportPaymentComponent, SupportContactComponent, SupportWidgetComponent],
   styles: [`
-    .page { max-width: 860px; margin: 0 auto; padding: 28px 20px; }
+    /* padding-bottom extra: que el botón flotante de soporte no tape lo último */
+    .page { max-width: 860px; margin: 0 auto; padding: 28px 20px 100px; }
     .page-title { font-size: 1.45rem; font-weight: 800; margin: 0 0 4px; }
     .page-sub   { font-size: 13px; color: #888; margin: 0 0 28px; }
 
     @media (max-width: 640px) {
-      .page { padding: 16px 12px; }
+      .page { padding: 16px 12px 90px; }
     }
 
     .rn-overlay {
@@ -97,6 +99,9 @@ import { SupportContactComponent } from '../../../shared/components/support-cont
       </div>
 
     </div>
+
+    <!-- Chat de soporte con el admin (botón flotante abajo a la izquierda) -->
+    <app-support-widget />
 
     @if (renewal(); as r) {
       <div class="rn-overlay" (click)="confirmPlan.set(null)">
