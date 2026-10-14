@@ -55,6 +55,19 @@ export const PLAN_KEYS: PlanKey[] = ['mensual', 'semestral'];
 /** Todo link de pago válido empieza así. */
 export const WOMPI_CHECKOUT_PREFIX = 'https://checkout.wompi.co/';
 
+/**
+ * ÚNICA definición del link de pago de Wompi: https://checkout.wompi.co/l/<id>, id de 1 a 64
+ * caracteres [A-Za-z0-9_-], sin barra final, query ni fragmento. Es la MISMA expresión que
+ * validPayLink() en firestore.rules: si cambia una, cambiar la otra (y sus tests).
+ */
+export const WOMPI_PAYMENT_LINK_RE = /^https:\/\/checkout\.wompi\.co\/l\/([A-Za-z0-9_-]{1,64})$/;
+
+/** Id del link de pago (lo que va después de /l/), o null si no es un link de Wompi válido. */
+export function wompiPaymentLinkId(url: string | null | undefined): string | null {
+  const m = WOMPI_PAYMENT_LINK_RE.exec((url ?? '').trim());
+  return m ? m[1] : null;
+}
+
 export const LIMITS = {
   trialMonths: { min: 1, max: 12 },
   warningDays: { min: 0, max: 30 },
@@ -179,8 +192,9 @@ export function validatePlans(plans: Record<PlanKey, PlanConfig>): string[] {
     if (!isPosInt(p.days))   errors.push(`${name}: los días tienen que ser un número entero mayor a 0.`);
     for (const [kind, label] of [['test', 'de pruebas'], ['prod', 'real']] as const) {
       const link = p.links[kind].trim();
-      if (link && !link.startsWith(WOMPI_CHECKOUT_PREFIX)) {
-        errors.push(`${name}: el link ${label} tiene que empezar con ${WOMPI_CHECKOUT_PREFIX}`);
+      // Mismo formato que exigen las reglas (si no, Firestore rechazaría el guardado sin explicar por qué)
+      if (link && !wompiPaymentLinkId(link)) {
+        errors.push(`${name}: el link ${label} tiene que ser un link de pago de Wompi (${WOMPI_CHECKOUT_PREFIX}l/<código>, sin nada después).`);
       }
     }
   }

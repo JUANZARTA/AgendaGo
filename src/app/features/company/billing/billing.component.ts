@@ -227,7 +227,8 @@ export class BillingComponent implements OnDestroy {
           this.noSubscription.set(false);
           this.rawSub.set(subscription);
 
-          // Un trial vencido cuenta como expirado aunque el cron (05:00) aún no lo marcó
+          // Pasada la gracia cuenta como expirada aunque la revisión de vencimientos (automática al
+          // entrar el admin) todavía no la marcó
           const status   = this.subscriptionService.effectiveStatus(subscription);
           const daysLeft = this.subscriptionService.daysRemaining(subscription);
           const endDate  = subscription.status === 'trial'

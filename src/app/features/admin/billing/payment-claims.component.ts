@@ -74,6 +74,12 @@ interface Verification {
                     {{ fmtCop(c.amount) }}{{ c.plan ? ' · plan ' + planName(c.plan) : '' }}
                     {{ c.payerName ? ' · ' + c.payerName : '' }}{{ c.paymentMethod ? ' · ' + methodLabel(c.paymentMethod) : '' }}
                   </div>
+                  @if (!c.plan) {
+                    <!-- Se reporta igual aunque el monto no sea de un plan (la plata ya se cobró) -->
+                    <div class="meta" style="color:#b45309;font-weight:700">
+                      ⚠ El monto no corresponde a ningún plan: revisalo (devolución, ajuste o registro manual).
+                    </div>
+                  }
                 }
               </div>
               @if (!verifications()[c.transactionId]) {

@@ -1,9 +1,7 @@
 import { Component, computed, inject, output } from '@angular/core';
 import { AppConfigService } from '../../../core/services/app-config.service';
 import { mailtoLink, whatsappLink } from '../../../core/domain/app-config';
-
-/** Número que estaba fijo antes de config/app.support: se usa sólo si el admin no configuró uno. */
-const LEGACY_WHATSAPP = '573128622945';
+import { LEGACY_SUPPORT_WHATSAPP } from '../../../core/domain/brand';
 const WA_TEXT = '?text=Hola%2C%20necesito%20ayuda%20con%20mi%20cuenta%20de%20empresa%20en%20AgendaCo';
 
 /** Modal bloqueante: empresa deshabilitada. */
@@ -62,7 +60,7 @@ export class DisabledAccountModalComponent {
   readonly mailHref = computed(() => mailtoLink(this.email()));
   /** WhatsApp de soporte configurado por el admin (o el histórico si no hay). */
   readonly waHref   = computed(() =>
-    (whatsappLink(this.appConfig.config().support.whatsapp) ?? whatsappLink(LEGACY_WHATSAPP)) + WA_TEXT);
+    (whatsappLink(this.appConfig.config().support.whatsapp) ?? whatsappLink(LEGACY_SUPPORT_WHATSAPP)) + WA_TEXT);
   readonly billingClick = output<void>();
   readonly logoutClick  = output<void>();
 }

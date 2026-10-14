@@ -1,12 +1,10 @@
 import { Component, signal, computed, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  Firestore, collection, onSnapshot, getDocs, updateDoc, doc, writeBatch, serverTimestamp,
-} from '@angular/fire/firestore';
-import { parseLocalDateEndOfDay, toLocalDateKey } from '../../../core/utils/date.utils';
-import { NotificationService } from '../../../core/services/notification.service';
+import { Firestore, collection, onSnapshot, getDocs, updateDoc, doc } from '@angular/fire/firestore';
+import { toLocalDateKey } from '../../../core/utils/date.utils';
 import { SubscriptionService } from '../../../core/services/subscription.service';
+import { AdminPlanStatus, subscriptionAllowsEnabling } from '../../../core/domain/admin-plan';
 import { categoryMeta } from '../../../core/domain/categories';
 
 const SUB_CLASS: Record<string, string> = {
@@ -235,7 +233,7 @@ interface AdminCompany {
           <p style="text-align:center;font-size:13px;color:#666;line-height:1.6;margin-bottom:24px">
             {{ target.isActive
               ? 'La empresa no podrá operar y verá un aviso de suspensión. Podés revertirlo en cualquier momento.'
-              : 'La empresa podrá operar con normalidad nuevamente.' }}
+              : 'La empresa podrá operar con normalidad nuevamente. Si su suscripción no está vigente te vamos a pedir que fijes el plan y la fecha.' }}
           </p>
           <div style="display:flex;gap:10px">
             <button (click)="confirmTarget.set(null)"
@@ -258,7 +256,6 @@ export class CompaniesComponent implements OnDestroy {
   SUB_LABEL = SUB_LABEL;
 
   private firestore  = inject(Firestore);
-  private notifSvc   = inject(NotificationService);
   private subSvc     = inject(SubscriptionService);
 
   private rawCompanies = signal<any[]>([]);
@@ -375,57 +372,21 @@ export class CompaniesComponent implements OnDestroy {
 
   async doSavePlan() {
     const target = this.planTarget();
-    if (!target) return;
+    if (!target || this.savingPlan()) return;
     this.savingPlan.set(true);
     this.confirmFreePlan.set(false);
-
-    const data: Record<string, any> = {
-      companyId: target.id,
-      status:    this.editPlanStatus,
-    };
-
-    if (this.editPlanStatus === 'free') {
-      data['currentPeriodEnd'] = null;
-      data['adminNote'] = (this.editPlanNote.trim() || '') + ' [Cuenta gratuita otorgada por admin]';
-    } else {
-      if (this.editPlanPeriodEnd) {
-        // En trial la fecha que leen daysRemaining y el cron es trialEndDate
-        const field = this.editPlanStatus === 'trial' ? 'trialEndDate' : 'currentPeriodEnd';
-        data[field] = parseLocalDateEndOfDay(this.editPlanPeriodEnd);
-        if (this.editPlanStatus === 'active') data['lastPaymentDate'] = serverTimestamp();
-      }
-      if (this.editPlanNote.trim()) data['adminNote'] = this.editPlanNote.trim();
-    }
-
-    // Sincronizar companies.isActive con el estado de la suscripción
-    const isActive = ['active', 'trial', 'free'].includes(this.editPlanStatus);
-
     try {
-      const batch = writeBatch(this.firestore);
-      batch.set(doc(this.firestore, 'subscriptions', target.id), data, { merge: true });
-      batch.update(doc(this.firestore, 'companies', target.id), { isActive });
-      await batch.commit();
+      // Misma lógica, escritura (merge) y notificación que "Gestionar" de Facturación
+      const r = await this.subSvc.adminSetPlan(
+        target.id,
+        { status: this.editPlanStatus as AdminPlanStatus, periodEnd: this.editPlanPeriodEnd, note: this.editPlanNote },
+        this.subsMap()[target.id] ?? null,
+        target.ownerId,
+      );
+      if (!r.ok) { alert(r.message); return; }
 
-      // Reflejar el cambio localmente (subsMap se carga una sola vez)
-      this.subsMap.update(m => ({ ...m, [target.id]: { ...(m[target.id] ?? {}), ...data } }));
-
-      const statusLabels: Record<string, string> = {
-        trial: 'Trial', active: 'Plan activo', expired: 'Vencida',
-        disabled: 'Deshabilitada', free: 'Gratuita (Beneficiario)',
-      };
-      if (target.ownerId) {
-        try {
-          await this.notifSvc.create({
-            recipientId: target.ownerId,
-            type:        'plan_changed',
-            title:       'Tu plan fue actualizado',
-            body:        `El administrador cambió tu suscripción a: ${statusLabels[this.editPlanStatus] ?? this.editPlanStatus}.`,
-            link:        '/empresa/facturacion',
-          });
-        } catch (err) {
-          console.error('[AdminCompanies] Error notificando cambio de plan:', err);
-        }
-      }
+      // Reflejar el cambio localmente (subsMap se carga una sola vez; la lista de empresas es en vivo)
+      this.subsMap.update(m => ({ ...m, [target.id]: { ...(m[target.id] ?? {}), ...r.data } }));
       this.planTarget.set(null);
     } catch (err) {
       console.error('[AdminCompanies] Error guardando plan:', err);
@@ -435,8 +396,19 @@ export class CompaniesComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Deshabilitar: directo (como siempre). Habilitar: sólo si la suscripción está vigente; si no,
+   * la empresa quedaría en la búsqueda y recibiendo reservas con el dueño bloqueado por el guard
+   * → se abre el modal de plan para fijar estado + fecha (que sincroniza isActive).
+   */
   async doToggle(target: { id: string; isActive: boolean }) {
     this.confirmTarget.set(null);
+    if (!target.isActive && !subscriptionAllowsEnabling(this.subsMap()[target.id])) {
+      const company = this.companies().find(c => c.id === target.id);
+      alert('La suscripción de esta empresa no está vigente. Para habilitarla fijá el estado y la fecha de vencimiento en el modal de plan (o registrá el pago en Facturación).');
+      if (company) this.openPlanModal(company);
+      return;
+    }
     try {
       await updateDoc(doc(this.firestore, 'companies', target.id), { isActive: !target.isActive });
     } catch (err) {

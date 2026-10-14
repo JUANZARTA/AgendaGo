@@ -145,3 +145,14 @@ export function paidUntil(payments: PaymentDocLike[]): Date | null {
   }
   return max;
 }
+
+/**
+ * Id del doc de un pago registrado a mano: 'manual-' + referencia saneada. La referencia es OBLIGATORIA
+ * (n° de transacción de Wompi o una única para efectivo/transferencia): con el mismo id, registrar
+ * dos veces el mismo pago falla en vez de duplicar el período. null si la referencia está vacía.
+ */
+export function manualPaymentId(reference: string | null | undefined): string | null {
+  const ref = (reference ?? '').trim();
+  if (!ref) return null;
+  return 'manual-' + ref.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
+}

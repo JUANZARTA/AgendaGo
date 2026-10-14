@@ -35,6 +35,7 @@ async function clear() {
 
 let n = 0;
 function dbFor(uid, email) {
+  if (uid && email) TOKEN_EMAIL[uid] = email;
   const app = initializeApp({ projectId: PROJECT, apiKey: 'x' }, 'app' + (n++));
   const db = getFirestore(app);
   connectFirestoreEmulator(db, HOST, Number(PORT), uid ? { mockUserToken: { sub: uid, user_id: uid, ...(email ? { email } : {}) } } : undefined);
@@ -131,6 +132,40 @@ function aptData(over = {}) {
     clientName: 'Ana', clientPhone: '300', isGuestClient: true, date: D, startTime: '10:00', endTime: '10:30',
     price: 20000, source: 'app', ...over,
   };
+}
+
+// ── replica de CompanyService.createCompany (alta ATÓMICA: empresa + suscripción + marcador de prueba) ──
+const inDays = (days) => Timestamp.fromDate(new Date(Date.now() + days * 864e5));
+// = normalizeTrialEmail (src/app/core/domain/trial-email.ts)
+function normEmail(email) {
+  const parts = (email ?? '').trim().toLowerCase().split('@');
+  if (parts.length !== 2 || !parts[1]) return null;
+  let [local, domain] = parts;
+  local = local.split('+')[0];
+  if (domain === 'gmail.com' || domain === 'googlemail.com') { local = local.replace(/\./g, ''); domain = 'gmail.com'; }
+  const id = `${local}@${domain}`;
+  return id.includes('/') ? null : id;
+}
+const TOKEN_EMAIL = {};   // uid -> email del mockUserToken (lo llena dbFor)
+async function onboard(db, uid, cid, { trialDays = 60, extra = {} } = {}) {
+  const em = normEmail(TOKEN_EMAIL[uid]);
+  return runTransaction(db, async tx => {
+    const trialRef = doc(db, 'trials', uid);
+    const emailRef = em ? doc(db, 'trialEmails', em) : null;
+    const t = await tx.get(trialRef);
+    const e = emailRef ? await tx.get(emailRef) : null;
+    const withTrial = !t.exists() && !!e && !e.exists();
+    tx.set(doc(db, 'companies', cid), { name: 'Nueva', ownerId: uid, isActive: withTrial, isPublic: true,
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...extra });
+    if (withTrial) {
+      tx.set(doc(db, 'subscriptions', cid), { companyId: cid, status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: inDays(trialDays) });
+      tx.set(trialRef, { companyId: cid, createdAt: serverTimestamp() });
+      tx.set(emailRef, { uid, companyId: cid, createdAt: serverTimestamp() });
+    } else {
+      tx.set(doc(db, 'subscriptions', cid), { companyId: cid, status: 'expired', currentPeriodEnd: serverTimestamp() });
+    }
+    return withTrial;
+  });
 }
 
 async function main() {
@@ -316,7 +351,11 @@ async function main() {
   await expectDeny('client rating +2', () => updateDoc(doc(c1, 'companies', 'c1'), { averageRating: 4.7, reviewCount: 5 }));
   await expectDeny('client rating avg 6', () => updateDoc(doc(c1, 'companies', 'c1'), { averageRating: 6 }));
   await expectDeny('client changes name', () => updateDoc(doc(c1, 'companies', 'c1'), { name: 'pwned' }));
-  await expectOk('company user creates own company', () => setDoc(doc(collection(newU, 'companies')), { name: 'New', ownerId: 'newuser', isActive: true, isPublic: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  // BILLING HARDENING: el alta es atómica (empresa + suscripción + marcador); la empresa sola ya no se puede crear
+  await expectOk('company user creates own company (alta atómica con trial)', async () => {
+    if (!(await onboard(dbFor('newuser', 'n@n'), 'newuser', 'cNew1'))) throw new Error('debía usar el trial');
+  });
+  await expectDeny('company user creates company WITHOUT subscription (setDoc solo)', () => setDoc(doc(collection(newU, 'companies')), { name: 'New', ownerId: 'newuser', isActive: true, isPublic: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
   await expectDeny('company user creates company for other owner', () => setDoc(doc(collection(newU, 'companies')), { name: 'New', ownerId: 'owner1', isActive: true, isPublic: true }));
   await expectDeny('client creates company', () => setDoc(doc(collection(c1, 'companies')), { name: 'New', ownerId: 'client1', isActive: true, isPublic: true }));
   await seed('companies/c4', { ownerId: 'owner2', name: 'NoCount', isActive: true, isPublic: true });
@@ -326,11 +365,15 @@ async function main() {
 
   console.log('SUBSCRIPTIONS');
   const addMonths = (m) => { const d = new Date(); d.setMonth(d.getMonth() + m); return d; };
-  await expectOk('owner reads non-existing own subscription in tx + creates trial', () => runTransaction(o1, async tx => {
-    const ref = doc(o1, 'subscriptions', 'c1');
+  // Empresas "de producción" (legacy): ya tienen su suscripción y NO tienen marcador trials/{uid}
+  await seed('subscriptions/c1', { companyId: 'c1', status: 'trial', trialStartDate: new Date(), trialEndDate: addMonths(2) });
+  await seed('subscriptions/c3', { companyId: 'c3', status: 'trial', trialStartDate: new Date(), trialEndDate: addMonths(2) });
+  // Antes el dueño creaba el trial de una empresa YA existente (createTrialIfMissing): ahora sólo en el alta
+  await expectDeny('owner creates trial for EXISTING own company (fuera del alta)', () => runTransaction(o2, async tx => {
+    const ref = doc(o2, 'subscriptions', 'c4');
     const s = await tx.get(ref);
     if (s.exists()) return;
-    tx.set(ref, { companyId: 'c1', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(2)) });
+    tx.set(ref, { companyId: 'c4', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(2)) });
   }));
   await expectDeny('owner overwrites existing trial', () => setDoc(doc(o1, 'subscriptions', 'c1'), { companyId: 'c1', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(2)) }));
   await expectDeny('owner creates active sub', () => setDoc(doc(o2, 'subscriptions', 'c2'), { companyId: 'c2', status: 'active', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(2)) }));
@@ -338,9 +381,11 @@ async function main() {
   await expectDeny('owner creates trial for other company', () => setDoc(doc(o2, 'subscriptions', 'c1x'), { companyId: 'c1x', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(2)) }));
   // Tope del trial según config/app (sin doc = 2 meses → 63 días)
   const trial = (cid, months) => ({ companyId: cid, status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp.fromDate(addMonths(months)) });
-  await expectDeny('owner creates trial 3 months without config (63d cap)', () => setDoc(doc(o2, 'subscriptions', 'c3'), trial('c3', 3)));
+  await seed('users/ownerT3', { uid: 'ownerT3', role: 'company' });
+  const oT3 = dbFor('ownerT3', 't3@x');
+  await expectDeny('owner creates trial 3 months without config (63d cap)', () => onboard(oT3, 'ownerT3', 'cT3', { trialDays: 92 }));
   await expectOk('admin sets config trialMonths=3', () => setDoc(doc(admin, 'config', 'app'), { trialMonths: 3, updatedAt: serverTimestamp() }, { merge: true }));
-  await expectOk('owner creates trial 3 months with config trialMonths=3', () => setDoc(doc(o2, 'subscriptions', 'c3'), trial('c3', 3)));
+  await expectOk('owner creates trial 3 months with config trialMonths=3', () => onboard(oT3, 'ownerT3', 'cT3', { trialDays: 92 }));
   await expectOk(`owner reads own subscription`, () => getDoc(doc(o1, 'subscriptions', 'c1')));
   await expectDeny('client reads subscription', () => getDoc(doc(c1, 'subscriptions', 'c1')));
   await expectOk('admin updates subscription', () => updateDoc(doc(admin, 'subscriptions', 'c1'), { status: 'active' }));
@@ -606,7 +651,8 @@ async function main() {
   await expectDeny('SQA owner lists active subscriptions', () => getDocs(query(collection(o1, 'subscriptions'), where('status', '==', 'active'))));
   await expectDeny('SQA client creates trial', () => setDoc(doc(c1, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
   await expectDeny('SQA BLOCKED owner creates trial', () => setDoc(doc(o3, 'subscriptions', 'c5'), { companyId: 'c5', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
-  await expectOk('SQA legit: owner creates trial for own new company', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
+  // c6 ya existe sin suscripción: antes se le podía crear un trial suelto; ahora sólo en el alta atómica
+  await expectDeny('SQA owner creates trial for own EXISTING company (sin alta atómica)', () => setDoc(doc(o2, 'subscriptions', 'c6'), { companyId: 'c6', status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(30) }));
 
   console.log(' [3] pagos falsos');
   const fakePay = (cid) => ({ companyId: cid, plan: 'semestral', amount: 1, status: 'approved', source: 'manual', createdAt: serverTimestamp() });
@@ -703,7 +749,9 @@ async function main() {
   await expectDeny('SQA guest reads non-public company', () => getDoc(doc(guest, 'companies', 'c8')));
   await expectDeny('SQA company A reads B non-public company', () => getDoc(doc(o1, 'companies', 'c8')));
   await expectDeny('SQA guest lists ALL companies (unfiltered)', () => getDocs(collection(guest, 'companies')));
-  await expectOk('SQA legit: owner creates own company', () => setDoc(doc(o2, 'companies', 'c13'), { ownerId: 'owner2', name: 'Nueva', isActive: true, isPublic: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  await expectOk('SQA legit: owner creates own company (alta atómica)', async () => {
+    if (!(await onboard(o2, 'owner2', 'c13'))) throw new Error('debía usar el trial');
+  });
 
   console.log(' [6] notificaciones falsas (phishing)');
   const nf = (over = {}) => ({ recipientId: 'owner1', type: 'new_appointment', title: 'Tu plan vence hoy', body: 'Pagá acá', senderId: 'client1', read: false, createdAt: serverTimestamp(), ...over });
@@ -805,6 +853,189 @@ async function main() {
   await expectDeny('SQA FAV 101st favorite', () => updateDoc(favRef(c9, 'client9'), { favoriteCompanyIds: arrayUnion('c1') }));
   await expectOk('FAV remove at limit', () => updateDoc(favRef(c9, 'client9'), { favoriteCompanyIds: arrayRemove('id0') }));
   await expectOk('FAV admin may reset favorites', () => updateDoc(favRef(admin, 'client9'), { favoriteCompanyIds: [] }));
+
+  // ═══════════════════════════ BILLING HARDENING ═══════════════════════════
+  // Alta atómica (empresa + suscripción + marcador), trials una vez por persona, link de Wompi
+  // unificado, modal de plan del admin y compatibilidad con los datos que ya hay en producción.
+  console.log('BILLING HARDENING');
+  await seed('users/bh1', { uid: 'bh1', role: 'company', email: 'bh1@x' });
+  await seed('users/bh2', { uid: 'bh2', role: 'company', email: 'bh2@x' });
+  await seed('users/bh3', { uid: 'bh3', role: 'company', email: 'bh3@x' });
+  await seed('companies/bhOld', { ownerId: 'bh2', name: 'Vieja sin sub', isActive: true, isPublic: true });
+  const bh1 = dbFor('bh1', 'bh1@x'), bh2 = dbFor('bh2', 'bh2@x'), bh3 = dbFor('bh3', 'bh3@x');
+  const co = (uid, over = {}) => ({ ownerId: uid, name: 'BH', isActive: true, isPublic: true, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...over });
+  const trialSub = (cid, over = {}) => ({ companyId: cid, status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: future(60), ...over });
+  const mark = (cid, over = {}) => ({ companyId: cid, createdAt: serverTimestamp(), ...over });
+  const batchSet = async (db, ops) => { const b = writeBatch(db); for (const [path, data] of ops) b.set(doc(db, ...path.split('/')), data); await b.commit(); };
+  const withoutKey = (o, k) => Object.fromEntries(Object.entries(o).filter(([key]) => key !== k));
+
+  console.log(' [1] empresa sin suscripción (alta atómica)');
+  await expectDeny('BH empresa sola, sin suscripción', () => setDoc(doc(bh2, 'companies', 'bhX1'), co('bh2')));
+  await expectDeny('BH empresa + trial SIN marcador', () => batchSet(bh2, [['companies/bhX2', co('bh2')], ['subscriptions/bhX2', trialSub('bhX2')]]));
+  await expectDeny('BH trial + marcador SIN empresa', () => batchSet(bh2, [['subscriptions/bhX3', trialSub('bhX3')], ['trials/bh2', mark('bhX3')]]));
+  await expectDeny('BH trial + marcador para empresa YA existente', () => batchSet(bh2, [['subscriptions/bhOld', trialSub('bhOld')], ['trials/bh2', mark('bhOld')]]));
+  await expectDeny('BH sub expired suelta para empresa existente', () => setDoc(doc(bh2, 'subscriptions', 'bhOld'), { companyId: 'bhOld', status: 'expired', currentPeriodEnd: serverTimestamp() }));
+  await expectDeny('BH empresa ACTIVA + sub expired (sin pagar)', () => batchSet(bh2, [['companies/bhX4', co('bh2')], ['subscriptions/bhX4', { companyId: 'bhX4', status: 'expired', currentPeriodEnd: serverTimestamp() }]]));
+  await expectDeny('BH empresa inactiva + trial (isActive debe ser true)', () => batchSet(bh2, [['companies/bhX5', co('bh2', { isActive: false })], ['subscriptions/bhX5', trialSub('bhX5')], ['trials/bh2', mark('bhX5')]]));
+  await expectDeny('BH empresa sin isActive + trial', () => batchSet(bh2, [['companies/bhX5b', withoutKey(co('bh2'), 'isActive')], ['subscriptions/bhX5b', trialSub('bhX5b')], ['trials/bh2', mark('bhX5b')]]));
+  await expectDeny('BH sub expired con fin futuro (vigencia regalada)', () => batchSet(bh2, [['companies/bhX6', co('bh2', { isActive: false })], ['subscriptions/bhX6', { companyId: 'bhX6', status: 'expired', currentPeriodEnd: future(365) }]]));
+  await expectDeny('BH alta con sub active', () => batchSet(bh2, [['companies/bhX7', co('bh2')], ['subscriptions/bhX7', { companyId: 'bhX7', status: 'active', currentPeriodEnd: future(365) }]]));
+  await expectDeny('BH alta con sub free', () => batchSet(bh2, [['companies/bhX8', co('bh2')], ['subscriptions/bhX8', { companyId: 'bhX8', status: 'free' }]]));
+  await expectDeny('BH empresa a nombre de OTRO dueño + su trial', () => batchSet(bh2, [['companies/bhX9', co('bh1')], ['subscriptions/bhX9', trialSub('bhX9')], ['trials/bh2', mark('bhX9')]]));
+  await expectDeny('BH trial de 10 años en el alta', () => batchSet(bh2, [['companies/bhX10', co('bh2')], ['subscriptions/bhX10', trialSub('bhX10', { trialEndDate: future(3650) })], ['trials/bh2', mark('bhX10')]]));
+  await expectDeny('BH sub con companyId distinto al id', () => batchSet(bh2, [['companies/bhX11', co('bh2')], ['subscriptions/bhX11', trialSub('bhOld')], ['trials/bh2', mark('bhX11')]]));
+  await expectDeny('BH BLOCKED owner: alta atómica', () => onboard(o3, 'owner3', 'bhX12'));
+  await expectDeny('BH cliente: alta atómica', () => onboard(c1, 'client1', 'bhX13'));
+  await expectDeny('BH invitado: alta atómica', () => onboard(guest, 'nadie', 'bhX14'));
+  await expectOk('BH legit: alta atómica con trial (empresa + sub + marcador)', async () => {
+    if (!(await onboard(bh1, 'bh1', 'bhc1'))) throw new Error('debía usar el trial');
+    const [c, sb, t] = await Promise.all([getDoc(doc(bh1, 'companies', 'bhc1')), getDoc(doc(bh1, 'subscriptions', 'bhc1')), getDoc(doc(bh1, 'trials', 'bh1'))]);
+    if (c.data().isActive !== true || sb.data().status !== 'trial' || t.data().companyId !== 'bhc1') throw new Error('estado inesperado');
+  });
+  await expectOk('BH legit: admin crea una empresa (sin reglas de alta)', () => setDoc(doc(admin, 'companies', 'bhAdm'), { ownerId: 'bh3', name: 'Por admin', isActive: true, isPublic: true }));
+  await expectOk('BH legit: admin marca vencida una empresa SIN suscripción (expireOverdue)', async () => {
+    const b = writeBatch(admin);
+    b.set(doc(admin, 'subscriptions', 'bhOld'), { companyId: 'bhOld', status: 'expired' }, { merge: true });
+    b.set(doc(admin, 'companies', 'bhOld'), { isActive: false }, { merge: true });
+    await b.commit();
+  });
+  await expectOk('BH legit: admin lista empresas activas (findOverdue)', () => getDocs(query(collection(admin, 'companies'), where('isActive', '==', true))));
+  await expectDeny('SQA BH owner lista empresas activas (todas)', () => getDocs(query(collection(o1, 'companies'), where('isActive', '==', true))));
+
+  console.log(' [2] trials infinitos (trials/{uid})');
+  await expectDeny('BH 2da empresa con trial (marcador ya existe -> set = update)', () => batchSet(bh1, [['companies/bhc2x', co('bh1')], ['subscriptions/bhc2x', trialSub('bhc2x')], ['trials/bh1', mark('bhc2x')]]));
+  await expectDeny('BH 2da empresa con trial sin tocar el marcador', () => batchSet(bh1, [['companies/bhc2y', co('bh1')], ['subscriptions/bhc2y', trialSub('bhc2y')]]));
+  await expectOk('BH legit: 2da empresa SIN trial nace expired e inactiva (tiene que pagar)', async () => {
+    if (await onboard(bh1, 'bh1', 'bhc2')) throw new Error('no debía usar trial');
+    const [c, sb] = await Promise.all([getDoc(doc(bh1, 'companies', 'bhc2')), getDoc(doc(bh1, 'subscriptions', 'bhc2'))]);
+    if (c.data().isActive !== false || sb.data().status !== 'expired') throw new Error('estado inesperado');
+  });
+  await expectDeny('BH empresa sin trial pide isActive true', () => updateDoc(doc(bh1, 'companies', 'bhc2'), { isActive: true }));
+  await expectDeny('BH dueño borra su marcador (para recrear el trial)', () => deleteDoc(doc(bh1, 'trials', 'bh1')));
+  await expectDeny('BH dueño edita su marcador', () => updateDoc(doc(bh1, 'trials', 'bh1'), { companyId: 'otra' }));
+  await expectDeny('BH dueño pisa su marcador (setDoc)', () => setDoc(doc(bh1, 'trials', 'bh1'), mark('bhc1')));
+  await expectDeny('BH marcador suelto (sin empresa nueva)', () => setDoc(doc(bh3, 'trials', 'bh3'), mark('bhOld')));
+  await expectDeny('BH marcador de OTRO uid en el alta', () => batchSet(bh2, [['companies/bhX20', co('bh2')], ['subscriptions/bhX20', trialSub('bhX20')], ['trials/bh3', mark('bhX20')]]));
+  await expectDeny('BH marcador con campo extra', () => batchSet(bh2, [['companies/bhX21', co('bh2')], ['subscriptions/bhX21', trialSub('bhX21')], ['trials/bh2', mark('bhX21', { reset: true })]]));
+  await expectDeny('BH marcador con createdAt falso', () => batchSet(bh2, [['companies/bhX22', co('bh2')], ['subscriptions/bhX22', trialSub('bhX22')], ['trials/bh2', mark('bhX22', { createdAt: Timestamp.fromDate(new Date('2020-01-01')) })]]));
+  await expectDeny('BH marcador apunta a OTRA empresa', () => batchSet(bh2, [['companies/bhX23', co('bh2')], ['subscriptions/bhX23', trialSub('bhX23')], ['trials/bh2', mark('bhc1')]]));
+  await expectDeny('BH marcador con sub expired (no trial)', () => batchSet(bh2, [['companies/bhX24', co('bh2', { isActive: false })], ['subscriptions/bhX24', { companyId: 'bhX24', status: 'expired', currentPeriodEnd: serverTimestamp() }], ['trials/bh2', mark('bhX24')]]));
+  await expectDeny('BH otro usuario lee mi marcador', () => getDoc(doc(bh2, 'trials', 'bh1')));
+  await expectDeny('BH invitado lee un marcador', () => getDoc(doc(guest, 'trials', 'bh1')));
+  await expectDeny('BH dueño lista todos los marcadores', () => getDocs(collection(bh1, 'trials')));
+  await expectOk('BH legit: dueño lee su marcador inexistente (decide trial o no)', () => getDoc(doc(bh3, 'trials', 'bh3')));
+  await expectOk('BH legit: primera empresa de bh2 (aún sin marcador) usa su trial', async () => {
+    if (!(await onboard(bh2, 'bh2', 'bhc3'))) throw new Error('debía usar el trial');
+  });
+  await expectOk('BH legit: admin crea marcador (migración)', () => setDoc(doc(admin, 'trials', 'owner1'), { companyId: 'c1', createdAt: serverTimestamp(), migrated: true }));
+  await expectOk('BH legit: con marcador migrado, owner1 crea 2da empresa sin trial', async () => {
+    if (await onboard(o1, 'owner1', 'c1b')) throw new Error('no debía usar trial');
+  });
+  await expectOk('BH legit: admin lee marcadores', () => getDocs(collection(admin, 'trials')));
+
+  console.log(' [3][7] modal de plan del admin (set merge + isActive)');
+  const planWrite = (db, cid, data, isActive) => { const b = writeBatch(db); b.set(doc(db, 'subscriptions', cid), { companyId: cid, ...data }, { merge: true }); b.set(doc(db, 'companies', cid), { isActive }, { merge: true }); return b.commit(); };
+  await expectOk('BH legit: admin activa con fecha (adminSetPlan)', () => planWrite(admin, 'bhc2', { status: 'active', currentPeriodEnd: future(30), adminNote: 'efectivo' }, true));
+  await expectOk('BH legit: admin crea sub por modal a empresa sin sub (merge)', () => planWrite(admin, 'bhAdm', { status: 'trial', trialEndDate: future(10) }, true));
+  await expectDeny('SQA BH dueño imita el modal de plan', () => planWrite(bh1, 'bhc2', { status: 'active', currentPeriodEnd: future(365) }, true));
+  await expectDeny('SQA BH dueño se habilita su empresa', () => updateDoc(doc(bh1, 'companies', 'bhc1'), { isActive: false }));
+
+  console.log(' [4] link de Wompi unificado');
+  await expectOk('BH legit: admin guarda link con guion', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.mensual.links.test': 'https://checkout.wompi.co/l/abc-123_X' }));
+  await expectOk('BH legit: links actuales siguen válidos', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.mensual.links.prod': 'https://checkout.wompi.co/l/p5GJth', 'plans.mensual.links.test': 'https://checkout.wompi.co/l/test_WM8ARv' }));
+  await expectDeny('SQA BH admin link sin /l/', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.mensual.links.prod': 'https://checkout.wompi.co/abc' }));
+  await expectDeny('SQA BH admin link con barra final', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.mensual.links.prod': 'https://checkout.wompi.co/l/abc/' }));
+  await expectDeny('SQA BH admin link sólo prefijo', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.mensual.links.prod': 'https://checkout.wompi.co/' }));
+  await expectDeny('SQA BH admin link con path extra', () => updateDoc(doc(admin, 'config', 'app'), { 'plans.mensual.links.prod': 'https://checkout.wompi.co/l/abc/evil' }));
+
+  console.log(' [5] reporte de pago: taken vs already-reported');
+  await expectOk('BH legit: dueño lee SU claim existente (= already-reported)', () => getDoc(doc(o1, 'paymentClaims', 'A0008-1700-999')));
+  await expectDeny('BH empresa B lee claim de A (permission-denied = taken)', () => getDoc(doc(bh1, 'paymentClaims', 'A0008-1700-999')));
+  await expectOk('BH legit: claim con monto que no es de un plan (sin plan) se guarda', () => setDoc(doc(o1, 'paymentClaims', 'B0001-1700-999'), claim({ transactionId: 'B0001-1700-999', amount: 12345 })));
+
+  console.log(' [6] compatibilidad con producción (datos legacy sin campos nuevos)');
+  await expectOk('BH LEGACY: dueño existente (sin marcador) edita perfil', () => updateDoc(doc(o2, 'companies', 'c3'), { description: 'sigo igual', updatedAt: serverTimestamp() }));
+  await expectOk('BH LEGACY: dueño existente escribe servicios', () => setDoc(doc(o1, 'companies', 'c1', 'services', 'bhs1'), { name: 'Corte', duration: 30, price: 20000 }));
+  await expectOk('BH LEGACY: dueño existente lee su suscripción', () => getDoc(doc(o1, 'subscriptions', 'c1')));
+  await expectOk('BH LEGACY: dueño existente registra intento de pago', () => addDoc(collection(o1, 'paymentAttempts'), att()));
+  await expectOk('BH LEGACY: dueño existente reporta un pago', () => setDoc(doc(o1, 'paymentClaims', 'B0002-1700-999'), claim({ transactionId: 'B0002-1700-999' })));
+  await expectOk('BH LEGACY: cliente reserva en empresa existente', () => book(c1, aptData({ clientId: 'client1', isGuestClient: false, date: '2030-07-01', startTime: '10:00', endTime: '10:30' }), 'pending'));
+  await expectOk('BH LEGACY: cliente agrega favorito', () => updateDoc(doc(c1, 'users', 'client1'), { favoriteCompanyIds: arrayUnion('bhc1') }));
+  await expectOk('BH LEGACY: cliente manda mensaje', () => addDoc(collection(c1, 'messages'), { companyId: 'c1', companyName: 'Salon', clientId: 'client1', clientName: 'Ana', senderRole: 'client', text: 'hola', createdAt: serverTimestamp(), read: false }));
+  await expectOk('BH LEGACY: admin registra pago manual', () => manualPay(admin, 'c1', 'manual-BH-REF'));
+  await expectOk('BH LEGACY: admin edita config/app', () => setDoc(doc(admin, 'config', 'app'), { warningDays: 5, graceDays: 5, updatedAt: serverTimestamp() }, { merge: true }));
+
+  console.log(' [2b] trial por CORREO (trialEmails/{correo normalizado})');
+  for (const u of ['emA', 'emA2', 'emB', 'emC', 'emD', 'emE', 'emF', 'emG', 'emH', 'emI', 'emJ']) await seed('users/' + u, { uid: u, role: 'company' });
+  const emA  = dbFor('emA',  'Juan.Perez+promo@GMAIL.com');
+  const emA2 = dbFor('emA2', 'Juan.Perez+promo@GMAIL.com');      // cuenta borrada y recreada: uid nuevo, mismo correo
+  const emB  = dbFor('emB',  'juanperez@gmail.com');
+  const emC  = dbFor('emC',  'JUAN.PEREZ@googlemail.com');
+  const emD  = dbFor('emD',  'j.u.a.n.p.e.r.e.z+otro@gmail.com');
+  const emE  = dbFor('emE',  'Ana.Lopez+x@Empresa.co');
+  const emF  = dbFor('emF',  'ANA.LOPEZ@empresa.co');
+  const emG  = dbFor('emG',  'analopez@empresa.co');                // otro correo (los puntos cuentan fuera de Gmail)
+  const emH  = dbFor('emH');                                         // token SIN email
+  const emI  = dbFor('emI',  'nuevo@empresa.co');
+  const emJ  = dbFor('emJ',  'otro.nuevo@empresa.co');
+  // Ataque "a mano": el batch completo con trial, ambos marcadores y el id de correo que elija el atacante
+  const trialBatch = (db, uid, cid, emailId, over = {}) => batchSet(db, [
+    ['companies/' + cid, co(uid)], ['subscriptions/' + cid, trialSub(cid)], ['trials/' + uid, mark(cid)],
+    ['trialEmails/' + emailId, { uid, companyId: cid, createdAt: serverTimestamp(), ...over }],
+  ]);
+  await expectOk('BH legit: correo nuevo con alias + mayúsculas → trial, marcador = juanperez@gmail.com', async () => {
+    if (!(await onboard(emA, 'emA', 'emAc1'))) throw new Error('debía usar el trial');
+    const m = await getDoc(doc(emA, 'trialEmails', 'juanperez@gmail.com'));
+    if (m.data().uid !== 'emA' || m.data().companyId !== 'emAc1') throw new Error('marcador inesperado');
+  });
+  await expectDeny('SQA BH cuenta recreada (uid nuevo, mismo correo) pide trial', () => trialBatch(emA2, 'emA2', 'emA2c', 'juanperez@gmail.com'));
+  await expectDeny('SQA BH mismo Gmail sin alias pide trial', () => trialBatch(emB, 'emB', 'emBc', 'juanperez@gmail.com'));
+  await expectDeny('SQA BH googlemail.com + mayúsculas pide trial', () => trialBatch(emC, 'emC', 'emCc', 'juanperez@gmail.com'));
+  await expectDeny('SQA BH Gmail con puntos y +alias pide trial', () => trialBatch(emD, 'emD', 'emDc', 'juanperez@gmail.com'));
+  await expectDeny('SQA BH alias: docId sin normalizar (juan.perez+promo2@gmail.com)', () => trialBatch(emB, 'emB', 'emBc2', 'juan.perez+promo2@gmail.com'));
+  await expectDeny('SQA BH alias: docId con el correo crudo del token', () => trialBatch(emD, 'emD', 'emDc2', 'j.u.a.n.p.e.r.e.z+otro@gmail.com'));
+  await expectDeny('SQA BH docId de OTRO correo (inventado)', () => trialBatch(emI, 'emI', 'emIc0', 'cualquiera@empresa.co'));
+  await expectDeny('SQA BH trial SIN marcador de correo', () => batchSet(emJ, [['companies/emJc0', co('emJ')], ['subscriptions/emJc0', trialSub('emJc0')], ['trials/emJ', mark('emJc0')]]));
+  await expectDeny('SQA BH marcador de correo con uid ajeno', () => trialBatch(emJ, 'emJ', 'emJc1', 'otro.nuevo@empresa.co', { uid: 'emA' }));
+  await expectDeny('SQA BH marcador de correo con campo extra', () => trialBatch(emJ, 'emJ', 'emJc2', 'otro.nuevo@empresa.co', { reset: true }));
+  await expectDeny('SQA BH token SIN email pide trial', () => trialBatch(emH, 'emH', 'emHc', 'nadie@x.co'));
+  await expectOk('BH legit: token SIN email → empresa nace sin trial (expired)', async () => {
+    if (await onboard(emH, 'emH', 'emHc2')) throw new Error('no debía usar trial');
+  });
+  await expectOk('BH legit: recreada con mismo correo → empresa sin trial (expired, tiene que pagar)', async () => {
+    if (await onboard(emA2, 'emA2', 'emA2c2')) throw new Error('no debía usar trial');
+  });
+  await expectOk('BH legit: otros dominios: +alias y mayúsculas se normalizan (ana.lopez@empresa.co)', async () => {
+    if (!(await onboard(emE, 'emE', 'emEc'))) throw new Error('debía usar el trial');
+  });
+  await expectDeny('SQA BH mismo correo no-Gmail en mayúsculas pide trial', () => trialBatch(emF, 'emF', 'emFc', 'ana.lopez@empresa.co'));
+  await expectOk('BH legit: fuera de Gmail los puntos cuentan (analopez@ es otro correo)', async () => {
+    if (!(await onboard(emG, 'emG', 'emGc'))) throw new Error('debía usar el trial');
+  });
+  await expectDeny('SQA BH 2do trial mismo uid (correo ya marcado)', () => trialBatch(emA, 'emA', 'emAc2', 'juanperez@gmail.com'));
+  await expectOk('BH legit: 2da empresa del mismo dueño nace sin trial', async () => {
+    if (await onboard(emA, 'emA', 'emAc3')) throw new Error('no debía usar trial');
+  });
+  await expectOk('BH legit: dueño lee SU marcador de correo', () => getDoc(doc(emB, 'trialEmails', 'juanperez@gmail.com')));
+  // Lectura permitida sólo si docId == normalización del token: prueba que las reglas normalizan igual que la app
+  await expectOk('BH reglas normalizan googlemail.com + MAYÚSCULAS = juanperez@gmail.com', () => getDoc(doc(emC, 'trialEmails', 'juanperez@gmail.com')));
+  await expectOk('BH reglas normalizan puntos + "+alias" de Gmail = juanperez@gmail.com', () => getDoc(doc(emD, 'trialEmails', 'juanperez@gmail.com')));
+  await expectOk('BH reglas normalizan no-Gmail: MAYÚSCULAS = ana.lopez@empresa.co', () => getDoc(doc(emF, 'trialEmails', 'ana.lopez@empresa.co')));
+  await expectDeny('BH reglas: fuera de Gmail los puntos NO se quitan', () => getDoc(doc(emF, 'trialEmails', 'analopez@empresa.co')));
+  await expectOk('BH legit: dueño lee su marcador de correo inexistente', () => getDoc(doc(emI, 'trialEmails', 'nuevo@empresa.co')));
+  await expectDeny('SQA BH lee el marcador de OTRO correo', () => getDoc(doc(emI, 'trialEmails', 'juanperez@gmail.com')));
+  await expectDeny('SQA BH lista todos los marcadores de correo', () => getDocs(collection(emA, 'trialEmails')));
+  await expectDeny('SQA BH invitado lee marcador de correo', () => getDoc(doc(guest, 'trialEmails', 'juanperez@gmail.com')));
+  await expectDeny('SQA BH dueño borra su marcador de correo', () => deleteDoc(doc(emA, 'trialEmails', 'juanperez@gmail.com')));
+  await expectDeny('SQA BH dueño edita su marcador de correo', () => updateDoc(doc(emA, 'trialEmails', 'juanperez@gmail.com'), { uid: 'x' }));
+  await expectDeny('SQA BH marcador de correo suelto (sin alta)', () => setDoc(doc(emI, 'trialEmails', 'nuevo@empresa.co'), { uid: 'emI', companyId: 'bhOld', createdAt: serverTimestamp() }));
+  await expectOk('BH legit: admin crea marcador de correo (migración) y lee todos', async () => {
+    await setDoc(doc(admin, 'trialEmails', 'o@o'), { uid: 'owner1', companyId: 'c1', createdAt: serverTimestamp(), migrated: true });
+    await getDocs(collection(admin, 'trialEmails'));
+  });
+  await expectOk('BH legit: correo nuevo (registro normal) sigue teniendo trial', async () => {
+    if (!(await onboard(emI, 'emI', 'emIc'))) throw new Error('debía usar el trial');
+  });
 
   console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

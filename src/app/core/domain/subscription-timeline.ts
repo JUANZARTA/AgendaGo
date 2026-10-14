@@ -19,6 +19,7 @@ export interface TimelineOptions {
 }
 
 export type SubscriptionPhase =
+  | 'missing'     // la empresa NO tiene doc de suscripción: requiere pago (antes contaba como 'ok' y nunca vencía)
   | 'free'        // beneficiario: nunca vence
   | 'disabled'    // deshabilitada por el admin
   | 'expired'     // marcada vencida (por el admin, tras la gracia)
@@ -76,7 +77,9 @@ export function subscriptionTimeline(
   const warningDays = opts.warningDays ?? RENEWAL_WARNING_DAYS;
   const graceDays   = opts.graceDays ?? GRACE_DAYS;
   const none = { endDate: null, graceEnd: null, daysToEnd: null, graceDaysLeft: null };
-  if (!sub) return { phase: 'ok', ...none };
+  // Sin suscripción = requiere pago. OJO: quien muestra esto debe distinguir "todavía no llegó el
+  // snapshot" (no llamar con null mientras carga) de "no existe el doc".
+  if (!sub) return { phase: 'missing', ...none };
   if (sub.status === 'free')     return { phase: 'free', ...none };
   if (sub.status === 'disabled') return { phase: 'disabled', ...none };
 
@@ -102,7 +105,55 @@ export function subscriptionTimeline(
   };
 }
 
-/** La cuenta puede usar la app (todo menos suspendida / vencida / deshabilitada). */
+/** La cuenta puede usar la app (todo menos sin suscripción / suspendida / vencida / deshabilitada). */
 export function canUseApp(t: SubscriptionTimeline): boolean {
-  return t.phase !== 'suspended' && t.phase !== 'expired' && t.phase !== 'disabled';
+  return t.phase !== 'missing' && t.phase !== 'suspended' && t.phase !== 'expired' && t.phase !== 'disabled';
+}
+
+/**
+ * Días que le quedan al trial / período pago, con la MISMA cuenta que el timeline (días calendario
+ * locales), para que el contador de Facturación y el banner nunca difieran en 1.
+ * free → Infinity; sin fecha, vencida o sin suscripción → 0.
+ */
+export function daysRemainingOf(sub: SubscriptionLike | null | undefined, now = new Date()): number {
+  if (sub?.status === 'free') return Infinity;
+  const t = subscriptionTimeline(sub, now);
+  return t.daysToEnd === null ? 0 : Math.max(0, t.daysToEnd);
+}
+
+// ── Revisión de vencimientos (admin-shell automática, "Revisar vencimientos" y scripts/expire-subscriptions.js) ──
+
+export interface OverdueItem {
+  companyId: string;
+  /** 'missing' = empresa activa SIN doc de suscripción (nunca vencería). */
+  status: 'trial' | 'active' | 'missing';
+  /** Fin del trial / período; null si no hay suscripción. */
+  endDate: Date | null;
+}
+
+/**
+ * Qué hay que suspender: trials/planes cuya gracia ya terminó y empresas ACTIVAS sin suscripción.
+ * PURO: recibe las suscripciones (id = companyId) y los ids de las empresas con isActive == true.
+ */
+export function overdueItems(
+  subs: { id: string; data: SubscriptionLike }[],
+  activeCompanyIds: Iterable<string>,
+  now: Date,
+  graceDays = GRACE_DAYS,
+): OverdueItem[] {
+  const out: OverdueItem[] = [];
+  const withSub = new Set<string>();
+  for (const { id, data } of subs) {
+    withSub.add(id);
+    if (data.status !== 'trial' && data.status !== 'active') continue;
+    const end = toDate(data.status === 'trial' ? data.trialEndDate : data.currentPeriodEnd);
+    // Sólo las que pasaron la gracia: durante esos días la cuenta sigue funcionando
+    if (end && graceEndOf(end, graceDays).getTime() < now.getTime()) {
+      out.push({ companyId: id, status: data.status, endDate: end });
+    }
+  }
+  for (const id of activeCompanyIds) {
+    if (!withSub.has(id)) out.push({ companyId: id, status: 'missing', endDate: null });
+  }
+  return out;
 }

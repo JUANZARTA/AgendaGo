@@ -3,7 +3,7 @@
  * Angular ya neutraliza `javascript:` en [href], pero esto además evita redirecciones a sitios
  * ajenos (phishing) y navegar a rutas raras desde una notificación que pudo escribir otro usuario.
  */
-import { WOMPI_CHECKOUT_PREFIX } from './app-config';
+import { wompiPaymentLinkId } from './app-config';
 
 /** Ruta interna segura para router.navigateByUrl ("/algo"), o null. Rechaza "//host", "/\host" y esquemas. */
 export function safeInternalPath(link: string | null | undefined): string | null {
@@ -14,10 +14,13 @@ export function safeInternalPath(link: string | null | undefined): string | null
   return l;
 }
 
-/** ¿Es un link de pago de Wompi? (https://checkout.wompi.co/...; nunca otro host). */
+/**
+ * ¿Es un link de pago de Wompi? (https://checkout.wompi.co/l/<id>; nunca otro host).
+ * Formato: WOMPI_PAYMENT_LINK_RE (el mismo que validan las reglas al guardar config/app).
+ */
 export function isWompiCheckoutUrl(url: string | null | undefined): boolean {
   const u = (url ?? '').trim();
-  if (!u.startsWith(WOMPI_CHECKOUT_PREFIX)) return false;
+  if (!wompiPaymentLinkId(u)) return false;
   try {
     const p = new URL(u);
     return p.protocol === 'https:' && p.hostname === 'checkout.wompi.co' && !p.username && !p.password && !p.port;

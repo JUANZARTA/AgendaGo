@@ -13,6 +13,8 @@
  * productivo. Los builds de desarrollo nunca registran pagos salvo contra los emuladores.
  */
 
+import { wompiPaymentLinkId } from './app-config';
+
 export type WompiEnv = 'production' | 'sandbox';
 
 /** Entorno al que pertenece una llave pública de Wompi (pub_prod_… / pub_test_…). */
@@ -33,10 +35,12 @@ export function wompiEnvFromApiUrl(url: string): WompiEnv | null {
   return null;
 }
 
-/** Id del link de pago a partir de su URL (https://checkout.wompi.co/l/<id>), o null. */
+/**
+ * Id del link de pago a partir de su URL (https://checkout.wompi.co/l/<id>), o null.
+ * Mismo formato que las reglas y la validación del admin (WOMPI_PAYMENT_LINK_RE).
+ */
 export function paymentLinkIdFromUrl(url: string | null | undefined): string | null {
-  const m = /^https:\/\/checkout\.wompi\.co\/l\/([A-Za-z0-9_-]{3,64})\/?$/.exec((url ?? '').trim());
-  return m ? m[1] : null;
+  return wompiPaymentLinkId(url);
 }
 
 /** Hechos de origen que juntó el servicio (todos vienen de la API de Wompi, no del reporte de la empresa). */

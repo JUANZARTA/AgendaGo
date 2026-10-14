@@ -34,9 +34,13 @@ export const subscriptionGuard: CanActivateFn = async () => {
   if (!companyId) return true;
 
   try {
-    const [sub] = await Promise.all([subService.getStatus(companyId), appConfig.ready()]);
-    // Vencida, deshabilitada o pasada la gracia (aunque el admin aún no la marcó)
-    if (sub && !canUseApp(subscriptionTimeline(sub, new Date(), appConfig.timeline()))) {
+    let [sub] = await Promise.all([subService.getStatus(companyId), appConfig.ready()]);
+    // Sin doc: antes de bloquear se confirma contra el servidor (no una caché vieja / un snapshot que
+    // todavía no llegó justo después del alta). La empresa y su suscripción se crean en la misma
+    // transacción, así que una empresa recién creada SIEMPRE la tiene.
+    if (!sub) sub = await subService.getStatus(companyId, true);
+    // Sin suscripción (requiere pago), vencida, deshabilitada o pasada la gracia (aunque el admin aún no la marcó)
+    if (!canUseApp(subscriptionTimeline(sub, new Date(), appConfig.timeline()))) {
       router.navigate(['/empresa/facturacion']);
       return false;
     }

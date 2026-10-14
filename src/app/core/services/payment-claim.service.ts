@@ -1,11 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  Firestore, addDoc, collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
+  DocumentReference, Firestore, addDoc, collection, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { NotificationService } from './notification.service';
 import { AppConfigService } from './app-config.service';
 import { WompiTransaction, formatCop, paymentMethodLabel, planFromAmount, PLANS } from '../domain/plans';
+import { ReportResult } from '../domain/payment-report';
 
 /**
  * Reporte de pago: la empresa avisa "pagué con la transacción X" al volver de Wompi.
@@ -32,7 +33,11 @@ export interface PaymentClaim {
   note?: string;
 }
 
-export type ReportResult = 'created' | 'already-reported';
+export type { ReportResult } from '../domain/payment-report';
+
+function isPermissionDenied(err: unknown): boolean {
+  return (err as { code?: string } | null)?.code === 'permission-denied';
+}
 
 /**
  * Intento de pago: la empresa tocó "Pagar" y se fue a Wompi. Si nunca vuelve a la app,
@@ -58,6 +63,9 @@ export class PaymentClaimService {
   /**
    * Reporta una transacción de Wompi a nombre de la empresa (página de gracias o "¿Ya pagaste?")
    * y avisa al admin. Guarda una copia de lo que dijo Wompi sólo para mostrar.
+   * Criterio ÚNICO para los dos puntos de reporte: si el monto no corresponde a ningún plan se
+   * reporta IGUAL (la plata ya se cobró) pero sin `plan` y con aviso al admin para revisarlo
+   * (devolución, ajuste o registro manual). Nunca activa nada.
    */
   async reportTransaction(t: WompiTransaction, company: { id: string; name: string }, ownerEmail: string): Promise<ReportResult> {
     const plan = planFromAmount(t.amountInCents, t.currency, this.appConfig.plans());
@@ -75,7 +83,9 @@ export class PaymentClaimService {
       paidAt:        t.finalizedAt ?? t.createdAt ?? undefined,
     });
     if (r === 'created') {
-      const planTxt = plan ? ` (plan ${PLANS[plan].label}, ${formatCop(t.amountInCents / 100)})` : '';
+      const planTxt = plan
+        ? ` (plan ${PLANS[plan].label}, ${formatCop(t.amountInCents / 100)})`
+        : ` (⚠ ${formatCop(t.amountInCents / 100)}: el monto NO corresponde a ningún plan, revisalo)`;
       const payer   = t.customerName ? `. Pagó: ${t.customerName}` : '';
       const method  = t.paymentMethod ? ` con ${paymentMethodLabel(t.paymentMethod)}` : '';
       await this.notifSvc.create({
@@ -90,21 +100,40 @@ export class PaymentClaimService {
   }
 
   /**
-   * Crea el reporte si no existe. Si ya existe (la empresa recargó la página, o el pago
-   * ya lo reportó otra cuenta) no se pisa: las reglas sólo permiten crear.
+   * Crea el reporte si no existe. Si ya existe no se pisa (las reglas sólo permiten crear):
+   *  - 'already-reported': ya lo reportó ESTA empresa (recargó la página, doble aviso);
+   *  - 'taken': lo reportó OTRA empresa (las reglas no le dejan leerlo: permission-denied).
+   * Cualquier otro error (sin red, unavailable, …) se RELANZA: la UI tiene que decir
+   * "no se pudo enviar, reintentá" en vez de dar el aviso por hecho.
    */
   async report(c: Omit<PaymentClaim, 'id' | 'status' | 'createdAt' | 'reviewedAt' | 'note'>): Promise<ReportResult> {
     const ref = doc(this.col, c.transactionId);
-    try {
-      if ((await getDoc(ref)).exists()) return 'already-reported';
-    } catch {
-      // Sin permiso de lectura = existe y es de otra empresa
-      return 'already-reported';
-    }
+    const existing = await this.existingClaim(ref);
+    if (existing) return existing;
     // Firestore no acepta undefined: sólo los campos con valor
     const clean = Object.fromEntries(Object.entries(c).filter(([, v]) => v != null && v !== ''));
-    await setDoc(ref, { ...clean, status: 'pending', createdAt: serverTimestamp() });
+    try {
+      await setDoc(ref, { ...clean, status: 'pending', createdAt: serverTimestamp() });
+    } catch (err) {
+      // Carrera: alguien lo creó entre la lectura y la escritura (el set pasa a ser update → denegado)
+      if (isPermissionDenied(err)) {
+        const now = await this.existingClaim(ref);
+        if (now) return now;
+      }
+      throw err;
+    }
     return 'created';
+  }
+
+  /** ¿Ya existe el reporte? null = no existe. Relanza errores que no sean de permisos. */
+  private async existingClaim(ref: DocumentReference): Promise<Exclude<ReportResult, 'created'> | null> {
+    try {
+      return (await getDoc(ref)).exists() ? 'already-reported' : null;
+    } catch (err) {
+      // Sin permiso de lectura = existe y es de OTRA empresa (la regla deja leer si no existe o si es propio)
+      if (isPermissionDenied(err)) return 'taken';
+      throw err;
+    }
   }
 
   /** Anota el intento al abrir Wompi. Best-effort: si falla, no bloquea el pago. */

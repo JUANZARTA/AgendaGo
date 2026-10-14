@@ -4,9 +4,10 @@ import { CompanyStore } from '../../../../core/services/company-store.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WompiService } from '../../../../core/services/wompi.service';
 import { PaymentClaimService } from '../../../../core/services/payment-claim.service';
+import { REPORT_FAILED_TEXT, reportMessage } from '../../../../core/domain/payment-report';
 import { AppConfigService } from '../../../../core/services/app-config.service';
 import { SupportContactComponent } from '../../../../shared/components/support-contact.component';
-import { formatCop, planFromAmount } from '../../../../core/domain/plans';
+import { planFromAmount } from '../../../../core/domain/plans';
 
 /**
  * "¿Pagaste y no se activó?": la empresa ingresa el número de transacción del comprobante que
@@ -100,19 +101,17 @@ export class ReportPaymentComponent {
         this.message.set({ ok: false, text: 'Wompi informa que ese pago no se completó, así que no se te cobró. Podés intentarlo de nuevo.' });
         return;
       }
-      if (!planFromAmount(t.amountInCents, t.currency, this.appConfig.plans())) {
-        this.message.set({ ok: false, text: `Ese pago es por ${formatCop(t.amountInCents / 100)}, que no corresponde a ningún plan. Escribinos para revisarlo.` });
-        return;
-      }
+      // Mismo criterio que la página de gracias: un monto que no es de ningún plan se reporta IGUAL
+      // (la plata ya se cobró) y el admin lo revisa a mano.
+      const matchesPlan = !!planFromAmount(t.amountInCents, t.currency, this.appConfig.plans());
       const r = await this.claims.reportTransaction(
         t, { id: companyId, name: this.store.company()?.name ?? 'Empresa' }, this.auth.currentUser()?.email ?? '');
-      this.message.set(r === 'created'
-        ? { ok: true, text: '¡Listo! Recibimos tu aviso. Lo verificamos y tu plan se activa en breve.' }
-        : { ok: true, text: 'Ese pago ya estaba avisado. Lo estamos verificando.' });
+      this.message.set(reportMessage(r, matchesPlan, t.amountInCents / 100));
       if (r === 'created') this.txId = '';
     } catch (err) {
+      // Red / Firestore: el aviso NO quedó guardado
       console.error('[ReportPayment] Error:', err);
-      this.message.set({ ok: false, text: 'No se pudo enviar el aviso. Intentá de nuevo en unos minutos.' });
+      this.message.set({ ok: false, text: REPORT_FAILED_TEXT });
     } finally {
       this.busy.set(false);
     }

@@ -1,10 +1,9 @@
 import { Component, signal, computed, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  Firestore, collection, onSnapshot, getDocs, writeBatch, doc, serverTimestamp,
-} from '@angular/fire/firestore';
-import { parseLocalDateEndOfDay, toLocalDateKey } from '../../../core/utils/date.utils';
+import { Firestore, collection, onSnapshot, getDocs } from '@angular/fire/firestore';
+import { toLocalDateKey } from '../../../core/utils/date.utils';
+import { AdminPlanStatus } from '../../../core/domain/admin-plan';
 import { SubscriptionService, OverdueSub } from '../../../core/services/subscription.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
@@ -157,7 +156,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
         <div style="background:white;border-radius:16px;padding:28px;max-width:460px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.2)">
           <h3 style="font-size:1rem;font-weight:800;color:#1a1a2e;margin:0 0 10px">Revisar vencimientos</h3>
           @if (overdue()!.length === 0) {
-            <p style="font-size:13px;color:#666;margin:0 0 20px">No hay suscripciones trial/activas con fecha vencida.</p>
+            <p style="font-size:13px;color:#666;margin:0 0 20px">No hay suscripciones trial/activas que hayan pasado la gracia ni empresas activas sin suscripción.</p>
             <button (click)="overdue.set(null)" style="width:100%;padding:11px;border-radius:10px;border:1.5px solid #e5e7eb;background:none;font-size:13px;font-weight:600;color:#888;cursor:pointer;font-family:inherit">Cerrar</button>
           } @else {
             <p style="font-size:13px;color:#666;line-height:1.6;margin:0 0 10px">
@@ -165,7 +164,11 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
             </p>
             <ul style="max-height:180px;overflow:auto;margin:0 0 20px;padding-left:18px;font-size:13px;color:#444">
               @for (o of overdue()!; track o.companyId) {
-                <li>{{ nameOf(o.companyId) }} — {{ o.status === 'trial' ? 'trial' : 'activa' }}, venció {{ o.endDate.toLocaleDateString('es-CO') }}</li>
+                <li>
+                  {{ nameOf(o.companyId) }} —
+                  @if (o.status === 'missing' || !o.endDate) { activa SIN suscripción (nunca vencería) }
+                  @else { {{ o.status === 'trial' ? 'trial' : 'activa' }}, venció {{ o.endDate.toLocaleDateString('es-CO') }} }
+                </li>
               }
             </ul>
             <div style="display:flex;gap:10px">
@@ -232,9 +235,14 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
                   <option [value]="p.key">{{ p.label }} — {{ fmtCop(p.amount) }}</option>
                 }
               </select>
-              <input [(ngModel)]="payRef" placeholder="Referencia o ID de Wompi (opcional)"
+              <input [(ngModel)]="payRef" placeholder="Referencia (obligatoria)" required
                      style="flex:1.4;min-width:180px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box" />
             </div>
+            <!-- La referencia da el id del pago: registrar dos veces el mismo pago falla en vez de duplicar el período -->
+            <p style="font-size:11px;color:#4d7c0f;margin:6px 0 0;line-height:1.5">
+              N° de transacción de Wompi, o una referencia única si fue efectivo/transferencia
+              (ej. EFECTIVO-2026-10-14-GOLDENPANDA).
+            </p>
             @if (payPlan) {
               <p style="font-size:12px;color:#166534;margin:8px 0 0">
                 Queda activa hasta el <strong>{{ payPreview() }}</strong>. Se suma al historial de la empresa y se le avisa.
@@ -243,9 +251,9 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
             @if (payError()) {
               <p style="font-size:12px;color:#dc2626;margin:8px 0 0">{{ payError() }}</p>
             }
-            <button (click)="registerPayment()" [disabled]="!payPlan || paying()"
+            <button (click)="registerPayment()" [disabled]="!payPlan || !payRef.trim() || paying()"
               style="margin-top:10px;width:100%;padding:10px;border-radius:10px;border:none;background:#16a34a;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit"
-              [style.opacity]="!payPlan || paying() ? '0.5' : '1'">
+              [style.opacity]="!payPlan || !payRef.trim() || paying() ? '0.5' : '1'">
               {{ paying() ? 'Registrando...' : 'Registrar pago y activar' }}
             </button>
           </div>
@@ -330,7 +338,7 @@ export class AdminBillingComponent implements OnDestroy {
   selected     = signal<AdminSub | null>(null);
   confirmFree  = signal(false);
 
-  // Vencimientos (sustituye al cron checkExpired, que no corre en plan Spark)
+  // Vencimientos (sustituye al cron checkExpired, que no corre en plan Spark; también corre solo en admin-shell)
   reviewing    = signal(false);
   expiring     = signal(false);
   overdue      = signal<OverdueSub[] | null>(null);
@@ -388,9 +396,10 @@ export class AdminBillingComponent implements OnDestroy {
   });
 
   /**
-   * Aviso pasivo: se calcula sobre el snapshot ya cargado (0 lecturas extra). No se auto-ejecuta
-   * la escritura al abrir la página: mutar N empresas sin acción explícita del admin es riesgoso
-   * (un reloj local mal puesto desactivaría empresas) y duplicaría el snapshot en vivo.
+   * Aviso pasivo: se calcula sobre el snapshot ya cargado (0 lecturas extra). La expiración SÍ se
+   * ejecuta sola al entrar al panel (admin-shell → expireOverdueSilently); este aviso cubre lo que
+   * venció mientras el panel está abierto. "Revisar vencimientos" además detecta empresas activas
+   * SIN suscripción (que este conteo, hecho sólo sobre subscriptions, no ve).
    */
   pendingOverdueCount = computed(() => {
     const now = Date.now();
@@ -519,7 +528,11 @@ export class AdminBillingComponent implements OnDestroy {
 
   async registerPayment() {
     const s = this.selected();
-    if (!s || !this.payPlan) return;
+    if (!s || !this.payPlan || this.paying()) return;
+    if (!this.payRef.trim()) {
+      this.payError.set('Ingresá la referencia del pago (n° de transacción de Wompi o una única para efectivo/transferencia).');
+      return;
+    }
     const plan = this.appConfig.plans()[this.payPlan];
     this.paying.set(true);
     this.payError.set('');
@@ -540,6 +553,8 @@ export class AdminBillingComponent implements OnDestroy {
       console.error('[AdminBilling] Error registrando pago:', err);
       this.payError.set(err?.message === 'DUPLICATE_PAYMENT'
         ? 'Ese pago ya fue registrado (misma referencia).'
+        : err?.message === 'REFERENCE_REQUIRED'
+        ? 'Ingresá la referencia del pago.'
         : err?.message === 'SANDBOX_BUILD'
         ? 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usá la app publicada.'
         : 'No se pudo registrar el pago. Intentá de nuevo.');
@@ -560,43 +575,18 @@ export class AdminBillingComponent implements OnDestroy {
 
   async doSave() {
     const s = this.selected();
-    if (!s) return;
+    if (!s || this.saving()) return;
     this.saving.set(true);
     this.confirmFree.set(false);
-
-    // Pasar a 'active' sin fecha de fin futura dejaría la suscripción vencida de inmediato
-    if (this.editStatus === 'active' && !this.editPeriodEnd && (s.periodEndMs === null || s.periodEndMs <= Date.now())) {
-      this.saving.set(false);
-      alert('Para activar el plan indicá la fecha de vencimiento del período pagado.');
-      return;
-    }
-
-    const update: Record<string, any> = { status: this.editStatus };
-
-    if (this.editStatus === 'free') {
-      update['currentPeriodEnd'] = null;
-      update['adminNote'] = (this.editNote.trim() || '') + ' [Cuenta gratuita otorgada por admin]';
-    } else {
-      if (this.editPeriodEnd) {
-        // En trial la fecha que leen daysRemaining y el cron es trialEndDate
-        const field = this.editStatus === 'trial' ? 'trialEndDate' : 'currentPeriodEnd';
-        update[field] = parseLocalDateEndOfDay(this.editPeriodEnd);
-        // "Último pago" sólo lo escribe Registrar pago: cambiar el estado a mano no es un pago
-      }
-      if (this.editNote.trim()) {
-        update['adminNote'] = this.editNote.trim();
-      }
-    }
-
-    // Sincronizar companies.isActive con el estado de la suscripción
-    const isActive = ['active', 'trial', 'free'].includes(this.editStatus);
-
     try {
-      const batch = writeBatch(this.firestore);
-      batch.update(doc(this.firestore, 'subscriptions', s.companyId), update);
-      // set+merge tolera que el doc de la empresa no exista
-      batch.set(doc(this.firestore, 'companies', s.companyId), { isActive }, { merge: true });
-      await batch.commit();
+      // Misma lógica y escritura que el modal "Plan" de Empresas (SubscriptionService.adminSetPlan)
+      const current = this.rawSubs().find(r => r.id === s.companyId) ?? null;
+      const r = await this.subSvc.adminSetPlan(
+        s.companyId,
+        { status: this.editStatus as AdminPlanStatus, periodEnd: this.editPeriodEnd, note: this.editNote },
+        current,
+      );
+      if (!r.ok) { alert(r.message); return; }
       this.closeModal();
     } catch (err) {
       console.error('[AdminBilling] Error guardando suscripción:', err);

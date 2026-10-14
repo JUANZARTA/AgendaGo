@@ -1,9 +1,14 @@
 /**
  * Expiración de suscripciones — reemplaza al cron checkExpiredSubscriptions (no corre en plan Spark).
  *
- * Marca status='expired' en subscriptions con status trial/active cuya fecha de fin
- * (trialEndDate / currentPeriodEnd) ya pasó, y pone companies.isActive=false.
- * Misma lógica que el botón "Revisar vencimientos" del panel admin. No toca 'free' ni 'disabled'.
+ * Misma lógica que "Revisar vencimientos" y la revisión automática del admin-shell
+ * (overdueItems en src/app/core/domain/subscription-timeline.ts):
+ *  - subscriptions trial/active cuya fecha de fin + GRACIA ya pasó (gracia = config/app.graceDays,
+ *    default 5; fin de la gracia = fin del día local fin+graceDays, igual que graceEndOf)
+ *    → status 'expired' + companies.isActive=false;
+ *  - empresas con isActive == true SIN doc de suscripción (nunca vencerían)
+ *    → se les crea { companyId, status: 'expired' } + companies.isActive=false.
+ * No toca 'free' ni 'disabled'. OJO: "fin del día" usa la zona horaria de la máquina que lo corre.
  *
  * Requisito: service-account.json en la raíz del proyecto (ver seed-superadmin.js).
  *
@@ -33,23 +38,46 @@ try {
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
+const GRACE_DAYS_DEFAULT = 5;
+
+/** Copia de graceEndOf (subscription-timeline.ts): fin del día local endDate + graceDays. */
+function graceEndOf(endDate, graceDays) {
+  const g = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + graceDays);
+  g.setHours(23, 59, 59, 999);
+  return g;
+}
+
 async function run() {
   console.log(APPLY ? 'MODO APPLY: se escribirá en Firestore.\n' : 'MODO DRY-RUN: no se escribe nada (usá --apply para aplicar).\n');
+
+  const cfg = await db.doc('config/app').get();
+  const g = cfg.exists ? cfg.data().graceDays : undefined;
+  const graceDays = Number.isInteger(g) && g >= 0 && g <= 30 ? g : GRACE_DAYS_DEFAULT;
+  console.log(`Gracia: ${graceDays} día(s) (config/app.graceDays)\n`);
 
   const now = Date.now();
   const overdue = [];
 
-  // Solo filtro por status (sin índice compuesto) y comparo fechas en memoria
-  for (const [status, field] of [['trial', 'trialEndDate'], ['active', 'currentPeriodEnd']]) {
-    const snap = await db.collection('subscriptions').where('status', '==', status).get();
-    for (const d of snap.docs) {
-      const end = d.data()[field]?.toDate?.();
-      if (end && end.getTime() <= now) overdue.push({ ref: d.ref, id: d.id, status, end });
-    }
+  // Todas las suscripciones + empresas activas; fechas comparadas en memoria (sin índices compuestos)
+  const [subs, active] = await Promise.all([
+    db.collection('subscriptions').get(),
+    db.collection('companies').where('isActive', '==', true).get(),
+  ]);
+  const withSub = new Set();
+  for (const d of subs.docs) {
+    withSub.add(d.id);
+    const status = d.data().status;
+    if (status !== 'trial' && status !== 'active') continue;
+    const end = d.data()[status === 'trial' ? 'trialEndDate' : 'currentPeriodEnd']?.toDate?.();
+    // Durante la gracia la cuenta sigue funcionando
+    if (end && graceEndOf(end, graceDays).getTime() < now) overdue.push({ ref: d.ref, id: d.id, status, end });
+  }
+  for (const d of active.docs) {
+    if (!withSub.has(d.id)) overdue.push({ ref: db.doc(`subscriptions/${d.id}`), id: d.id, status: 'missing', end: null });
   }
 
   if (overdue.length === 0) {
-    console.log('No hay suscripciones vencidas. Nada para hacer.');
+    console.log('No hay suscripciones vencidas (pasada la gracia) ni empresas activas sin suscripción. Nada para hacer.');
     return;
   }
 
@@ -64,8 +92,8 @@ async function run() {
     companyId: o.id,
     nombre:    names[o.id],
     estado:    o.status,
-    venció:    o.end.toISOString().slice(0, 10),
-    accion:    "status -> expired, companies.isActive -> false",
+    venció:    o.end ? o.end.toISOString().slice(0, 10) : '(sin suscripción)',
+    accion:    o.status === 'missing' ? 'crear sub expired, companies.isActive -> false' : 'status -> expired, companies.isActive -> false',
   })));
 
   if (!APPLY) {
@@ -79,7 +107,8 @@ async function run() {
     try {
       const batch = db.batch();
       for (const o of chunk) {
-        batch.update(o.ref, { status: 'expired' });
+        if (o.status === 'missing') batch.set(o.ref, { companyId: o.id, status: 'expired' }, { merge: true });
+        else batch.update(o.ref, { status: 'expired' });
         // set+merge tolera que la empresa no exista (update abortaría todo el batch)
         batch.set(db.doc(`companies/${o.id}`), { isActive: false }, { merge: true });
       }

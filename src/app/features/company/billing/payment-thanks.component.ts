@@ -8,6 +8,7 @@ import { AppConfigService } from '../../../core/services/app-config.service';
 import { SupportContactComponent } from '../../../shared/components/support-contact.component';
 import { BRAND_OWNER } from '../../../core/domain/brand';
 import { PLANS, WompiTransaction, formatCop, planFromAmount } from '../../../core/domain/plans';
+import { REPORT_FAILED_TEXT, ReportMessage, reportMessage } from '../../../core/domain/payment-report';
 
 type View = 'loading' | 'approved' | 'pending' | 'declined' | 'notfound' | 'error';
 
@@ -56,6 +57,12 @@ const POLL_TRIES = 24;   // ~2 minutos
       animation: spin .8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .report-msg { font-size: 13px; line-height: 1.5; color: #15803d; margin: -8px 0 16px; }
+    .report-msg--bad { color: #dc2626; }
+    .btn-retry {
+      width: 100%; margin: -6px 0 14px; padding: 10px; border-radius: 12px; border: 1.5px solid #fca5a5;
+      background: #fef2f2; color: #b91c1c; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
   `],
   template: `
     <div class="wrap">
@@ -117,6 +124,14 @@ const POLL_TRIES = 24;   // ~2 minutos
           <p class="owner-note">El pago aparece a nombre de {{ brandOwner }} (empresa dueña de AgendaCo) en Wompi, Nequi o tu extracto.</p>
         }
 
+        <!-- Resultado del aviso al admin (mismo criterio y textos que "¿Pagaste y no se activó?") -->
+        @if (reportMsg(); as m) {
+          <p class="report-msg" [class.report-msg--bad]="!m.ok" role="status">{{ m.text }}</p>
+          @if (reportFailed()) {
+            <button type="button" class="btn-retry" (click)="retryReport()">Reintentar el aviso</button>
+          }
+        }
+
         @if (view() !== 'loading') {
           <a class="btn-main" routerLink="/empresa/facturacion">
             {{ view() === 'declined' ? 'Volver a intentar' : 'Ir a Facturación' }}
@@ -141,6 +156,9 @@ export class PaymentThanksComponent implements OnDestroy {
   view    = signal<View>('loading');
   tx      = signal<WompiTransaction | null>(null);
   polling = signal(false);
+  /** Resultado del aviso al admin (null = nada que mostrar). */
+  reportMsg    = signal<ReportMessage | null>(null);
+  reportFailed = signal(false);
 
   planLabel = computed(() => {
     const t = this.tx();
@@ -194,15 +212,31 @@ export class PaymentThanksComponent implements OnDestroy {
     }
   }
 
-  /** Deja el reporte para el admin (una vez) y le avisa. */
+  /**
+   * Deja el reporte para el admin (una vez) y le avisa. Mismo criterio que el formulario: un monto
+   * que no es de ningún plan se reporta igual y se avisa. Si falla la red se muestra y se puede reintentar.
+   */
   private async report(t: WompiTransaction, companyId: string): Promise<void> {
     if (this.reported) return;
     this.reported = true;
+    this.reportFailed.set(false);
     try {
-      await this.claims.reportTransaction(
+      const matchesPlan = !!planFromAmount(t.amountInCents, t.currency, this.appConfig.plans());
+      const r = await this.claims.reportTransaction(
         t, { id: companyId, name: this.store.company()?.name ?? 'Empresa' }, this.auth.currentUser()?.email ?? '');
+      // Caso normal (aviso creado y monto de un plan): la tarjeta ya lo dice, no se repite
+      this.reportMsg.set(r === 'created' && matchesPlan ? null : reportMessage(r, matchesPlan, t.amountInCents / 100));
     } catch (err) {
       console.error('[PaymentThanks] No se pudo reportar el pago:', err);
+      this.reportMsg.set({ ok: false, text: REPORT_FAILED_TEXT });
+      this.reportFailed.set(true);
+      this.reported = false;
     }
+  }
+
+  retryReport(): void {
+    const t = this.tx();
+    const cid = this.store.companyId();
+    if (t && cid) this.report(t, cid);
   }
 }

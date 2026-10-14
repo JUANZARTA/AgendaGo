@@ -29,6 +29,32 @@ service cloud.firestore {
     function changedKeys() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
+
+    // ── Alta de empresa (BILLING HARDENING) ──
+    // Una empresa nueva, su suscripción y (si usa la prueba gratis) el marcador trials/{uid} se crean
+    // en UNA sola escritura (transacción del onboarding). get()/exists() ven el estado ANTES del batch
+    // y getAfter()/existsAfter() el de DESPUÉS: así se exige que nazcan juntos.
+    function companyPath(companyId) { return /databases/$(database)/documents/companies/$(companyId); }
+    function subPath(companyId)     { return /databases/$(database)/documents/subscriptions/$(companyId); }
+    function trialPath(uid)         { return /databases/$(database)/documents/trials/$(uid); }
+    function trialEmailPath(id)     { return /databases/$(database)/documents/trialEmails/$(id); }
+    // Correo del token, normalizado IGUAL que normalizeTrialEmail() (src/app/core/domain/trial-email.ts):
+    // minúsculas; sin lo que va desde '+' en la parte local; gmail.com/googlemail.com → sin puntos y dominio gmail.com.
+    function hasTokenEmail() {
+      let e = request.auth.token.get('email', '');
+      return e is string && e.split('@').size() == 2 && e.split('@')[1].size() > 0;
+    }
+    function normTrialEmail() {
+      let parts  = request.auth.token.email.lower().split('@');
+      let local  = parts[0].split('[+]')[0];
+      let gmail  = parts[1] in ['gmail.com', 'googlemail.com'];
+      return (gmail ? local.replace('[.]', '') : local) + '@' + (gmail ? 'gmail.com' : parts[1]);
+    }
+    // La empresa se está creando EN ESTA MISMA escritura y es del que escribe.
+    function isNewOwnCompany(companyId) {
+      let p = companyPath(companyId);
+      return !exists(p) && existsAfter(p) && getAfter(p).data.ownerId == request.auth.uid;
+    }
     function optString(d, key, maxLen) {
       return !(key in d) || (d[key] is string && d[key].size() <= maxLen);
     }
@@ -87,10 +113,15 @@ service cloud.firestore {
       allow read: if resource.data.isPublic == true
                   || (isAuth() && request.auth.uid == resource.data.ownerId)
                   || isSuperAdmin();
+      // Empresa SIN suscripción = nunca vence: el dueño sólo puede crearla junto con su suscripción
+      // (trial → nace activa; sin trial disponible → 'expired' y nace inactiva hasta que pague).
       allow create: if isSuperAdmin()
                     || (isCompany() && request.resource.data.ownerId == request.auth.uid
                         // rating legacy: nunca lo fija el dueño (tampoco al crear)
-                        && !request.resource.data.keys().hasAny(['averageRating', 'reviewCount']));
+                        && !request.resource.data.keys().hasAny(['averageRating', 'reviewCount'])
+                        && !exists(subPath(companyId))
+                        && existsAfter(subPath(companyId))
+                        && request.resource.data.isActive == (getAfter(subPath(companyId)).data.status == 'trial'));
       allow update: if
         // Dueño: todo menos ownerId / isActive (lo maneja superadmin). El rating ya no se guarda acá:
         // se calcula con una agregación sobre /reviews (campos legacy bloqueados).
@@ -377,9 +408,10 @@ service cloud.firestore {
       );
     }
     // Link de pago: '' (sin configurar) o un link de Wompi (checkout.wompi.co/l/<id>). Nunca otro dominio.
+    // MISMA definición que WOMPI_PAYMENT_LINK_RE (src/app/core/domain/app-config.ts): id [A-Za-z0-9_-]{1,64}.
     function validPayLink(s) {
       return s is string
-        && (s == '' || s.matches('^https://checkout[.]wompi[.]co/l/[A-Za-z0-9_]{1,64}$'));
+        && (s == '' || s.matches('^https://checkout[.]wompi[.]co/l/[A-Za-z0-9_-]{1,64}$'));
     }
     function validPlan(p) {
       return p is map
@@ -421,23 +453,96 @@ service cloud.firestore {
     }
 
     // ───────────────────────── SUBSCRIPTIONS ─────────────────────────
-    // Sin Functions el trial lo crea el dueño en el onboarding, UNA vez (create sólo aplica si no existe).
-    // Forma exacta (= functions/src/subscriptions/on-company-created.ts):
-    //   { companyId == docId, status: 'trial', trialStartDate: serverTimestamp(), trialEndDate: Timestamp }
+    // Sin Functions la suscripción la crea el dueño en el onboarding, en la MISMA escritura que la empresa
+    // (nunca para una empresa que ya existe). Dos formas posibles:
+    //  - trial (prueba gratis, UNA por persona): { companyId, status: 'trial', trialStartDate: serverTimestamp(),
+    //    trialEndDate } + marcador trials/{uid} creado en el mismo batch (no existía antes).
+    //  - sin trial (la persona ya usó su prueba): { companyId, status: 'expired', currentPeriodEnd: serverTimestamp() }
+    //    → la empresa nace inactiva y tiene que pagar para activarse.
+    function trialSubOk(companyId) {
+      let d = request.resource.data;
+      let t = trialPath(request.auth.uid);
+      return d.keys().hasOnly(['companyId', 'status', 'trialStartDate', 'trialEndDate'])
+          && d.keys().hasAll(['companyId', 'status', 'trialStartDate', 'trialEndDate'])
+          && d.status == 'trial'
+          && d.trialStartDate is timestamp
+          && d.trialStartDate > request.time - duration.value(1, 'd')
+          && d.trialStartDate < request.time + duration.value(1, 'd')
+          && d.trialEndDate is timestamp
+          && d.trialEndDate > request.time
+          && d.trialEndDate <= request.time + duration.value(trialMaxDays(), 'd')
+          // Trials infinitos: los marcadores de la persona (uid Y correo) no existían y se crean en este mismo batch
+          && !exists(t)
+          && existsAfter(t)
+          && getAfter(t).data.companyId == companyId
+          && trialEmailOk(companyId);
+    }
+    // Sin correo en el token no hay trial (no debería pasar: el registro siempre tiene email).
+    function trialEmailOk(companyId) {
+      return hasTokenEmail()
+          && !exists(trialEmailPath(normTrialEmail()))
+          && existsAfter(trialEmailPath(normTrialEmail()))
+          && getAfter(trialEmailPath(normTrialEmail())).data.companyId == companyId
+          && getAfter(trialEmailPath(normTrialEmail())).data.uid == request.auth.uid;
+    }
+    function unpaidSubOk() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['companyId', 'status', 'currentPeriodEnd'])
+          && d.keys().hasAll(['companyId', 'status', 'currentPeriodEnd'])
+          && d.status == 'expired'
+          && d.currentPeriodEnd == request.time;
+    }
+
     match /subscriptions/{companyId} {
       allow read:   if isCompanyOwner(companyId) || isSuperAdmin();
       allow create: if isSuperAdmin() || (
-        isCompanyOwner(companyId)
-        && request.resource.data.keys().hasOnly(['companyId', 'status', 'trialStartDate', 'trialEndDate'])
-        && request.resource.data.keys().hasAll(['companyId', 'status', 'trialStartDate', 'trialEndDate'])
+        isCompany()
         && request.resource.data.companyId == companyId
-        && request.resource.data.status == 'trial'
-        && request.resource.data.trialStartDate is timestamp
-        && request.resource.data.trialStartDate > request.time - duration.value(1, 'd')
-        && request.resource.data.trialStartDate < request.time + duration.value(1, 'd')
-        && request.resource.data.trialEndDate is timestamp
-        && request.resource.data.trialEndDate > request.time
-        && request.resource.data.trialEndDate <= request.time + duration.value(trialMaxDays(), 'd')
+        && isNewOwnCompany(companyId)
+        && (trialSubOk(companyId) || unpaidSubOk())
+      );
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ───────────────────────── TRIALS ─────────────────────────
+    // Marcador "esta persona ya usó su prueba gratis": trials/{uid} = { companyId, createdAt }.
+    // Sólo se crea (nunca se edita ni se borra salvo el admin), sólo el propio uid y sólo junto con
+    // la empresa nueva y su suscripción trial (mismo batch).
+    match /trials/{uid} {
+      allow read: if isOwner(uid) || isSuperAdmin();
+      allow create: if isSuperAdmin() || (
+        isCompany() && isOwner(uid)
+        && request.resource.data.keys().hasOnly(['companyId', 'createdAt'])
+        && request.resource.data.keys().hasAll(['companyId', 'createdAt'])
+        && request.resource.data.companyId is string
+        && request.resource.data.companyId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && request.resource.data.createdAt == request.time
+        && isNewOwnCompany(request.resource.data.companyId)
+        && existsAfter(subPath(request.resource.data.companyId))
+        && getAfter(subPath(request.resource.data.companyId)).data.status == 'trial'
+      );
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Marcador por CORREO: trialEmails/{correo normalizado} = { uid, companyId, createdAt }.
+    // Cierra "borro la cuenta y me registro de nuevo con el mismo correo" (uid nuevo) y los alias de
+    // Gmail (puntos, '+algo', mayúsculas, googlemail.com). El id DEBE ser el correo del token normalizado
+    // (un id con '/' es imposible como docId: ese correo simplemente no puede marcar → sin trial).
+    // Nadie lee los de otros; el dueño lee el suyo (el onboarding decide trial o no con esa lectura).
+    match /trialEmails/{emailId} {
+      allow read: if isSuperAdmin() || (isAuth() && hasTokenEmail() && emailId == normTrialEmail());
+      allow create: if isSuperAdmin() || (
+        isCompany() && hasTokenEmail()
+        && emailId == normTrialEmail()
+        && request.resource.data.keys().hasOnly(['uid', 'companyId', 'createdAt'])
+        && request.resource.data.keys().hasAll(['uid', 'companyId', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.companyId is string
+        && request.resource.data.companyId.matches('^[A-Za-z0-9_-]{1,128}$')
+        && request.resource.data.createdAt == request.time
+        && isNewOwnCompany(request.resource.data.companyId)
+        && existsAfter(subPath(request.resource.data.companyId))
+        && getAfter(subPath(request.resource.data.companyId)).data.status == 'trial'
       );
       allow update, delete: if isSuperAdmin();
     }

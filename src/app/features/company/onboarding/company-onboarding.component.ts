@@ -4,7 +4,6 @@ import { CompanyStore } from '../../../core/services/company-store.service';
 import { CompanyService } from '../../../core/services/company.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { StaffService } from '../../../core/services/staff.service';
-import { SubscriptionService } from '../../../core/services/subscription.service';
 import { ServiceCatalogService, ServiceItem } from '../../../core/services/service-catalog.service';
 import { CategoryGroupKey, categoryMeta } from '../../../core/domain/categories';
 import { DEFAULT_SCHEDULE, OnboardingForm, PendingStaff, SocialState, StepNavigation } from './onboarding.constants';
@@ -148,7 +147,6 @@ export class CompanyOnboardingComponent {
   private authSvc           = inject(AuthService);
   private staffSvc          = inject(StaffService);
   private serviceCatalogSvc = inject(ServiceCatalogService);
-  private subscriptionSvc   = inject(SubscriptionService);
 
 
   catGroup    = signal<CategoryGroupKey>('belleza');
@@ -218,6 +216,7 @@ export class CompanyOnboardingComponent {
 
   // Idempotencia: si createCompany ya tuvo éxito, un reintento reutiliza el mismo companyId
   private createdCompanyId: string | null = null;
+  private pendingCompanyId: string | null = null;
   private staffCreatedCount = 0;
   private servicesCreatedCount = 0;
 
@@ -238,7 +237,10 @@ export class CompanyOnboardingComponent {
         return s.enabled && s.handle.trim() ? s.handle.trim() : undefined;
       };
 
-      const companyId = this.createdCompanyId ?? await this.companySvc.createCompany({
+      // Alta ATÓMICA (empresa + suscripción + marcador de prueba en una transacción). El id se genera
+      // UNA vez: si el commit se hizo pero la respuesta se perdió, el reintento lo detecta y no duplica.
+      this.pendingCompanyId ??= this.companySvc.newCompanyId();
+      const companyId = this.createdCompanyId ?? (await this.companySvc.createCompany({
         name:         this.form.name.trim(),
         slug,
         category:     this.selectedCat(),
@@ -258,17 +260,9 @@ export class CompanyOnboardingComponent {
         schedule:     this.scheduleLocal,
         blockedDates: [],
         disabledSlots: {},
-      });
+      }, this.pendingCompanyId)).id;
 
       this.createdCompanyId = companyId;
-
-      // Sin Cloud Functions (plan Spark): el trial se crea desde el cliente. Idempotente (transacción);
-      // si falla no bloquea el onboarding: el backfill/admin lo cubre y el guard no bloquea sin doc.
-      try {
-        await this.subscriptionSvc.createTrialIfMissing(companyId);
-      } catch (subErr) {
-        console.error('[Onboarding] No se pudo crear el trial (se reparará con backfill-subscriptions):', subErr);
-      }
 
       // Los contadores evitan duplicar staff/servicios ya creados en un intento previo
       while (this.staffCreatedCount < this.pendingStaff.length) {

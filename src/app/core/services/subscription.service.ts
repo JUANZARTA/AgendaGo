@@ -1,15 +1,18 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  Firestore, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, Timestamp,
+  Firestore, doc, getDoc, getDocFromServer, onSnapshot, runTransaction, serverTimestamp, Timestamp,
   collection, getDocs, query, where, writeBatch,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 import { PlanKey, nextPeriodEnd } from '../domain/plans';
-import { mergeAppConfig } from '../domain/app-config';
 import { AppConfigService } from './app-config.service';
-import { graceEndOf, subscriptionTimeline } from '../domain/subscription-timeline';
-import { PaymentDocLike, paidUntil } from '../domain/payment-history';
+import { NotificationService } from './notification.service';
+import {
+  OverdueItem, SubscriptionLike, daysRemainingOf, overdueItems, subscriptionTimeline,
+} from '../domain/subscription-timeline';
+import { PaymentDocLike, manualPaymentId, paidUntil } from '../domain/payment-history';
 import { canRegisterPayments } from '../domain/payment-origin';
+import { AdminPlanInput, AdminPlanResult, buildAdminPlanUpdate, planChangedNotice } from '../domain/admin-plan';
 import { environment } from '../../../environments/environment';
 
 /** Datos de quien pagó según Wompi, para el historial (opcionales). */
@@ -47,11 +50,8 @@ export function addMonthsClamped(from: Date, months: number): Date {
   return d;
 }
 
-export interface OverdueSub {
-  companyId: string;
-  status: 'trial' | 'active';
-  endDate: Date;
-}
+/** Ítem de la revisión de vencimientos ('missing' = empresa activa sin suscripción). */
+export type OverdueSub = OverdueItem;
 
 export interface Subscription {
   companyId: string;
@@ -75,9 +75,12 @@ export interface ManualPaymentResult {
 export class SubscriptionService {
   private firestore = inject(Firestore);
   private appConfig = inject(AppConfigService);
+  private notifSvc  = inject(NotificationService);
 
-  async getStatus(companyId: string): Promise<Subscription | null> {
-    const snap = await getDoc(doc(this.firestore, 'subscriptions', companyId));
+  /** fromServer: ignora la caché local (para confirmar que el doc de verdad no existe). */
+  async getStatus(companyId: string, fromServer = false): Promise<Subscription | null> {
+    const ref  = doc(this.firestore, 'subscriptions', companyId);
+    const snap = fromServer ? await getDocFromServer(ref) : await getDoc(ref);
     return snap.exists() ? snap.data() as Subscription : null;
   }
 
@@ -94,34 +97,6 @@ export class SubscriptionService {
     });
   }
 
-  /**
-   * Crea subscriptions/{companyId} en trial si NO existe (sin Cloud Functions / plan Spark).
-   * Misma forma que el antiguo trigger onCompanyCreated. Transacción: nunca pisa un doc existente.
-   * Devuelve true si lo creó, false si ya existía.
-   */
-  async createTrialIfMissing(companyId: string): Promise<boolean> {
-    const ref = doc(this.firestore, 'subscriptions', companyId);
-    const cfgRef = doc(this.firestore, 'config', 'app');
-    return runTransaction(this.firestore, async (tx) => {
-      const snap = await tx.get(ref);
-      if (snap.exists()) return false;
-      // Se lee config/app en la misma transacción: las reglas topean trialEndDate con ese mismo valor
-      const cfgSnap = await tx.get(cfgRef);
-      const months = mergeAppConfig(cfgSnap.exists() ? cfgSnap.data() : null).trialMonths;
-      tx.set(ref, {
-        companyId,
-        status: 'trial',
-        trialStartDate: serverTimestamp(),
-        trialEndDate: Timestamp.fromDate(addMonthsClamped(new Date(), months)),
-      });
-      return true;
-    });
-  }
-
-  /**
-   * (Solo superadmin) Suscripciones trial/active cuya fecha de fin ya pasó.
-   * Se consulta solo por status y se filtra en memoria: evita índices compuestos.
-   */
   /** (Solo superadmin) Hasta cuándo cubren los pagos aprobados de la empresa, o null si no hay. */
   async paidUntil(companyId: string): Promise<Date | null> {
     const snap = await getDocs(query(collection(this.firestore, 'payments'), where('companyId', '==', companyId)));
@@ -132,18 +107,19 @@ export class SubscriptionService {
    * Registro manual de un pago verificado en Wompi (sustituye al webhook, que no corre en plan Spark).
    * Mismo efecto que functions/src/payments/validate-payment.ts: deja el pago en el historial,
    * extiende el período desde max(ahora, fin actual) y reactiva la empresa.
-   * Con referencia, el id del pago se deriva de ella: registrar dos veces el mismo pago falla.
+   * La referencia es OBLIGATORIA: el id del pago se deriva de ella, así registrar dos veces el mismo
+   * pago falla (DUPLICATE_PAYMENT). Sin referencia el id sería aleatorio y un doble clic o un
+   * reintento duplicaría el período pagado.
    */
   async registerManualPayment(companyId: string, planKey: PlanKey, reference: string, payer: PaymentPayer = {}): Promise<ManualPaymentResult> {
     // `ng serve` consulta el SANDBOX de Wompi pero escribe en la Firestore REAL: nunca activa planes
     // (un pago de prueba es gratis). Sólo el build de producción o los emuladores.
     if (!canRegisterPayments(environment)) throw new Error('SANDBOX_BUILD');
+    const ref = (reference ?? '').trim();
+    if (!ref) throw new Error('REFERENCE_REQUIRED');
     // Monto y días configurados por el admin (config/app)
     const plan       = this.appConfig.plans()[planKey];
-    const ref        = reference.trim();
-    const paymentRef = ref
-      ? doc(this.firestore, 'payments', 'manual-' + ref.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120))
-      : doc(collection(this.firestore, 'payments'));
+    const paymentRef = doc(this.firestore, 'payments', manualPaymentId(ref)!);
     const subRef     = doc(this.firestore, 'subscriptions', companyId);
     const companyRef = doc(this.firestore, 'companies', companyId);
 
@@ -164,7 +140,7 @@ export class SubscriptionService {
         amount:      plan.amount,
         status:      'approved',
         source:      'manual',
-        ...(ref ? { wompiRef: ref } : {}),
+        wompiRef:    ref,
         // Sólo campos con valor (Firestore no acepta undefined)
         ...Object.fromEntries(Object.entries(payer).filter(([, v]) => v != null && v !== '')),
         periodStart: Timestamp.fromDate(start),
@@ -188,26 +164,30 @@ export class SubscriptionService {
     });
   }
 
+  /**
+   * (Solo superadmin) Qué hay que suspender: suscripciones trial/active que pasaron la gracia y
+   * empresas ACTIVAS sin doc de suscripción (si no, nunca vencerían). Lee todas las suscripciones
+   * y las empresas con isActive == true y decide en memoria (overdueItems, puro): sin índices compuestos.
+   */
   async findOverdue(): Promise<OverdueSub[]> {
     await this.appConfig.ready();
     const graceDays = this.appConfig.timeline().graceDays;
-    const now = Date.now();
-    const out: OverdueSub[] = [];
-    for (const status of ['trial', 'active'] as const) {
-      const snap = await getDocs(query(collection(this.firestore, 'subscriptions'), where('status', '==', status)));
-      for (const d of snap.docs) {
-        const data = d.data() as any;
-        const raw = status === 'trial' ? data.trialEndDate : data.currentPeriodEnd;
-        const end: Date | null = raw?.toDate ? raw.toDate() : null;
-        // Sólo las que pasaron la gracia: durante esos días la cuenta sigue funcionando
-        if (end && graceEndOf(end, graceDays).getTime() < now) out.push({ companyId: d.id, status, endDate: end });
-      }
-    }
-    return out;
+    const [subsSnap, activeSnap] = await Promise.all([
+      getDocs(collection(this.firestore, 'subscriptions')),
+      getDocs(query(collection(this.firestore, 'companies'), where('isActive', '==', true))),
+    ]);
+    return overdueItems(
+      subsSnap.docs.map(d => ({ id: d.id, data: d.data() as Subscription })),
+      activeSnap.docs.map(d => d.id),
+      new Date(),
+      graceDays,
+    );
   }
 
   /**
    * (Solo superadmin) Marca como expired + companies.isActive=false en batches.
+   * Empresa sin suscripción ('missing'): se le crea { companyId, status: 'expired' } (set merge,
+   * por si apareció entre la lectura y la escritura) para que vea "vencida" y pueda pagar.
    * Un chunk fallido no aborta el resto. Devuelve cuántas se procesaron y cuántas fallaron.
    */
   async expireOverdue(items: OverdueSub[]): Promise<{ expired: number; failed: number }> {
@@ -218,7 +198,9 @@ export class SubscriptionService {
       try {
         const batch = writeBatch(this.firestore);
         for (const it of chunk) {
-          batch.update(doc(this.firestore, 'subscriptions', it.companyId), { status: 'expired' });
+          const subRef = doc(this.firestore, 'subscriptions', it.companyId);
+          if (it.status === 'missing') batch.set(subRef, { companyId: it.companyId, status: 'expired' }, { merge: true });
+          else batch.update(subRef, { status: 'expired' });
           // set+merge tolera que la empresa no exista (update abortaría todo el batch)
           batch.set(doc(this.firestore, 'companies', it.companyId), { isActive: false }, { merge: true });
         }
@@ -233,16 +215,53 @@ export class SubscriptionService {
   }
 
 
-  /** Estado efectivo: un trial vencido cuenta como expired aunque el cron aún no lo haya actualizado. */
-  /** 'expired' también si pasó la gracia aunque el admin todavía no la marcó (trial o plan pago). */
+  /**
+   * Estado efectivo: 'expired' si pasó la gracia aunque la revisión de vencimientos (automática al
+   * entrar el admin, o "Revisar vencimientos") todavía no la marcó (trial o plan pago).
+   */
   effectiveStatus(sub: Subscription): Subscription['status'] {
     return subscriptionTimeline(sub, new Date(), this.appConfig.timeline()).phase === 'suspended' ? 'expired' : sub.status;
   }
 
+  /** Días que quedan: misma cuenta (días calendario) que el timeline y el banner. */
   daysRemaining(sub: Subscription): number {
-    if (sub.status === 'free') return Infinity;
-    const end = sub.status === 'trial' ? sub.trialEndDate?.toDate() : sub.currentPeriodEnd?.toDate();
-    if (!end) return 0;
-    return Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86400000));
+    return daysRemainingOf(sub);
+  }
+
+  /**
+   * (Solo superadmin) Cambio de plan a mano: lo usan el modal "Plan" de Empresas y "Gestionar" de
+   * Facturación, así los dos escriben y validan igual (buildAdminPlanUpdate). NO escribe lastPaymentDate
+   * (sólo registerManualPayment). Avisa a la empresa con el mismo texto. Si la validación falla no escribe nada.
+   */
+  async adminSetPlan(
+    companyId: string,
+    input: AdminPlanInput,
+    current: SubscriptionLike | null,
+    ownerId?: string | null,
+  ): Promise<AdminPlanResult> {
+    const r = buildAdminPlanUpdate(companyId, input, current);
+    if (!r.ok) return r;
+
+    const batch = writeBatch(this.firestore);
+    batch.set(doc(this.firestore, 'subscriptions', companyId), r.data, { merge: true });
+    // set+merge tolera que el doc de la empresa no exista (update abortaría el batch)
+    batch.set(doc(this.firestore, 'companies', companyId), { isActive: r.isActive }, { merge: true });
+    await batch.commit();
+
+    try {
+      const owner = ownerId ?? ((await getDoc(doc(this.firestore, 'companies', companyId))).data() as any)?.ownerId;
+      if (owner) {
+        await this.notifSvc.create({
+          recipientId: owner,
+          type:        'plan_changed',
+          ...planChangedNotice(input.status, r.endDate),
+          link:        '/empresa/facturacion',
+        });
+      }
+    } catch (err) {
+      // El cambio ya quedó guardado: la notificación es best-effort
+      console.error('[SubscriptionService] No se pudo notificar el cambio de plan:', err);
+    }
+    return r;
   }
 }
