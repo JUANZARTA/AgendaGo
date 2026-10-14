@@ -266,52 +266,6 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         }
       </div>
 
-      <!-- ── Configuración de reservas ── -->
-      <div class="card">
-        <div class="card-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 9 15 9"/><polyline points="9 12 15 12"/><polyline points="9 15 12 15"/>
-          </svg>
-          Reservas
-        </div>
-        <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Confirmar citas automáticamente</div>
-            <div style="font-size:12px;color:#888;margin-top:3px">Las nuevas reservas quedan confirmadas sin revisión manual</div>
-          </div>
-          <div style="position:relative;width:44px;height:24px;flex-shrink:0">
-            <input type="checkbox" [(ngModel)]="form.autoConfirm"
-                   style="position:absolute;opacity:0;width:0;height:0" />
-            <div style="position:absolute;inset:0;border-radius:24px;transition:background .2s"
-                 [style.background]="form.autoConfirm ? 'var(--purple)' : '#e5e7eb'">
-              <div style="position:absolute;top:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"
-                   [style.transform]="form.autoConfirm ? 'translateX(23px)' : 'translateX(3px)'"></div>
-            </div>
-          </div>
-        </label>
-      </div>
-
-      <!-- ── Apariencia ── -->
-      <div class="card">
-        <div class="card-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-          Apariencia
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Tema de la interfaz</div>
-            <div style="font-size:12px;color:#888;margin-top:2px">Claro u oscuro</div>
-          </div>
-          <app-theme-switcher />
-        </div>
-      </div>
-
-      </div>
-
-      <!-- Columna derecha -->
-      <div>
       <!-- ── Datos generales ── -->
       <div class="card">
         <div class="card-title">
@@ -354,6 +308,52 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
             <label>Ciudad</label>
             <input [(ngModel)]="form.city" placeholder="Bogotá" />
           </div>
+        </div>
+      </div>
+
+      </div>
+
+      <!-- Columna derecha -->
+      <div>
+      <!-- ── Configuración de reservas ── -->
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 9 15 9"/><polyline points="9 12 15 12"/><polyline points="9 15 12 15"/>
+          </svg>
+          Reservas
+        </div>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Confirmar citas automáticamente</div>
+            <div style="font-size:12px;color:#888;margin-top:3px">Las nuevas reservas quedan confirmadas sin revisión manual</div>
+          </div>
+          <div style="position:relative;width:44px;height:24px;flex-shrink:0">
+            <input type="checkbox" [(ngModel)]="form.autoConfirm"
+                   style="position:absolute;opacity:0;width:0;height:0" />
+            <div style="position:absolute;inset:0;border-radius:24px;transition:background .2s"
+                 [style.background]="form.autoConfirm ? 'var(--purple)' : '#e5e7eb'">
+              <div style="position:absolute;top:3px;width:18px;height:18px;border-radius:50%;background:white;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"
+                   [style.transform]="form.autoConfirm ? 'translateX(23px)' : 'translateX(3px)'"></div>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <!-- ── Apariencia ── -->
+      <div class="card">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          Apariencia
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#1a1a2e">Tema de la interfaz</div>
+            <div style="font-size:12px;color:#888;margin-top:2px">Claro u oscuro</div>
+          </div>
+          <app-theme-switcher />
         </div>
       </div>
 
