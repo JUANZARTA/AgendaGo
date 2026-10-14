@@ -543,7 +543,8 @@ interface DaySlot {
                       </button>
                     }
 
-                    @if (apt.status === 'cancelled' || apt.status === 'completed') {
+                    <!-- Las completadas no se eliminan: alimentan ingresos, estadísticas y reseñas -->
+                    @if (apt.status === 'cancelled') {
                       <button class="icon-btn delete-btn" title="Eliminar" (click)="deleteTarget.set(apt)">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
