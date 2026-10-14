@@ -7,6 +7,7 @@ import {
 import { SubscriptionService, Subscription } from '../../../core/services/subscription.service';
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { PLANS, PlanKey, formatCop } from '../../../core/domain/plans';
 import { environment } from '../../../../environments/environment';
 
 interface Payment {
@@ -340,7 +341,7 @@ interface SubViewModel {
         <div class="plan-card">
           <div class="plan-name">Mensual</div>
           <div class="plan-price-row">
-            <span class="plan-price">$29.000</span>
+            <span class="plan-price">{{ fmtCop(plans.mensual.amount) }}</span>
             <span class="plan-period">/mes</span>
           </div>
           <ul class="plan-features">
@@ -357,7 +358,7 @@ interface SubViewModel {
           <div class="plan-footer">
             <button class="btn btn-primary plan-cta" (click)="payMonthly()" [disabled]="!companyReady()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              Pagar $29.000
+              Pagar {{ fmtCop(plans.mensual.amount) }}
             </button>
           </div>
         </div>
@@ -367,7 +368,7 @@ interface SubViewModel {
           <div class="plan-badge">Mejor precio</div>
           <div class="plan-name">Semestral</div>
           <div class="plan-price-row">
-            <span class="plan-price">$156.600</span>
+            <span class="plan-price">{{ fmtCop(plans.semestral.amount) }}</span>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
             <span class="plan-saving">Ahorrás $17.400</span>
@@ -383,7 +384,7 @@ interface SubViewModel {
           <div class="plan-footer">
             <button class="btn btn-primary plan-cta" (click)="paySemestral()" [disabled]="!companyReady()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              Pagar $156.600
+              Pagar {{ fmtCop(plans.semestral.amount) }}
             </button>
           </div>
         </div>
@@ -500,7 +501,9 @@ export class BillingComponent implements OnDestroy {
             ? subscription.trialEndDate
             : subscription.currentPeriodEnd;
           const trialEnd = this.formatTimestamp(endDate);
-          const plan     = status === 'active' ? 'Plan activo' : 'Gratuito (Trial)';
+          const plan     = status === 'active'
+            ? (subscription.plan ? `Plan ${PLANS[subscription.plan]?.label ?? ''}`.trim() : 'Plan activo')
+            : 'Gratuito (Trial)';
 
           this.sub.set({
             status,
@@ -542,33 +545,31 @@ export class BillingComponent implements OnDestroy {
   }
 
 
-  payMonthly(): void {
+  readonly plans  = PLANS;
+  readonly fmtCop = formatCop;
+
+  payMonthly(): void   { this.pay('mensual'); }
+  paySemestral(): void { this.pay('semestral'); }
+
+  /**
+   * Abre el checkout de Wompi con una referencia única y avisa al admin CON esa referencia,
+   * para que la busque en Wompi y registre el pago (sin webhook en plan Spark).
+   */
+  private pay(planKey: PlanKey): void {
     const companyId = this.companyStore.companyId();
     if (!companyId) return;
-    const ref = `mensual-${companyId}-${Date.now()}`;
-    const url = `https://checkout.wompi.co/l/6btIw2?reference=${ref}`;
-    window.open(url, '_blank');
-    this.notifyAdminPayment('Mensual', '$29.000');
-  }
+    const plan = PLANS[planKey];
+    const ref  = `${planKey}-${companyId}-${Date.now()}`;
+    window.open(`${plan.checkoutUrl}?reference=${encodeURIComponent(ref)}`, '_blank');
 
-  paySemestral(): void {
-    const companyId = this.companyStore.companyId();
-    if (!companyId) return;
-    const ref = `semestral-${companyId}-${Date.now()}`;
-    const url = `https://checkout.wompi.co/l/3pQr9V?reference=${ref}`;
-    window.open(url, '_blank');
-    this.notifyAdminPayment('Semestral', '$156.600');
-  }
-
-  private notifyAdminPayment(plan: string, amount: string): void {
     const name = this.companyStore.company()?.name ?? 'Una empresa';
     this.notifSvc.create({
       recipientId: 'admin',
       type:        'payment_initiated',
       title:       `Pago iniciado — ${name}`,
-      body:        `${name} inició un pago del plan ${plan} por ${amount}. Verificá en Wompi y activá el plan manualmente.`,
+      body:        `${name} abrió el pago del plan ${plan.label} (${formatCop(plan.amount)}). Referencia: ${ref}. Verificalo en Wompi y registralo desde Facturación.`,
       link:        '/admin/facturacion',
-    });
+    }).catch(err => console.error('[Billing] No se pudo avisar al admin:', err));
   }
 
   ngOnDestroy(): void {

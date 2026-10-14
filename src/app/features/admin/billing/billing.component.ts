@@ -6,6 +6,8 @@ import {
 } from '@angular/fire/firestore';
 import { parseLocalDateEndOfDay } from '../../../core/utils/date.utils';
 import { SubscriptionService, OverdueSub } from '../../../core/services/subscription.service';
+import { NotificationService } from '../../../core/services/notification.service';
+import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
 
 const STATUS_LABEL: Record<string, string> = {
   trial: 'Trial', active: 'Activa', expired: 'Vencida', disabled: 'Deshabilitada', free: 'Gratuita',
@@ -196,6 +198,34 @@ interface AdminSub {
               style="width:28px;height:28px;border-radius:8px;border:none;background:#f5f5f5;cursor:pointer;font-size:18px;line-height:1;color:#888">×</button>
           </div>
 
+          <!-- Registrar pago verificado en Wompi (el webhook no corre en plan Spark) -->
+          <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:18px">
+            <div style="font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Registrar pago</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <select [(ngModel)]="payPlan" style="flex:1;min-width:150px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px">
+                <option value="">Plan pagado…</option>
+                @for (p of planList; track p.key) {
+                  <option [value]="p.key">{{ p.label }} — {{ fmtCop(p.amount) }}</option>
+                }
+              </select>
+              <input [(ngModel)]="payRef" placeholder="Referencia o ID de Wompi (opcional)"
+                     style="flex:1.4;min-width:180px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;box-sizing:border-box" />
+            </div>
+            @if (payPlan) {
+              <p style="font-size:12px;color:#166534;margin:8px 0 0">
+                Queda activa hasta el <strong>{{ payPreview() }}</strong>. Se suma al historial de la empresa y se le avisa.
+              </p>
+            }
+            @if (payError()) {
+              <p style="font-size:12px;color:#dc2626;margin:8px 0 0">{{ payError() }}</p>
+            }
+            <button (click)="registerPayment()" [disabled]="!payPlan || paying()"
+              style="margin-top:10px;width:100%;padding:10px;border-radius:10px;border:none;background:#16a34a;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit"
+              [style.opacity]="!payPlan || paying() ? '0.5' : '1'">
+              {{ paying() ? 'Registrando...' : 'Registrar pago y activar' }}
+            </button>
+          </div>
+
           <div style="display:flex;flex-direction:column;gap:14px">
 
             <!-- Cambiar estado -->
@@ -255,6 +285,7 @@ export class AdminBillingComponent implements OnDestroy {
 
   private firestore = inject(Firestore);
   private subSvc    = inject(SubscriptionService);
+  private notifSvc  = inject(NotificationService);
 
   private rawSubs    = signal<any[]>([]);
   private companyMap = signal<Record<string, { name: string; ownerEmail: string }>>({});
@@ -275,6 +306,14 @@ export class AdminBillingComponent implements OnDestroy {
   editStatus   = '';
   editPeriodEnd = '';
   editNote     = '';
+
+  // Registro manual de pagos
+  readonly planList = Object.values(PLANS);
+  readonly fmtCop   = formatCop;
+  payPlan  = '' as PlanKey | '';
+  payRef   = '';
+  paying   = signal(false);
+  payError = signal('');
 
   private unsub?: () => void;
 
@@ -397,6 +436,47 @@ export class AdminBillingComponent implements OnDestroy {
     this.editStatus   = s.status;
     this.editPeriodEnd = '';
     this.editNote     = '';
+    this.payPlan  = '';
+    this.payRef   = '';
+    this.payError.set('');
+  }
+
+  /** Vista previa del nuevo vencimiento (misma cuenta que registerManualPayment). */
+  payPreview(): string {
+    const s = this.selected();
+    if (!s || !this.payPlan) return '';
+    const currentEnd = s.status === 'active' && s.periodEndMs ? new Date(s.periodEndMs) : null;
+    return nextPeriodEnd(currentEnd, PLANS[this.payPlan].days).end
+      .toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  async registerPayment() {
+    const s = this.selected();
+    if (!s || !this.payPlan) return;
+    const plan = PLANS[this.payPlan];
+    this.paying.set(true);
+    this.payError.set('');
+    try {
+      const r = await this.subSvc.registerManualPayment(s.companyId, plan.key, this.payRef);
+      if (r.ownerId && !r.disabled) {
+        this.notifSvc.create({
+          recipientId: r.ownerId,
+          type:        'plan_changed',
+          title:       '¡Pago confirmado!',
+          body:        `Tu plan ${plan.label} fue activado. Válido hasta el ${r.periodEnd.toLocaleDateString('es-CO')}.`,
+          link:        '/empresa/facturacion',
+        }).catch(err => console.error('[AdminBilling] No se pudo notificar a la empresa:', err));
+      }
+      if (r.disabled) alert('El pago quedó registrado, pero la cuenta está deshabilitada: no se reactivó.');
+      this.closeModal();
+    } catch (err: any) {
+      console.error('[AdminBilling] Error registrando pago:', err);
+      this.payError.set(err?.message === 'DUPLICATE_PAYMENT'
+        ? 'Ese pago ya fue registrado (misma referencia).'
+        : 'No se pudo registrar el pago. Intentá de nuevo.');
+    } finally {
+      this.paying.set(false);
+    }
   }
 
   closeModal() { this.selected.set(null); }

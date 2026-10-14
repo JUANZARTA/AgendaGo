@@ -4,6 +4,7 @@ import {
   collection, getDocs, query, where, writeBatch,
 } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
+import { PLANS, PlanKey, nextPeriodEnd } from '../domain/plans';
 
 /** Duración del trial en meses calendario (igual que functions/src/subscriptions/on-company-created.ts). */
 export const TRIAL_MONTHS = 2;
@@ -38,6 +39,15 @@ export interface Subscription {
   trialEndDate: any;
   currentPeriodEnd?: any;
   lastPaymentDate?: any;
+  /** Último plan pagado. */
+  plan?: PlanKey;
+}
+
+export interface ManualPaymentResult {
+  periodEnd: Date;
+  ownerId: string | null;
+  /** La suscripción estaba deshabilitada: se registra el pago pero no se reactiva. */
+  disabled: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -86,6 +96,60 @@ export class SubscriptionService {
    * (Solo superadmin) Suscripciones trial/active cuya fecha de fin ya pasó.
    * Se consulta solo por status y se filtra en memoria: evita índices compuestos.
    */
+  /**
+   * Registro manual de un pago verificado en Wompi (sustituye al webhook, que no corre en plan Spark).
+   * Mismo efecto que functions/src/payments/validate-payment.ts: deja el pago en el historial,
+   * extiende el período desde max(ahora, fin actual) y reactiva la empresa.
+   * Con referencia, el id del pago se deriva de ella: registrar dos veces el mismo pago falla.
+   */
+  async registerManualPayment(companyId: string, planKey: PlanKey, reference: string): Promise<ManualPaymentResult> {
+    const plan       = PLANS[planKey];
+    const ref        = reference.trim();
+    const paymentRef = ref
+      ? doc(this.firestore, 'payments', 'manual-' + ref.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120))
+      : doc(collection(this.firestore, 'payments'));
+    const subRef     = doc(this.firestore, 'subscriptions', companyId);
+    const companyRef = doc(this.firestore, 'companies', companyId);
+
+    return runTransaction(this.firestore, async (tx) => {
+      const [paySnap, subSnap, companySnap] = await Promise.all([
+        tx.get(paymentRef), tx.get(subRef), tx.get(companyRef),
+      ]);
+      if (paySnap.exists()) throw new Error('DUPLICATE_PAYMENT');
+      if (!companySnap.exists()) throw new Error('NO_COMPANY');
+
+      const sub        = subSnap.data() as Subscription | undefined;
+      const currentEnd = sub?.status === 'active' && sub.currentPeriodEnd?.toDate ? sub.currentPeriodEnd.toDate() : null;
+      const { start, end } = nextPeriodEnd(currentEnd, plan.days);
+
+      tx.set(paymentRef, {
+        companyId,
+        plan:        planKey,
+        amount:      plan.amount,
+        status:      'approved',
+        source:      'manual',
+        ...(ref ? { wompiRef: ref } : {}),
+        periodStart: Timestamp.fromDate(start),
+        periodEnd:   Timestamp.fromDate(end),
+        createdAt:   serverTimestamp(),
+      });
+
+      const disabled = sub?.status === 'disabled';
+      if (!disabled) {
+        tx.set(subRef, {
+          companyId,
+          status:             'active',
+          plan:               planKey,
+          lastPaymentDate:    serverTimestamp(),
+          currentPeriodStart: Timestamp.fromDate(start),
+          currentPeriodEnd:   Timestamp.fromDate(end),
+        }, { merge: true });
+        tx.update(companyRef, { isActive: true });
+      }
+      return { periodEnd: end, ownerId: (companySnap.data() as any)?.ownerId ?? null, disabled };
+    });
+  }
+
   async findOverdue(): Promise<OverdueSub[]> {
     const now = Date.now();
     const out: OverdueSub[] = [];
