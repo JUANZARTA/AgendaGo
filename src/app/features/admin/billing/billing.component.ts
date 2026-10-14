@@ -8,29 +8,18 @@ import { parseLocalDateEndOfDay } from '../../../core/utils/date.utils';
 import { SubscriptionService, OverdueSub } from '../../../core/services/subscription.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PLANS, PlanKey, formatCop, nextPeriodEnd } from '../../../core/domain/plans';
+import { PaymentClaimsComponent } from './payment-claims.component';
+import { CompanyBillingDetailComponent } from './company-billing-detail.component';
+import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
-const STATUS_LABEL: Record<string, string> = {
-  trial: 'Trial', active: 'Activa', expired: 'Vencida', disabled: 'Deshabilitada', free: 'Gratuita',
-};
-const STATUS_CLASS: Record<string, string> = {
-  trial: 'badge-blue', active: 'badge-green', expired: 'badge-red', disabled: 'badge-red', free: 'badge-purple',
-};
 
-interface AdminSub {
-  companyId: string;
-  companyName: string;
-  ownerEmail: string;
-  status: string;
-  trialEndLabel: string;
-  periodEndLabel: string;
-  lastPaymentLabel: string;
-  periodEndMs: number | null;
-}
 
 @Component({
   selector: 'app-admin-billing',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PaymentClaimsComponent, CompanyBillingDetailComponent],
+  // Facturación usa tablas anchas: aprovechar la pantalla en vez de los 920px del .page global
+  styles: [`.page { max-width: 1280px; }`],
   template: `
     <div class="page">
       <div style="margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -42,6 +31,11 @@ interface AdminSub {
           {{ reviewing() ? 'Revisando...' : 'Revisar vencimientos' }}
         </button>
       </div>
+
+      <!-- Detalle de UNA empresa (Gestionar) o la lista de todas -->
+      @if (detailSub(); as d) {
+        <app-company-billing-detail [sub]="d" (back)="closeDetail()" (manage)="openModal(d)" />
+      } @else {
 
       @if (pendingOverdueCount() > 0) {
         <div style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;font-weight:600">
@@ -55,6 +49,9 @@ interface AdminSub {
           <button (click)="expiryResult.set('')" style="background:none;border:none;cursor:pointer;color:#166534;font-size:16px;line-height:1">×</button>
         </div>
       }
+
+      <!-- Reportes de pago de las empresas (vuelta de Wompi) -->
+      <app-payment-claims />
 
       <!-- Resumen -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px">
@@ -112,7 +109,7 @@ interface AdminSub {
                   <td style="padding:12px;color:#555;font-size:13px">{{ s.lastPaymentLabel }}</td>
                   <td style="padding:12px;text-align:right">
                     <button class="btn btn-sm btn-primary"
-                            (click)="openModal(s)">
+                            (click)="openDetail(s)">
                       Gestionar
                     </button>
                   </td>
@@ -125,6 +122,7 @@ interface AdminSub {
           }
         </div>
       }
+      } <!-- /lista de empresas -->
     </div>
 
     <!-- Modal confirmación vencimientos -->
@@ -431,6 +429,13 @@ export class AdminBillingComponent implements OnDestroy {
 
   ngOnDestroy() { this.unsub?.(); }
 
+  // Detalle por empresa: se guarda el id y se lee de subs() para que refleje los cambios en vivo
+  private detailId = signal<string | null>(null);
+  detailSub = computed(() => this.subs().find(s => s.companyId === this.detailId()) ?? null);
+
+  openDetail(s: AdminSub) { this.detailId.set(s.companyId); window.scrollTo({ top: 0 }); }
+  closeDetail() { this.detailId.set(null); }
+
   openModal(s: AdminSub) {
     this.selected.set(s);
     this.editStatus   = s.status;
@@ -512,9 +517,7 @@ export class AdminBillingComponent implements OnDestroy {
         // En trial la fecha que leen daysRemaining y el cron es trialEndDate
         const field = this.editStatus === 'trial' ? 'trialEndDate' : 'currentPeriodEnd';
         update[field] = parseLocalDateEndOfDay(this.editPeriodEnd);
-        if (this.editStatus === 'active') {
-          update['lastPaymentDate'] = serverTimestamp();
-        }
+        // "Último pago" sólo lo escribe Registrar pago: cambiar el estado a mano no es un pago
       }
       if (this.editNote.trim()) {
         update['adminNote'] = this.editNote.trim();

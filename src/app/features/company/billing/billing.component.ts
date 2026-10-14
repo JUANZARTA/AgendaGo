@@ -7,7 +7,9 @@ import { SubscriptionService, Subscription } from '../../../core/services/subscr
 import { CompanyStore } from '../../../core/services/company-store.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { PLANS, PlanKey, formatCop } from '../../../core/domain/plans';
+import { environment } from '../../../../environments/environment';
 import { Payment, SubViewModel } from './billing.models';
+import { ClaimDocLike, buildPaymentHistory } from '../../../core/domain/payment-history';
 import { formatTimestamp } from './billing.utils';
 import { BillingStatusCardComponent } from './components/billing-status-card.component';
 import { BillingPlanCardsComponent } from './components/billing-plan-cards.component';
@@ -49,6 +51,11 @@ import { BillingPaymentHistoryComponent } from './components/billing-payment-his
         </div>
       }
 
+      <!-- ── HISTORIAL primero; abajo, los planes para renovar ── -->
+      <div style="margin-bottom:32px">
+        <app-billing-payment-history [rows]="historyRows()" />
+      </div>
+
       <!-- ── PLANES (solo si no es beneficiario) ── -->
       @if (sub().status !== 'free') {
         <app-billing-plan-cards
@@ -59,8 +66,6 @@ import { BillingPaymentHistoryComponent } from './components/billing-payment-his
           (payMonthly)="payMonthly()"
           (paySemestral)="paySemestral()" />
       }
-
-      <app-billing-payment-history [payments]="payments()" />
 
     </div>
   `,
@@ -77,6 +82,9 @@ export class BillingComponent implements OnDestroy {
   /** Los botones de pago se habilitan solo cuando el companyId ya cargó */
   companyReady   = computed(() => !!this.companyStore.companyId());
   payments = signal<Payment[]>([]);
+  claims   = signal<ClaimDocLike[]>([]);
+  /** Historial: pagos confirmados + reportes que todavía no confirmó el admin. */
+  historyRows = computed(() => buildPaymentHistory(this.payments(), this.claims()));
 
   sub = signal<SubViewModel>({
     status:    'trial',
@@ -88,6 +96,7 @@ export class BillingComponent implements OnDestroy {
 
   private rxSub: RxSubscription | null = null;
   private unsubPayments?: () => void;
+  private unsubClaims?: () => void;
   private prevStatus: Subscription['status'] | null = null;
 
   constructor() {
@@ -162,8 +171,16 @@ export class BillingComponent implements OnDestroy {
       );
       this.unsubPayments = onSnapshot(
         q,
-        snap => this.payments.set(snap.docs.map(d => d.data() as Payment)),
+        snap => this.payments.set(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Payment)),
         err => console.error('[Billing] Error cargando pagos:', err),
+      );
+
+      // Reportes que dejó la empresa al volver de Wompi (aparecen como "Por confirmar")
+      this.unsubClaims?.();
+      this.unsubClaims = onSnapshot(
+        query(collection(this.firestore, 'paymentClaims'), where('companyId', '==', companyId)),
+        snap => this.claims.set(snap.docs.map(d => ({ id: d.id, ...d.data() }) as ClaimDocLike)),
+        err => console.error('[Billing] Error cargando reportes de pago:', err),
       );
     });
   }
@@ -179,8 +196,15 @@ export class BillingComponent implements OnDestroy {
     const companyId = this.companyStore.companyId();
     if (!companyId) return;
     const plan = PLANS[planKey];
-    const ref  = `${planKey}-${companyId}-${Date.now()}`;
-    window.open(`${plan.checkoutUrl}?reference=${encodeURIComponent(ref)}`, '_blank');
+    const url  = environment.wompi.checkout[planKey];
+    if (!url) {
+      // Desarrollo sin link de PRUEBAS configurado: nunca caer a un link real
+      alert('Falta configurar el link de pago de pruebas de Wompi en src/environments/environment.ts.');
+      return;
+    }
+    const ref = `${planKey}-${companyId}-${Date.now()}`;
+    // Misma pestaña: Wompi redirige de vuelta a /empresa/facturacion/gracias al terminar
+    window.location.assign(`${url}?reference=${encodeURIComponent(ref)}`);
 
     const name = this.companyStore.company()?.name ?? 'Una empresa';
     this.notifSvc.create({
@@ -195,6 +219,7 @@ export class BillingComponent implements OnDestroy {
   ngOnDestroy(): void {
     this.rxSub?.unsubscribe();
     this.unsubPayments?.();
+    this.unsubClaims?.();
   }
 
   private formatTimestamp(ts: any): string {

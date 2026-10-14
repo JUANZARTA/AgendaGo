@@ -1,13 +1,13 @@
-import { Component, input } from '@angular/core';
+import { Component, input, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { Payment } from '../billing.models';
-import { formatTimestamp } from '../billing.utils';
+import { HistoryRow } from '../../../../core/domain/payment-history';
+import { PaymentDetailModalComponent } from '../../../../shared/components/payment-detail-modal.component';
 
 /** Historial de pagos (tabla o estado vacío). Presentacional. */
 @Component({
   selector: 'app-billing-payment-history',
   standalone: true,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, PaymentDetailModalComponent],
   styles: [`
     :host { display: contents; }
 
@@ -51,6 +51,12 @@ import { formatTimestamp } from '../billing.utils';
     .chip-pending { background: #fef3c7; color: #92400e; }
     .chip-failed  { background: #fee2e2; color: #991b1b; }
 
+    .view-btn {
+      padding: 6px 12px; border-radius: 8px; border: 1.5px solid var(--form-border, #e5e7eb);
+      background: white; color: var(--purple); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .view-btn:hover { background: var(--btn-secondary-bg); }
+
     .empty-history {
       text-align: center; padding: 40px 20px;
       background: white; border-radius: 14px; box-shadow: var(--shadow);
@@ -67,7 +73,7 @@ import { formatTimestamp } from '../billing.utils';
     <p class="history-title">Historial de pagos</p>
   </div>
 
-  @if (payments().length > 0) {
+  @if (rows().length > 0) {
     <table class="history-table">
       <thead>
         <tr>
@@ -76,26 +82,26 @@ import { formatTimestamp } from '../billing.utils';
           <th>Valor</th>
           <th>Válido hasta</th>
           <th>Estado</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
-        @for (p of payments(); track $index) {
+        @for (r of rows(); track r.key) {
           <tr>
-            <td style="color:#666">{{ formatTimestampShort(p.createdAt) }}</td>
-            <td style="font-weight:600;text-transform:capitalize">{{ p.plan }}</td>
-            <td style="font-weight:700">{{ p.amount | number }} COP</td>
-            <td style="color:#666">{{ formatTimestampShort(p.periodEnd) }}</td>
+            <td style="color:#666">{{ day(r.date) }}</td>
+            <td style="font-weight:600">{{ r.planLabel }}</td>
+            <td style="font-weight:700">{{ r.amount != null ? (r.amount | number) + ' COP' : '—' }}</td>
+            <td style="color:#666">{{ day(r.periodEnd) }}</td>
             <td>
-              <span class="status-chip" [class.chip-paid]="p.status === 'approved'"
-                    [class.chip-pending]="p.status === 'pending'"
-                    [class.chip-failed]="p.status === 'failed'">
+              <span class="status-chip" [class.chip-paid]="r.status === 'approved'"
+                    [class.chip-pending]="r.status === 'pending' || r.status === 'to-confirm'"
+                    [class.chip-failed]="r.status === 'failed' || r.status === 'rejected'">
                 <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>
-                @switch (p.status) {
-                  @case ('approved') { Aprobado }
-                  @case ('pending')  { Pendiente }
-                  @case ('failed')   { Fallido }
-                }
+                {{ r.statusLabel }}
               </span>
+            </td>
+            <td style="text-align:right">
+              <button type="button" class="view-btn" (click)="selected.set(r)">Ver</button>
             </td>
           </tr>
         }
@@ -107,12 +113,19 @@ import { formatTimestamp } from '../billing.utils';
       <p>Sin pagos registrados aún.</p>
     </div>
   }
+
+  @if (selected(); as r) {
+    <app-payment-detail-modal [row]="r" (closed)="selected.set(null)" />
+  }
   `,
 })
 export class BillingPaymentHistoryComponent {
-  readonly payments = input.required<Payment[]>();
+  /** Pagos confirmados + reportes por confirmar (core/domain/payment-history). */
+  readonly rows = input.required<HistoryRow[]>();
 
-  formatTimestampShort(ts: any): string {
-    return formatTimestamp(ts);
+  selected = signal<HistoryRow | null>(null);
+
+  day(d: Date | null): string {
+    return d ? d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   }
 }

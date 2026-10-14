@@ -1,10 +1,7 @@
-export interface Payment {
-  plan: string;
-  amount: number;
-  status: 'approved' | 'pending' | 'failed';
-  createdAt: any;
-  periodEnd: any;
-}
+import { PaymentDocLike } from '../../../core/domain/payment-history';
+
+/** Doc de `payments` (lo escribe el admin al confirmar, o el webhook de Wompi). */
+export type Payment = PaymentDocLike;
 
 export interface SubViewModel {
   status: 'trial' | 'active' | 'expired' | 'disabled' | 'free';
