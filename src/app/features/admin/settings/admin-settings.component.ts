@@ -8,6 +8,7 @@ import { SettingsSupportComponent } from './settings-support.component';
 import { SettingsAnnouncementComponent } from './settings-announcement.component';
 import { SettingsSectionComponent } from './settings-section.component';
 import { SettingsLegalComponent } from './settings-legal.component';
+import { InstallAppCardComponent } from '../../../shared/components/install-app-card.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
 /**
@@ -19,7 +20,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
   standalone: true,
   imports: [
     ThemeSwitcherComponent, SettingsSectionComponent, SettingsPlansComponent, SettingsTimesComponent,
-    SettingsSupportComponent, SettingsAnnouncementComponent, SettingsLegalComponent, LegalLinksComponent,
+    SettingsSupportComponent, SettingsAnnouncementComponent, SettingsLegalComponent, LegalLinksComponent, InstallAppCardComponent,
   ],
   template: `
     <div class="page">
@@ -39,6 +40,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
 
       <app-settings-legal />
 
+      <app-install-app-card />
       <app-legal-links />
 
       <h2 style="font-size:1rem;font-weight:800;color:#1a1a2e;margin:28px 0 12px">Versiones</h2>

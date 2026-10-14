@@ -1,10 +1,11 @@
-import { Component, effect, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
 import { BrandLogoComponent } from './shared/components/brand-logo.component';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from './core/services/theme.service';
 import { AuthService } from './core/services/auth.service';
 import { PushService } from './core/services/push.service';
+import { PwaInstallService } from './core/services/pwa-install.service';
 
 @Component({
   selector: 'app-root',
@@ -18,9 +19,14 @@ export class App implements OnInit {
   private auth         = inject(AuthService);
   private push         = inject(PushService);
 
-  showBanner  = signal(false);
-  isIos       = signal(false);
-  private deferredPrompt: any = null;
+  // Se inyecta acá (raíz) para capturar `beforeinstallprompt` apenas carga la app
+  private pwa          = inject(PwaInstallService);
+
+  private dismissed   = signal(typeof localStorage !== 'undefined' && !!localStorage.getItem('pwa-dismissed'));
+  readonly isIos      = this.pwa.isIos;
+  /** Aviso automático: iOS (instrucciones) o cuando el navegador ofrece instalar; nunca si ya la cerraron. */
+  readonly showBanner = computed(() =>
+    !this.dismissed() && !this.pwa.installed() && (this.pwa.isIos() || this.pwa.canPrompt()));
 
   constructor() {
     effect(() => {
@@ -28,23 +34,6 @@ export class App implements OnInit {
       if (user) this.push.initialize(user.uid);
     });
 
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia('(display-mode: standalone)').matches) return;
-    if (localStorage.getItem('pwa-dismissed')) return;
-
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (ios) {
-      this.isIos.set(true);
-      this.showBanner.set(true);
-      return;
-    }
-
-    window.addEventListener('beforeinstallprompt', (e: any) => {
-      e.preventDefault();
-      this.deferredPrompt = e;
-      this.showBanner.set(true);
-    });
   }
 
   ngOnInit(): void {
@@ -52,15 +41,11 @@ export class App implements OnInit {
   }
 
   async install() {
-    if (!this.deferredPrompt) return;
-    this.deferredPrompt.prompt();
-    const { outcome } = await this.deferredPrompt.userChoice;
-    if (outcome === 'accepted') this.showBanner.set(false);
-    this.deferredPrompt = null;
+    await this.pwa.prompt();
   }
 
   dismiss() {
-    this.showBanner.set(false);
+    this.dismissed.set(true);
     localStorage.setItem('pwa-dismissed', '1');
   }
 }

@@ -6,6 +6,7 @@ import { CompanyService } from '../../../core/services/company.service';
 import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
 import { TourService } from '../../../core/services/tour.service';
 import { CATEGORY_GROUPS, categoriesOfGroup } from '../../../core/domain/categories';
+import { InstallAppCardComponent } from '../../../shared/components/install-app-card.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
 const PRESET_ICONS: { key: string; label: string; path: string }[] = [
@@ -24,7 +25,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
 @Component({
   selector: 'app-company-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, ThemeSwitcherComponent, LegalLinksComponent],
+  imports: [CommonModule, FormsModule, ThemeSwitcherComponent, LegalLinksComponent, InstallAppCardComponent],
   styles: [`
     .profile-page { max-width: 1120px; margin: 0 auto; padding-bottom: 40px; animation: fadeInUp .3s ease; }
     @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -432,6 +433,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     </div>
 
     <!-- ── Legal ── -->
+    <app-install-app-card class="full" />
     <app-legal-links class="full" />
       </div>
     </div>
