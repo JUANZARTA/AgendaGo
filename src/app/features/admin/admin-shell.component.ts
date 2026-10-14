@@ -3,11 +3,12 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
+import { APP_VERSION } from '../../core/version';
 
 interface NavItem {
   label: string;
   route: string;
-  icon: 'bar-chart' | 'home' | 'users' | 'credit-card';
+  icon: 'bar-chart' | 'home' | 'users' | 'credit-card' | 'settings';
 }
 
 @Component({
@@ -67,6 +68,10 @@ interface NavItem {
                     <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
                     <line x1="1" y1="10" x2="23" y2="10"/>
                   }
+                  @case ('settings') {
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  }
                 }
               </svg>
               <span class="nav-label">{{ item.label }}</span>
@@ -94,6 +99,7 @@ interface NavItem {
         <!-- Admin info -->
         <div class="admin-info">
           <span class="admin-email">{{ authSvc.currentUser()?.email }}</span>
+          <span class="version-tag">v{{ APP_VERSION }}</span>
           <button class="logout-btn" (click)="logout()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -142,6 +148,10 @@ interface NavItem {
                 @case ('credit-card') {
                   <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
                   <line x1="1" y1="10" x2="23" y2="10"/>
+                }
+                @case ('settings') {
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 }
               }
             </svg>
@@ -377,6 +387,12 @@ interface NavItem {
       text-overflow: ellipsis;
     }
 
+    .version-tag {
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: rgba(160, 160, 184, 0.55);
+    }
+
     .logout-btn {
       display: flex;
       align-items: center;
@@ -477,6 +493,7 @@ interface NavItem {
   `],
 })
 export class AdminShellComponent implements OnDestroy {
+  readonly APP_VERSION = APP_VERSION;
   readonly authSvc = inject(AuthService);
   private router   = inject(Router);
   private notifSvc = inject(NotificationService);
@@ -540,5 +557,6 @@ export class AdminShellComponent implements OnDestroy {
     { label: 'Empresas',     route: '/admin/empresas',     icon: 'home'       },
     { label: 'Usuarios',     route: '/admin/usuarios',     icon: 'users'      },
     { label: 'Facturación',  route: '/admin/facturacion',  icon: 'credit-card'},
+    { label: 'Configuración',route: '/admin/configuracion',icon: 'settings'   },
   ];
 }

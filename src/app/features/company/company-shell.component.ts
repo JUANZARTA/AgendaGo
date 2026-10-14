@@ -10,6 +10,7 @@ import { SubscriptionService } from '../../core/services/subscription.service';
 import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { TourService } from '../../core/services/tour.service';
 import { MessageService } from '../../core/services/message.service';
+import { APP_VERSION } from '../../core/version';
 
 const APPOINTMENT_NOTIF_TYPES: AppNotification['type'][] = [
   'new_appointment', 'appointment_confirmed', 'appointment_cancelled',
@@ -143,6 +144,7 @@ interface NavItem {
           <!-- Company info -->
           <div class="company-info">
             <span class="company-name">{{ companyStore.company()?.name }}</span>
+            <span class="version-tag">v{{ APP_VERSION }}</span>
             @if (sub()?.status === 'free') {
               <span class="company-badge company-badge--free">⭐ Beneficiario</span>
             } @else if (sub()?.status === 'active') {
@@ -554,6 +556,12 @@ interface NavItem {
       margin-top: auto;
     }
 
+    .version-tag {
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: rgba(160, 160, 184, 0.55);
+    }
+
     .company-name {
       font-size: 0.8rem;
       font-weight: 600;
@@ -759,6 +767,7 @@ interface NavItem {
   `],
 })
 export class CompanyShellComponent implements OnDestroy {
+  readonly APP_VERSION = APP_VERSION;
   readonly companyStore        = inject(CompanyStore);
   private auth                 = inject(AuthService);
   private subscriptionService  = inject(SubscriptionService);

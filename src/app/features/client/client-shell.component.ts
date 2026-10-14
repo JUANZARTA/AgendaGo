@@ -9,6 +9,7 @@ import { TourService } from '../../core/services/tour.service';
 import { ClientActivityService } from '../../core/services/client-activity.service';
 import { ClientOnboardingComponent } from './onboarding/client-onboarding.component';
 import { Subscription } from 'rxjs';
+import { APP_VERSION } from '../../core/version';
 
 @Component({
   selector: 'app-client-shell',
@@ -36,6 +37,7 @@ import { Subscription } from 'rxjs';
               </svg>
             </div>
             <span class="brand-name">AgendaZco</span>
+            <span class="header-version desktop-only">v{{ APP_VERSION }}</span>
           </a>
 
           <div style="flex:1"></div>
@@ -256,6 +258,13 @@ import { Subscription } from 'rxjs';
       background-clip: text;
     }
 
+    .header-version {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #c4c4d8;
+      margin-left: 6px;
+    }
+
     .header-actions {
       display: flex;
       align-items: center;
@@ -457,6 +466,7 @@ import { Subscription } from 'rxjs';
   `],
 })
 export class ClientShellComponent implements OnDestroy {
+  readonly APP_VERSION = APP_VERSION;
   readonly authSvc  = inject(AuthService);
   private notifSvc  = inject(NotificationService);
   private firestore = inject(Firestore);
