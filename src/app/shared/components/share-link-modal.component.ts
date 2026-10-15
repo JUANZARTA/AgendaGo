@@ -18,7 +18,7 @@ import { Component, computed, input, output, signal } from '@angular/core';
           </svg>
           Tu página pública
         </div>
-        <p class="sl-text">Compartí este link con tus clientes para que agenden directamente, sin pasar por la búsqueda.</p>
+        <p class="sl-text">Comparte este link con tus clientes para que agenden directamente, sin pasar por la búsqueda.</p>
 
         <div class="sl-row">
           <input #urlInput class="sl-url" [value]="url()" readonly (focus)="urlInput.select()" aria-label="Link de tu página" />

@@ -30,7 +30,7 @@ import { MODAL_STYLES } from '../dashboard.styles';
         </div>
 
         <p style="font-size:13px;color:#374151;margin:0 0 20px">
-          Esta acción es permanente y no se puede deshacer. ¿Confirmás que querés eliminar esta cita?
+          Esta acción es permanente y no se puede deshacer. ¿Confirmas que quieres eliminar esta cita?
         </p>
 
         <div class="modal-footer">

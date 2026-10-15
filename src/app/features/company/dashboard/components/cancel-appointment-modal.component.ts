@@ -62,8 +62,8 @@ import { CANCEL_REASONS } from '../dashboard.utils';
 
         @if (cancelReason() === 'Otro') {
           <div class="form-group">
-            <label>Especificá el motivo</label>
-            <textarea [attr.maxlength]="max" placeholder="Describí el motivo..." [value]="cancelOther()" (input)="cancelOther.set($any($event.target).value)"></textarea>
+            <label>Especifica el motivo</label>
+            <textarea [attr.maxlength]="max" placeholder="Describe el motivo..." [value]="cancelOther()" (input)="cancelOther.set($any($event.target).value)"></textarea>
           </div>
         }
 

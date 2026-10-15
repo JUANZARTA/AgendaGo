@@ -61,7 +61,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     fecha: '16/05/2026',
     cambios: [
       'Primera versión de AgendaCo: cuentas de cliente y empresa, cada una con su propia vista.',
-      'Sistema de citas: reservá turnos con empresas desde la vista de cliente.',
+      'Sistema de citas: reserva turnos con empresas desde la vista de cliente.',
       'Buscador de empresas y reseñas de clientes.',
     ],
   },

@@ -10,6 +10,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ReviewService } from '../../../core/services/review.service';
 import { whatsappLink } from '../../../core/domain/app-config';
 import { CATEGORY_GROUPS, CategoryGroupKey, categoriesOfGroup, categoryMeta } from '../../../core/domain/categories';
+import { companyLogo } from '../../../core/domain/company-logo';
 
 interface DisplayCompany {
   id: string;
@@ -23,6 +24,8 @@ interface DisplayCompany {
   slots: number;
   logoUrl?: string;
   logoColor: string;
+  /** Ícono elegido por el negocio (o el del rubro si no eligió). */
+  logoIconPath: string;
 }
 
 const DAY_KEYS = ['dom','lun','mar','mie','jue','vie','sab'];
@@ -52,6 +55,7 @@ function countTodaySlots(c: Company): number {
 }
 
 function toDisplay(c: Company): DisplayCompany {
+  const logo = companyLogo(c);
   return {
     id:          c.id!,
     name:        c.name,
@@ -62,8 +66,10 @@ function toDisplay(c: Company): DisplayCompany {
     rating:      0,
     reviewCount: 0,
     slots:       countTodaySlots(c),
-    logoUrl:     c.logoUrl,
-    logoColor:   c.logoColor ?? categoryMeta(c.category).color,
+    // Imagen > ícono+color elegidos por el negocio > ícono+color del rubro
+    logoUrl:      logo.url ?? undefined,
+    logoColor:    logo.color,
+    logoIconPath: logo.iconPath,
   };
 }
 
@@ -114,7 +120,7 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
         <!-- Buscador en hero -->
         <div style="display:flex;gap:12px;align-items:stretch;width:100%;max-width:700px">
           <div style="background:white;border-radius:14px;padding:6px;display:flex;gap:8px;flex:1;box-shadow:0 4px 24px rgba(0,0,0,.15)">
-            <input [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="¿Qué negocio buscás?"
+            <input [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="¿Qué negocio buscas?"
               style="flex:1;padding:10px 14px;border:none;outline:none;font-size:15px;border-radius:10px;color:#222;min-width:0" />
             <button class="btn btn-primary btn-sm" style="white-space:nowrap">Buscar</button>
           </div>
@@ -206,7 +212,7 @@ const SVG_MSG_SM = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" 
                     <img [src]="company.logoUrl" alt="logo"
                          style="width:100%;height:100%;object-fit:cover;border-radius:14px" />
                   } @else {
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="meta(company.category).icon"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="company.logoIconPath"/></svg>
                   }
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;min-width:0">

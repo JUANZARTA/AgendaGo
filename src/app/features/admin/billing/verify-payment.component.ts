@@ -68,7 +68,7 @@ import {
 
         <p class="title">Verificar un pago</p>
         <p class="sub">
-          Para pagos que no aparecen en "Pagos por confirmar". Pegá el <strong>número de transacción</strong>
+          Para pagos que no aparecen en "Pagos por confirmar". Pega el <strong>número de transacción</strong>
           del comprobante de Wompi (ej. 12103138-1791998238-22034).
         </p>
 
@@ -98,7 +98,7 @@ import {
           @if (check()?.ok && !done()) {
             <label class="label">¿De qué empresa es este pago?</label>
             <select [ngModel]="companyId()" (ngModelChange)="companyId.set($event)">
-              <option value="">Elegí la empresa…</option>
+              <option value="">Elige la empresa…</option>
               @for (s of companies(); track s.companyId) {
                 <option [value]="s.companyId">{{ s.companyName }} — {{ s.ownerEmail }}</option>
               }
@@ -106,7 +106,7 @@ import {
             @if (emailMatch()) {
               <p class="warn" style="color:#15803d">El correo del pago coincide con la cuenta de {{ emailMatch()!.companyName }}: la preseleccioné.</p>
             } @else if (companyId()) {
-              <p class="warn">El correo del pago no coincide con el de esta empresa. Confirmá con la empresa antes de activar.</p>
+              <p class="warn">El correo del pago no coincide con el de esta empresa. Confirma con la empresa antes de activar.</p>
             }
             @if (period(); as p) {
               <p class="msg">Va a cubrir <strong>{{ day(p.start) }} → {{ day(p.end) }}</strong>.</p>
@@ -179,7 +179,7 @@ export class VerifyPaymentComponent {
       const match = email ? this.companies().find(s => s.ownerEmail?.trim().toLowerCase() === email) : null;
       if (match) this.companyId.set(match.companyId);
     } catch {
-      this.error.set('No se pudo consultar a Wompi. Intentá de nuevo.');
+      this.error.set('No se pudo consultar a Wompi. Intenta de nuevo.');
     } finally {
       this.busy.set(false);
     }
@@ -219,8 +219,8 @@ export class VerifyPaymentComponent {
       this.error.set(err?.message === 'DUPLICATE_PAYMENT'
         ? 'Ese pago ya estaba registrado: no se registró de nuevo.'
         : err?.message === 'SANDBOX_BUILD'
-        ? 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usá la app publicada.'
-        : 'No se pudo registrar el pago. Intentá de nuevo.');
+        ? 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usa la app publicada.'
+        : 'No se pudo registrar el pago. Intenta de nuevo.');
     } finally {
       this.busy.set(false);
     }

@@ -116,7 +116,7 @@ import { SupportChatComponent } from './support-chat.component';
               <div>
                 <div class="opt-title">Consultas @if (threadOf('consulta')?.unreadByCompany) { <span class="opt-dot" aria-label="Respuesta nueva"></span> }</div>
                 <div class="opt-desc">Dudas, tutoriales y cómo usar AgendaCo. Te respondemos en el día.</div>
-                @if (threadOf('consulta')?.status === 'resolved') { <div class="opt-status">Resuelta · podés volver a escribir</div> }
+                @if (threadOf('consulta')?.status === 'resolved') { <div class="opt-status">Resuelta · puedes volver a escribir</div> }
               </div>
             </button>
 
@@ -127,7 +127,7 @@ import { SupportChatComponent } from './support-chat.component';
               <div>
                 <div class="opt-title">Urgente @if (threadOf('urgente')?.unreadByCompany) { <span class="opt-dot" aria-label="Respuesta nueva"></span> }</div>
                 <div class="opt-desc">Algo no funciona, un pago no se activó o tu página no carga.</div>
-                @if (threadOf('urgente')?.status === 'resolved') { <div class="opt-status">Resuelta · podés volver a escribir</div> }
+                @if (threadOf('urgente')?.status === 'resolved') { <div class="opt-status">Resuelta · puedes volver a escribir</div> }
               </div>
             </button>
           </div>

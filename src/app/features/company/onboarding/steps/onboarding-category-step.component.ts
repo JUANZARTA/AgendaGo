@@ -34,8 +34,8 @@ import { OB_SHARED_STYLES } from '../onboarding.styles';
   template: `
         <div class="anim">
           <div class="ob-step-label">Paso 1 de 4 — Tipo de negocio</div>
-          <h1 class="ob-title">¿Qué tipo de negocio tenés?</h1>
-          <p class="ob-subtitle">Elegí la categoría que mejor te describe</p>
+          <h1 class="ob-title">¿Qué tipo de negocio tienes?</h1>
+          <p class="ob-subtitle">Elige la categoría que mejor te describe</p>
 
           <div class="cat-groups">
             @for (g of categoryGroups; track g.key) {

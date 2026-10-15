@@ -64,9 +64,9 @@ import { instagramUrl } from '../../../../core/domain/safe-links';
         <p class="ci-title">Las reservas online no están disponibles en este momento</p>
         <p class="ci-text">
           @if (wa() || tel()) {
-            Podés comunicarte directamente con {{ company().name }} para agendar tu cita.
+            Puedes comunicarte directamente con {{ company().name }} para agendar tu cita.
           } @else {
-            Mientras tanto, podés buscar otros negocios de {{ meta().label.toLowerCase() }} cerca tuyo.
+            Mientras tanto, puedes buscar otros negocios de {{ meta().label.toLowerCase() }} cerca de ti.
           }
         </p>
       </div>

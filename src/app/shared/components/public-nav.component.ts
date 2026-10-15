@@ -243,7 +243,7 @@ import { ClientActivityService } from '../../core/services/client-activity.servi
                style="display:flex;align-items:center;gap:8px;background:var(--gradient-soft);border:1.5px solid var(--form-border);border-radius:20px;padding:8px 16px;font-size:13px;font-weight:700;color:var(--purple);text-decoration:none;transition:all .15s;white-space:nowrap"
                onmouseover="this.style.boxShadow='0 4px 14px rgba(var(--primary-rgb),.2)'"
                onmouseout="this.style.boxShadow='none'">
-              <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> ¿Tenés un negocio? <span style="color:var(--pink)">Registrate gratis</span>
+              <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> ¿Tienes un negocio? <span style="color:var(--pink)">Regístrate gratis</span>
             </a>
             <a routerLink="/auth/login"
                style="padding:9px 18px;border-radius:10px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;transition:all .15s;white-space:nowrap"
@@ -255,7 +255,7 @@ import { ClientActivityService } from '../../core/services/client-activity.servi
                style="padding:9px 18px;border-radius:10px;font-size:14px;font-weight:700;color:white;background:var(--gradient);text-decoration:none;box-shadow:0 4px 12px rgba(var(--primary-rgb),.3);transition:all .15s;white-space:nowrap"
                onmouseover="this.style.opacity='.9'"
                onmouseout="this.style.opacity='1'">
-              Registrate
+              Regístrate
             </a>
           }
         </div>
@@ -281,7 +281,7 @@ import { ClientActivityService } from '../../core/services/client-activity.servi
           } @else {
             <a routerLink="/auth/register" [queryParams]="{role:'company'}" (click)="menuOpen.set(false)"
                style="padding:12px 4px;font-size:14px;font-weight:700;color:var(--purple);text-decoration:none;border-bottom:1px solid #f0ebff">
-              ¿Tenés un negocio? <span style="color:var(--pink)">Registrate gratis</span>
+              ¿Tienes un negocio? <span style="color:var(--pink)">Regístrate gratis</span>
             </a>
             <a routerLink="/auth/login" (click)="menuOpen.set(false)"
                style="padding:12px 16px;font-size:14px;font-weight:700;color:var(--purple);background:var(--btn-secondary-bg);text-decoration:none;border-radius:10px;text-align:center">
@@ -289,7 +289,7 @@ import { ClientActivityService } from '../../core/services/client-activity.servi
             </a>
             <a routerLink="/auth/register" (click)="menuOpen.set(false)"
                style="padding:12px 16px;font-size:14px;font-weight:700;color:white;background:var(--gradient);text-decoration:none;border-radius:10px;text-align:center;box-shadow:0 4px 12px rgba(var(--primary-rgb),.3)">
-              Registrate
+              Regístrate
             </a>
           }
         </nav>

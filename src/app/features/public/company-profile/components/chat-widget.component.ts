@@ -43,7 +43,7 @@ import { MessageService, Message } from '../../../../core/services/message.servi
             @if (chatMessages().length === 0) {
               <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#aaa">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                <span style="font-size:13px">Iniciá la conversación</span>
+                <span style="font-size:13px">Inicia la conversación</span>
               </div>
             }
             @for (m of chatMessages(); track m.id) {
@@ -60,7 +60,7 @@ import { MessageService, Message } from '../../../../core/services/message.servi
           <div style="padding:12px 14px;border-top:1.5px solid #f0ebff;display:flex;gap:8px">
             <input [value]="chatText()" (input)="chatText.set($any($event.target).value)"
                    (keydown.enter)="sendChat()"
-                   placeholder="Escribí un mensaje..."
+                   placeholder="Escribe un mensaje..."
                    style="flex:1;padding:10px 14px;border:1.5px solid #ede9fe;border-radius:10px;font-size:13px;outline:none;font-family:inherit" />
             <button (click)="sendChat()" [disabled]="!chatText().trim() || chatSending()"
                     style="background:var(--gradient);border:none;border-radius:10px;width:38px;height:38px;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">

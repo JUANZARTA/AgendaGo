@@ -14,7 +14,7 @@ import { DayOption } from '../company-profile.utils';
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
               <div>
-                <h2 style="font-size:1.05rem;font-weight:800">Elegí fecha y hora</h2>
+                <h2 style="font-size:1.05rem;font-weight:800">Elige fecha y hora</h2>
                 <p style="font-size:13px;font-weight:600;color:var(--purple);margin-top:1px">{{ selectedService()!.name }}</p>
               </div>
             </div>

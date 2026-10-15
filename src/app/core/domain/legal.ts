@@ -90,7 +90,7 @@ Canal de contacto: ${SUPPORT_EMAIL_TOKEN}.
 3. FINALIDADES
 Los datos se tratan para:
 - Crear y administrar la cuenta del usuario y permitir el inicio de sesión.
-- Gestionar la reserva, confirmación, recordatorio, cancelación e historial de citas.
+- Gestionar la reserva, confirmación, notificaciones, cancelación e historial de citas.
 - Compartir con la Empresa elegida los datos del Cliente necesarios para atender su cita.
 - Enviar notificaciones y permitir la mensajería entre Clientes y Empresas.
 - Gestionar las suscripciones y pagos de las Empresas.

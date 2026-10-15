@@ -21,7 +21,7 @@ type SupportForm = AppConfig['support'];
   template: `
     <app-settings-section
       title="Contacto y soporte"
-      subtitle="Se muestra a las empresas donde dice “Escribinos”. Si los dejás vacíos, no se muestra nada."
+      subtitle="Se muestra a las empresas donde dice “Escríbenos”. Si los dejas vacíos, no se muestra nada."
       [state]="state()" [errors]="errors()" [dirty]="dirty()" [disabled]="!loaded()"
       (save)="save()">
       @if (!loaded()) {

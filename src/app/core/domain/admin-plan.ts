@@ -70,7 +70,7 @@ export function buildAdminPlanUpdate(
 
   if (status === 'active' || status === 'trial') {
     if (picked && picked.getTime() < now.getTime()) {
-      return { ok: false, error: 'PAST_DATE', message: 'La fecha de vencimiento ya pasó: para activar elegí hoy o una fecha futura.' };
+      return { ok: false, error: 'PAST_DATE', message: 'La fecha de vencimiento ya pasó: para activar elige hoy o una fecha futura.' };
     }
     const existing = toDate(status === 'trial' ? current?.trialEndDate : current?.currentPeriodEnd);
     const keepsExisting = !picked && !!existing && existing.getTime() > now.getTime();
@@ -78,8 +78,8 @@ export function buildAdminPlanUpdate(
       return {
         ok: false, error: 'DATE_REQUIRED',
         message: status === 'active'
-          ? 'Para activar el plan indicá la fecha de vencimiento del período pagado (un plan activo sin fecha no vencería nunca).'
-          : 'Para la prueba gratis indicá hasta qué fecha dura.',
+          ? 'Para activar el plan indica la fecha de vencimiento del período pagado (un plan activo sin fecha no vencería nunca).'
+          : 'Para la prueba gratis indica hasta qué fecha dura.',
       };
     }
     if (picked) data[field] = picked;

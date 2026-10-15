@@ -27,7 +27,7 @@ export function computeDayErrors(days: DaySchedule[]): Record<string, string> {
   for (const day of days) {
     if (!day.enabled) continue;
     if (day.ranges.some(r => isRangeInvalid(r))) {
-      errors[day.key] = 'La hora de cierre debe ser posterior a la de apertura. Ojo: 12:00 AM es medianoche; para mediodía usá 12:00 PM.';
+      errors[day.key] = 'La hora de cierre debe ser posterior a la de apertura. Ojo: 12:00 AM es medianoche; para mediodía usa 12:00 PM.';
       continue;
     }
     const sorted = [...day.ranges].sort((a, b) => toMin(a.open) - toMin(b.open));

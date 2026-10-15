@@ -39,7 +39,7 @@ import { AppConfigService } from '../../../core/services/app-config.service';
           <span class="icon">⚠️</span>
           <span class="text">
             Tu {{ label() }} vence en <strong>{{ t().daysToEnd }} {{ t().daysToEnd === 1 ? 'día' : 'días' }}</strong>
-            ({{ day(t().endDate) }}). Renovalo para no perder el acceso.
+            ({{ day(t().endDate) }}). Renuévalo para no perder el acceso.
           </span>
           <a class="cta" href="/empresa/facturacion#planes" (click)="goToPlans($event)">Renovar</a>
         </div>
@@ -48,7 +48,7 @@ import { AppConfigService } from '../../../core/services/app-config.service';
         <div class="banner banner--today" role="alert">
           <span class="icon">⏰</span>
           <span class="text">
-            <strong>Tu {{ label() }} vence hoy.</strong> Pagá hoy para seguir usando AgendaCo sin interrupciones.
+            <strong>Tu {{ label() }} vence hoy.</strong> Paga hoy para seguir usando AgendaCo sin interrupciones.
           </span>
           <a class="cta" href="/empresa/facturacion#planes" (click)="goToPlans($event)">Pagar ahora</a>
         </div>
@@ -57,7 +57,7 @@ import { AppConfigService } from '../../../core/services/app-config.service';
         <div class="banner banner--grace" role="alert">
           <span class="icon">🔴</span>
           <span class="text">
-            Tu {{ label() }} venció el {{ day(t().endDate) }}. Tenés hasta el <strong>{{ day(t().graceEnd) }}</strong>
+            Tu {{ label() }} venció el {{ day(t().endDate) }}. Tienes hasta el <strong>{{ day(t().graceEnd) }}</strong>
             ({{ t().graceDaysLeft === 0 ? 'hoy es el último día' : 'quedan ' + t().graceDaysLeft + (t().graceDaysLeft === 1 ? ' día' : ' días') }})
             para pagar antes de que se suspenda la cuenta.
           </span>

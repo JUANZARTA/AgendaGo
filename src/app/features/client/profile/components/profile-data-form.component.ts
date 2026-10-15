@@ -52,7 +52,7 @@ import { PROFILE_ACCORDION_STYLES } from './profile.styles';
               <div class="form-field">
                 <label>Nombre completo</label>
                 <input class="form-input" type="text" formControlName="displayName"
-                       placeholder="Como querés que te llamen" />
+                       placeholder="Como quieres que te llamen" />
               </div>
               <div class="form-field">
                 <label>Celular</label>

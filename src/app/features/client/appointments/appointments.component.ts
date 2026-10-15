@@ -144,7 +144,7 @@ const STATUS_CLASS: Record<string, string> = {
 
                 @if (appt.status === 'cancelled' && appt.cancelReason) {
                   <div class="cancel-reason-note">
-                    {{ appt.cancelledBy === 'company' ? 'Cancelada por el negocio' : 'La cancelaste vos' }}. Motivo: {{ appt.cancelReason }}
+                    {{ appt.cancelledBy === 'company' ? 'Cancelada por el negocio' : 'La cancelaste tú' }}. Motivo: {{ appt.cancelReason }}
                   </div>
                 }
 
@@ -205,7 +205,7 @@ const STATUS_CLASS: Record<string, string> = {
                   <line x1="8" y1="2" x2="8" y2="6"/>
                   <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                <p style="color:#888;margin-top:12px;margin-bottom:16px">No tenés citas en esta categoría.</p>
+                <p style="color:#888;margin-top:12px;margin-bottom:16px">No tienes citas en esta categoría.</p>
                 <a routerLink="/" class="btn btn-primary btn-sm">Buscar negocios</a>
               </div>
             }
@@ -467,7 +467,7 @@ export class AppointmentsComponent implements OnDestroy {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('No se pudieron cargar las citas. Verificá tu conexión.');
+        this.error.set('No se pudieron cargar las citas. Verifica tu conexión.');
         this.loading.set(false);
       },
     });
@@ -502,7 +502,7 @@ export class AppointmentsComponent implements OnDestroy {
         }).catch(() => {});
       }
     } catch {
-      this.error.set('No se pudo cancelar. Intentá de nuevo.');
+      this.error.set('No se pudo cancelar. Intenta de nuevo.');
     } finally {
       this.cancelling.set(false);
     }
@@ -523,7 +523,7 @@ export class AppointmentsComponent implements OnDestroy {
       await this.removeForClient(apt);
       this.confirmDeleteId.set(null);
     } catch {
-      this.error.set('No se pudo eliminar. Intentá de nuevo.');
+      this.error.set('No se pudo eliminar. Intenta de nuevo.');
     } finally {
       this.deleting.set(false);
     }
@@ -538,7 +538,7 @@ export class AppointmentsComponent implements OnDestroy {
       await Promise.all(targets.map(a => this.removeForClient(a)));
       this.bulkDeleteTarget.set(null);
     } catch {
-      this.error.set('Error al borrar algunas citas. Intentá de nuevo.');
+      this.error.set('Error al borrar algunas citas. Intenta de nuevo.');
     } finally {
       this.bulkDeleting.set(false);
     }

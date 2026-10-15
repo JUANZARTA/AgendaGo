@@ -6,20 +6,12 @@ import { CompanyService } from '../../../core/services/company.service';
 import { ThemeSwitcherComponent } from '../../../shared/components/theme-switcher.component';
 import { TourService } from '../../../core/services/tour.service';
 import { CATEGORY_GROUPS, categoriesOfGroup } from '../../../core/domain/categories';
+import { PRESET_LOGO_ICONS } from '../../../core/domain/company-logo';
 import { InstallAppCardComponent } from '../../../shared/components/install-app-card.component';
 import { LogoutCardComponent } from '../../../shared/components/logout-card.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
-const PRESET_ICONS: { key: string; label: string; path: string }[] = [
-  { key: 'scissors', label: 'Tijeras',    path: 'M6 3v12M6 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9v12M18 3L6 15' },
-  { key: 'star',     label: 'Estrella',   path: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-  { key: 'leaf',     label: 'Hoja/Spa',   path: 'M17 8C8 10 5.9 16.17 3.82 19c0 0 3-1 6-4 0 0-1.5 5 5 5 5 0 8-4 8-8 0-3-1-5-3-5-1 0-2 1-2 2z' },
-  { key: 'sun',      label: 'Sol',        path: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42' },
-  { key: 'heart',    label: 'Corazón',    path: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' },
-  { key: 'zap',      label: 'Rayo',       path: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
-  { key: 'smile',    label: 'Sonrisa',    path: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01' },
-  { key: 'award',    label: 'Premio',     path: 'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM8.21 13.89L7 23l5-3 5 3-1.21-9.12' },
-];
+const PRESET_ICONS = PRESET_LOGO_ICONS;
 
 const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec4899','#1a1a2e','#6d28d9'];
 
@@ -160,7 +152,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
           </svg>
           Tu página pública
         </div>
-        <p style="font-size:13px;color:#666;margin:0 0 14px">Compartí este link con tus clientes para que agenden directamente, sin pasar por la búsqueda.</p>
+        <p style="font-size:13px;color:#666;margin:0 0 14px">Comparte este link con tus clientes para que agenden directamente, sin pasar por la búsqueda.</p>
 
         <div style="display:flex;gap:8px;align-items:center">
           <div style="flex:1;min-width:0;background:white;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:13px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -243,7 +235,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
               <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
               <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
             </svg>
-            <div style="font-size:14px;font-weight:600;color:var(--purple)">Hacé clic para subir</div>
+            <div style="font-size:14px;font-weight:600;color:var(--purple)">Haz clic para subir</div>
             <div style="font-size:12px;color:#aaa;margin-top:4px">PNG, JPG o SVG — máx. 2MB</div>
           </label>
         }
@@ -306,7 +298,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
         <div class="form-group">
           <label>Descripción</label>
           <textarea [(ngModel)]="form.description" rows="3"
-            placeholder="Describí tu negocio en pocas palabras"></textarea>
+            placeholder="Describe tu negocio en pocas palabras"></textarea>
         </div>
 
         <div class="grid-2col">
@@ -428,7 +420,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
       </div>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:700;color:#1a1a2e">Tour de la app</div>
-        <div style="font-size:12px;color:#888;margin-top:2px">Volvé a ver el recorrido guiado por el panel</div>
+        <div style="font-size:12px;color:#888;margin-top:2px">Vuelve a ver el recorrido guiado por el panel</div>
       </div>
       <button class="btn btn-secondary btn-sm" (click)="startTour()">Ver tour</button>
     </div>

@@ -9,6 +9,9 @@ import { NotificationService } from '../../../core/services/notification.service
 import { CompanyService } from '../../../core/services/company.service';
 import { Subscription } from 'rxjs';
 
+/** Nombre que se muestra mientras no se conoce el del negocio (mensajes viejos sin companyName). */
+const FALLBACK_COMPANY_NAME = 'Negocio';
+
 interface CompanyConversation {
   companyId: string;
   companyName: string;
@@ -94,9 +97,16 @@ interface CompanyConversation {
     .confirm-card p { font-size:13px; color:#666; margin-bottom:20px; }
     .confirm-actions { display:flex; gap:10px; justify-content:center; }
 
-    @media (max-width:640px) {
-      .msg-layout { flex-direction:column; height:auto; min-height:400px; }
-      .conv-list { width:100%; border-right:none; border-bottom:1.5px solid #f0ebff; max-height:180px; }
+    /* Botón "volver a la lista": sólo en móvil */
+    .chat-back { display:none; width:34px; height:34px; border-radius:10px; border:1.5px solid #ede9fe; background:white; color:var(--purple); cursor:pointer; align-items:center; justify-content:center; flex-shrink:0; padding:0; }
+
+    /* Móvil: vista lista -> vista chat (una a la vez), ocupando el alto disponible */
+    @media (max-width:768px) {
+      .msg-layout { height:calc(100dvh - 250px - env(safe-area-inset-bottom)); min-height:340px; }
+      .conv-list { width:100%; border-right:none; }
+      .msg-layout.chat-open .conv-list { display:none; }
+      .msg-layout:not(.chat-open) .chat-area { display:none; }
+      .chat-back { display:flex; }
       .msg-row { max-width:85%; }
     }
   `],
@@ -119,7 +129,7 @@ interface CompanyConversation {
       <p style="font-size:1.45rem;font-weight:800;margin:0 0 4px">Mensajes</p>
       <p style="font-size:13px;color:#888;margin:0 0 20px">Tus conversaciones con negocios</p>
 
-      <div class="msg-layout">
+      <div class="msg-layout" [class.chat-open]="!!selectedCompanyId()">
 
         <!-- Lista -->
         <div class="conv-list">
@@ -155,10 +165,11 @@ interface CompanyConversation {
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              <p>Seleccioná una conversación</p>
+              <p>Selecciona una conversación</p>
             </div>
           } @else {
             <div class="chat-header">
+              <button class="chat-back" type="button" title="Volver a conversaciones" (click)="closeChat()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
               <div style="width:36px;height:36px;border-radius:50%;background:var(--gradient);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:14px;flex-shrink:0">
                 {{ selectedCompanyName()[0] }}
               </div>
@@ -226,7 +237,7 @@ interface CompanyConversation {
             </div>
 
             <div class="chat-input-row">
-              <input class="chat-input" [(ngModel)]="newText" placeholder="Escribí un mensaje..."
+              <input class="chat-input" [(ngModel)]="newText" placeholder="Escribe un mensaje..."
                      (keydown.enter)="send()" (click)="closeMenu()" />
               <button class="send-btn" (click)="send()" [disabled]="!newText.trim() || sending()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -249,6 +260,11 @@ export class ClientMessagesComponent implements OnDestroy {
   private companySvc  = inject(CompanyService);
 
   private ownerIdCache    = new Map<string, string>();
+  /** Nombre del negocio por companyId (fallback para mensajes viejos sin companyName). */
+  private companyNameCache = new Map<string, string>();
+  private metaRequests    = new Map<string, Promise<void>>();
+  /** Último ?companyId= ya abierto: evita reabrir el chat al volver a la lista en móvil. */
+  private handledParamCompanyId: string | null = null;
   private whatsappCache   = new Map<string, string>();
   selectedCompanyWa       = signal<string | null>(null);
 
@@ -286,8 +302,9 @@ export class ClientMessagesComponent implements OnDestroy {
       const params    = this.queryParams();
       const companyId = params['companyId'];
       if (!uid || !companyId) return;
-      if (this.selectedCompanyId() === companyId) return;
-      this.openChat(companyId, params['companyName'] ?? '', uid);
+      if (this.handledParamCompanyId === companyId) return;
+      this.handledParamCompanyId = companyId;
+      this.openChat(companyId, params['companyName'] || this.companyNameCache.get(companyId) || '', uid);
     });
   }
 
@@ -306,10 +323,44 @@ export class ClientMessagesComponent implements OnDestroy {
     });
   }
 
-  private async loadCompanyMeta(companyId: string): Promise<void> {
-    if (this.ownerIdCache.has(companyId)) return;
-    const company = await this.companySvc.getCompany(companyId);
+  /** Vuelve a la lista de conversaciones (en móvil, la lista y el chat se muestran de a uno). */
+  closeChat() {
+    this.selectedCompanyId.set(null);
+    this.selectedCompanyName.set('');
+    this.selectedCompanyWa.set(null);
+    this.currentMessages.set([]);
+    this.editingId.set(null);
+    this.menuOpenId.set(null);
+    this.chatSub?.unsubscribe();
+    this.chatSub = null;
+  }
+
+  /** Lee el negocio una sola vez por companyId (las llamadas concurrentes comparten la promesa). */
+  private loadCompanyMeta(companyId: string): Promise<void> {
+    let req = this.metaRequests.get(companyId);
+    if (!req) {
+      req = this.fetchCompanyMeta(companyId);
+      this.metaRequests.set(companyId, req);
+    }
+    return req;
+  }
+
+  private async fetchCompanyMeta(companyId: string): Promise<void> {
+    let company;
+    try {
+      company = await this.companySvc.getCompany(companyId);
+    } catch (err) {
+      // Negocio no público/inexistente: se mantiene el nombre de respaldo
+      console.warn('[ClientMessages] no se pudo leer el negocio', companyId, err);
+      return;
+    }
     if (!company) return;
+    if (company.name) {
+      this.companyNameCache.set(companyId, company.name);
+      if (this.selectedCompanyId() === companyId) this.selectedCompanyName.set(company.name);
+      // Re-arma la lista para reemplazar el nombre de respaldo
+      this.buildConversations(this.allMessages);
+    }
     if (company.ownerId) this.ownerIdCache.set(companyId, company.ownerId);
     if (company.phone) {
       this.whatsappCache.set(companyId, company.phone);
@@ -326,9 +377,19 @@ export class ClientMessagesComponent implements OnDestroy {
     const map = new Map<string, CompanyConversation>();
     for (const m of msgs) {
       if (!map.has(m.companyId)) {
-        map.set(m.companyId, { companyId: m.companyId, companyName: m.companyName ?? 'Empresa', lastMessage: m.deleted ? 'Mensaje eliminado' : m.text, lastAt: m.createdAt, unread: 0 });
+        map.set(m.companyId, { companyId: m.companyId, companyName: '', lastMessage: m.deleted ? 'Mensaje eliminado' : m.text, lastAt: m.createdAt, unread: 0 });
       }
-      if (m.senderRole === 'company' && !m.read) map.get(m.companyId)!.unread++;
+      const conv = map.get(m.companyId)!;
+      // El último mensaje puede ser del negocio (viejos: sin companyName): se toma el primer nombre disponible
+      if (!conv.companyName && m.companyName) conv.companyName = m.companyName;
+      if (m.senderRole === 'company' && !m.read) conv.unread++;
+    }
+    for (const conv of map.values()) {
+      if (!conv.companyName) {
+        const cached = this.companyNameCache.get(conv.companyId);
+        if (cached) conv.companyName = cached;
+        else { conv.companyName = FALLBACK_COMPANY_NAME; this.loadCompanyMeta(conv.companyId); }
+      }
     }
     this.conversations.set(Array.from(map.values()));
   }
@@ -336,7 +397,7 @@ export class ClientMessagesComponent implements OnDestroy {
   selectConversation(c: CompanyConversation) {
     const uid = this.auth.currentUser()?.uid;
     if (!uid) return;
-    this.openChat(c.companyId, c.companyName, uid);
+    this.openChat(c.companyId, this.companyNameCache.get(c.companyId) ?? c.companyName, uid);
   }
 
   // ── Menú ──────────────────────────────────────────────
@@ -400,7 +461,10 @@ export class ClientMessagesComponent implements OnDestroy {
 
     try {
       const clientName = this.auth.displayName() || this.auth.currentUser()?.email || 'Cliente';
-      await this.msgSvc.sendMessage({ companyId, companyName: this.selectedCompanyName(), clientId: uid, clientName, senderRole: 'client', text });
+      // Nunca se guarda el nombre de respaldo: sólo el real (cache o el que vino en la conversación)
+      const shown       = this.selectedCompanyName();
+      const companyName = this.companyNameCache.get(companyId) || (shown !== FALLBACK_COMPANY_NAME ? shown : '');
+      await this.msgSvc.sendMessage({ companyId, ...(companyName ? { companyName } : {}), clientId: uid, clientName, senderRole: 'client', text });
       this.getOwnerId(companyId).then(ownerId => {
         if (!ownerId) return;
         this.notifSvc.create({

@@ -57,7 +57,7 @@ export class FavoriteHeartComponent {
   isFav    = computed(() => this.favs.idSet().has(this.companyId()));
   iconSize = computed(() => Math.round(this.size() * 0.5));
   label    = computed(() => !this.auth.isLoggedIn()
-    ? 'Iniciá sesión para guardar favoritos'
+    ? 'Inicia sesión para guardar favoritos'
     : this.isFav() ? 'Quitar de favoritos' : 'Guardar en favoritos');
 
   async onClick(ev: Event) {
@@ -71,7 +71,7 @@ export class FavoriteHeartComponent {
     if (adding) { this.pop.set(true); setTimeout(() => this.pop.set(false), 320); }
     const ok = await this.favs.toggle(this.companyId());
     if (!ok && adding && this.favs.ids().length >= MAX_FAVORITES) {
-      alert(`Llegaste al máximo de ${MAX_FAVORITES} favoritos. Quitá alguno para agregar otro.`);
+      alert(`Llegaste al máximo de ${MAX_FAVORITES} favoritos. Quita alguno para agregar otro.`);
     }
   }
 }

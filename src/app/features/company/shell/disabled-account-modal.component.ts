@@ -20,7 +20,7 @@ const WA_TEXT = '?text=Hola%2C%20necesito%20ayuda%20con%20mi%20cuenta%20de%20emp
         </div>
         <h2 style="font-size:1.2rem;font-weight:800;color:#1a1a2e;margin-bottom:10px">Tu empresa está deshabilitada</h2>
         <p style="font-size:14px;color:#666;line-height:1.6;margin-bottom:28px">
-          Tu cuenta fue suspendida temporalmente. Podés renovar tu plan o contactar al administrador para resolverlo.
+          Tu cuenta fue suspendida temporalmente. Puedes renovar tu plan o contactar al administrador para resolverlo.
         </p>
         <div style="display:flex;flex-direction:column;gap:10px">
           <button (click)="billingClick.emit()"

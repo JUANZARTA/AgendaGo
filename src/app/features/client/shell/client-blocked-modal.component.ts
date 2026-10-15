@@ -15,7 +15,7 @@ import { Component, output } from '@angular/core';
           </div>
           <h2 style="font-size:1.2rem;font-weight:800;color:#1a1a2e;margin-bottom:10px">Cuenta suspendida</h2>
           <p style="font-size:14px;color:#666;line-height:1.6;margin-bottom:28px">
-            Tu cuenta fue suspendida. Contactá al administrador para más información.
+            Tu cuenta fue suspendida. Contacta al administrador para más información.
           </p>
           <div style="display:flex;flex-direction:column;gap:10px">
             <a href="https://wa.me/573128622945?text=Hola%2C%20mi%20cuenta%20de%20cliente%20en%20Agenda%20Co%20fue%20suspendida" target="_blank"

@@ -20,7 +20,7 @@ export interface ReportMessage { ok: boolean; text: string }
  */
 export function reportMessage(r: ReportResult, matchesPlan: boolean, amount: number): ReportMessage {
   if (r === 'taken') {
-    return { ok: false, text: 'Esa transacción ya fue avisada desde otra cuenta. Revisá el número; si es tuya, escribinos con el comprobante de Wompi.' };
+    return { ok: false, text: 'Esa transacción ya fue avisada desde otra cuenta. Revisa el número; si es tuya, escríbenos con el comprobante de Wompi.' };
   }
   if (r === 'already-reported') return { ok: true, text: 'Ese pago ya estaba avisado. Lo estamos verificando.' };
   return matchesPlan
@@ -29,4 +29,4 @@ export function reportMessage(r: ReportResult, matchesPlan: boolean, amount: num
 }
 
 /** Texto cuando el reporte NO se pudo guardar (red / Firestore caído). */
-export const REPORT_FAILED_TEXT = 'No se pudo enviar el aviso (¿sin conexión?). Reintentá en unos minutos.';
+export const REPORT_FAILED_TEXT = 'No se pudo enviar el aviso (¿sin conexión?). Reintenta en unos minutos.';

@@ -38,7 +38,7 @@ import { BrandLogoComponent } from './brand-logo.component';
           <app-brand-logo variant="tile" [size]="44" />
           <div class="ia-text">
             <div class="ia-title">Instalar AgendaCo</div>
-            <div class="ia-sub">Abrila desde tu pantalla de inicio, como una app más.</div>
+            <div class="ia-sub">Ábrela desde tu pantalla de inicio, como una app más.</div>
           </div>
           <button type="button" class="ia-btn" (click)="install()">Instalar app</button>
         </div>
@@ -48,16 +48,16 @@ import { BrandLogoComponent } from './brand-logo.component';
             @if (pwa.isIos()) {
               <strong>En iPhone / iPad (Safari):</strong>
               <ol>
-                <li>Tocá el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba).</li>
-                <li>Elegí <strong>Agregar a inicio</strong>.</li>
-                <li>Tocá <strong>Agregar</strong>.</li>
+                <li>Toca el botón <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba).</li>
+                <li>Elige <strong>Agregar a inicio</strong>.</li>
+                <li>Toca <strong>Agregar</strong>.</li>
               </ol>
             } @else {
               <strong>Tu navegador no ofreció la instalación automática.</strong>
               <ol>
                 <li><strong>Chrome en Android:</strong> menú ⋮ → <strong>Instalar app</strong> o <strong>Agregar a pantalla principal</strong>.</li>
                 <li><strong>Chrome o Edge en la compu:</strong> ícono de instalar a la derecha de la barra de direcciones.</li>
-                <li>Si usás otro navegador, abrí AgendaCo en Chrome.</li>
+                <li>Si usas otro navegador, abre AgendaCo en Chrome.</li>
               </ol>
             }
           </div>

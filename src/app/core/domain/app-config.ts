@@ -224,7 +224,7 @@ export function validateSupport(s: AppConfig['support']): string[] {
 
 export function validateAnnouncement(a: AppConfig['announcement']): string[] {
   const errors: string[] = [];
-  if (a.active && !a.text.trim()) errors.push('Para activar el anuncio escribí un texto.');
+  if (a.active && !a.text.trim()) errors.push('Para activar el anuncio escribe un texto.');
   if (a.text.length > LIMITS.announcementText) errors.push(`El anuncio puede tener hasta ${LIMITS.announcementText} caracteres.`);
   if (a.level !== 'info' && a.level !== 'warning') errors.push('Nivel de anuncio inválido.');
   return errors;

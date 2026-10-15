@@ -57,8 +57,8 @@ import { OnboardingForm, SOCIAL_PLATFORMS, SocialState } from '../onboarding.con
         </button>
 
         <div class="ob-step-label">Paso 2 de 4 — Tu negocio</div>
-        <h1 class="ob-title">Configurá tu negocio</h1>
-        <p class="ob-subtitle">Podés cambiar todo esto después desde el perfil</p>
+        <h1 class="ob-title">Configura tu negocio</h1>
+        <p class="ob-subtitle">Puedes cambiar todo esto después desde el perfil</p>
 
         @if (selectedCatMeta()) {
           <button class="selected-cat-pill" (click)="back.emit()"
@@ -79,7 +79,7 @@ import { OnboardingForm, SOCIAL_PLATFORMS, SocialState } from '../onboarding.con
         <!-- Descripción -->
         <div class="ob-form-group">
           <label>Descripción <span style="font-weight:400;color:#aaa">(opcional)</span></label>
-          <textarea [(ngModel)]="form().description" placeholder="Describí brevemente tu negocio, especialidades o lo que te hace único..."></textarea>
+          <textarea [(ngModel)]="form().description" placeholder="Describe brevemente tu negocio, especialidades o lo que te hace único..."></textarea>
         </div>
 
         <!-- Ciudad + Dirección -->

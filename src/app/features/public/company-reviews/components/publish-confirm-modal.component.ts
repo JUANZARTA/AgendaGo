@@ -14,7 +14,7 @@ import { MODAL_CSS } from '../company-reviews.styles';
     <div class="modal-overlay" (click)="cancel.emit()">
       <div class="modal-card" (click)="$event.stopPropagation()">
         <h3 style="font-size:1.05rem;font-weight:800;margin:0 0 6px">¿Publicar reseña?</h3>
-        <p style="font-size:13px;color:#888;margin:0 0 18px">Podés editarla o eliminarla después si querés.</p>
+        <p style="font-size:13px;color:#888;margin:0 0 18px">Puedes editarla o eliminarla después si quieres.</p>
 
         <div style="display:flex;gap:3px;margin-bottom:10px">
           @for (i of starRange; track i) {

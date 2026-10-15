@@ -54,7 +54,7 @@ export class SupportConversationComponent {
   /** Lado de quien mira: sus mensajes van a la derecha. */
   readonly me          = input.required<SupportSender>();
   readonly theirLabel  = input('');
-  readonly placeholder = input('Escribí tu mensaje...');
+  readonly placeholder = input('Escribe tu mensaje...');
   readonly emptyText   = input('Todavía no hay mensajes.');
   readonly sending     = input(false);
 

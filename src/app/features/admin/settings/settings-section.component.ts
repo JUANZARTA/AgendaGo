@@ -44,7 +44,7 @@ export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
         <div class="foot">
           @switch (state()) {
             @case ('saved') { <span class="st st--saved">✓ Guardado</span> }
-            @case ('error') { <span class="st st--error">No se pudo guardar. Probá de nuevo.</span> }
+            @case ('error') { <span class="st st--error">No se pudo guardar. Prueba de nuevo.</span> }
             @default {
               @if (dirty()) { <span class="st st--dirty">Cambios sin guardar</span> }
             }

@@ -102,7 +102,7 @@ import { ReviewService, Review } from '../../../core/services/review.service';
       @if (loading()) {
         <p style="color:#888;font-size:13px">Cargando...</p>
       } @else if (reviews().length === 0) {
-        <p style="color:#a0a0b8;font-size:14px;margin:0">Todavía no tenés reseñas.</p>
+        <p style="color:#a0a0b8;font-size:14px;margin:0">Todavía no tienes reseñas.</p>
       } @else {
         <div class="stats-grid">
           <!-- Promedio circular -->
@@ -218,7 +218,7 @@ import { ReviewService, Review } from '../../../core/services/review.service';
                   <textarea class="reply-textarea"
                     [ngModel]="replyText()"
                     (ngModelChange)="replyText.set($event)"
-                    placeholder="Escribí tu respuesta pública...">
+                    placeholder="Escribe tu respuesta pública...">
                   </textarea>
                   @if (replyError()) {
                     <p style="font-size:12px;color:#ef4444;margin:4px 0 0">{{ replyError() }}</p>
@@ -316,14 +316,14 @@ export class CompanyReviewsDashboardComponent implements OnInit, OnDestroy {
 
   async submitReply(reviewId: string) {
     const text = this.replyText().trim();
-    if (!text) { this.replyError.set('Escribí algo antes de publicar.'); return; }
+    if (!text) { this.replyError.set('Escribe algo antes de publicar.'); return; }
     this.sendingReply.set(true);
     this.replyError.set('');
     try {
       await this.reviewSvc.addReply(reviewId, text);
       this.cancelReply();
     } catch {
-      this.replyError.set('Error al guardar. Intentá de nuevo.');
+      this.replyError.set('Error al guardar. Intenta de nuevo.');
     } finally {
       this.sendingReply.set(false);
     }

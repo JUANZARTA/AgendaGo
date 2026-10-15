@@ -39,7 +39,7 @@ type LegalForm = Pick<AppConfig['legal'], 'terms' | 'privacy'>;
         <p class="hint">Cargando configuración…</p>
       } @else {
         <p class="hint" style="margin:0 0 14px">
-          Texto plano: dejá una línea en blanco entre párrafos. Donde escribas <code>{{ token }}</code> se muestra el email
+          Texto plano: deja una línea en blanco entre párrafos. Donde escribas <code>{{ token }}</code> se muestra el email
           de “Contacto y soporte”.
           @if (updatedAt(); as d) { Última actualización: {{ d }}. } @else { Todavía no se guardaron: se muestran los borradores por defecto. }
         </p>

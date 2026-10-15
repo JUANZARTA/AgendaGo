@@ -62,43 +62,43 @@ export class TourService {
       return [
         { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Te mostramos los puntos clave en menos de un minuto.', side: 'over' } },
         { element: '#cnav-m-grid',    popover: { title: 'Dashboard',  description: 'Tu agenda del día y métricas del negocio.', side: 'top' } },
-        { element: '#cnav-m-list',    popover: { title: 'Servicios',  description: 'Definí tus servicios, duración y precio.', side: 'top' } },
-        { element: '#cnav-m-clock',   popover: { title: 'Horarios',   description: 'Configurá días y horas de atención.', side: 'top' } },
-        { element: '#cnav-m-message', popover: { title: 'Mensajes',   description: 'Chateá directamente con tus clientes.', side: 'top' } },
+        { element: '#cnav-m-list',    popover: { title: 'Servicios',  description: 'Define tus servicios, duración y precio.', side: 'top' } },
+        { element: '#cnav-m-clock',   popover: { title: 'Horarios',   description: 'Configura días y horas de atención.', side: 'top' } },
+        { element: '#cnav-m-message', popover: { title: 'Mensajes',   description: 'Chatea directamente con tus clientes.', side: 'top' } },
         { element: '#cnav-m-more',    popover: { title: 'Más opciones', description: 'Equipo, reseñas, estadísticas y facturación.', side: 'top' } },
       ];
     }
     return [
       { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Te mostramos los puntos clave en menos de un minuto.', side: 'over' } },
       { element: '#cnav-grid',        popover: { title: 'Dashboard',    description: 'Tu agenda del día, métricas y resumen del negocio.', side: 'right' } },
-      { element: '#cnav-list',        popover: { title: 'Servicios',    description: 'Definí tus servicios, duración y precio.', side: 'right' } },
-      { element: '#cnav-clock',       popover: { title: 'Horarios',     description: 'Configurá los días y horas en que atendés.', side: 'right' } },
-      { element: '#cnav-users',       popover: { title: 'Equipo',       description: 'Agregá tu staff para que los clientes elijan con quién atenderse.', side: 'right' } },
-      { element: '#cnav-message',     popover: { title: 'Mensajes',     description: 'Chateá directamente con tus clientes.', side: 'right' } },
-      { element: '#cnav-star',        popover: { title: 'Reseñas',      description: 'Leé y respondé las opiniones de tus clientes.', side: 'right' } },
-      { element: '#cnav-credit-card', popover: { title: 'Facturación',  description: 'Gestioná tu plan y revisá el historial de pagos.', side: 'right' } },
+      { element: '#cnav-list',        popover: { title: 'Servicios',    description: 'Define tus servicios, duración y precio.', side: 'right' } },
+      { element: '#cnav-clock',       popover: { title: 'Horarios',     description: 'Configura los días y horas en que atiendes.', side: 'right' } },
+      { element: '#cnav-users',       popover: { title: 'Equipo',       description: 'Agrega tu staff para que los clientes elijan con quién atenderse.', side: 'right' } },
+      { element: '#cnav-message',     popover: { title: 'Mensajes',     description: 'Chatea directamente con tus clientes.', side: 'right' } },
+      { element: '#cnav-star',        popover: { title: 'Reseñas',      description: 'Lee y responde las opiniones de tus clientes.', side: 'right' } },
+      { element: '#cnav-credit-card', popover: { title: 'Facturación',  description: 'Gestiona tu plan y revisa el historial de pagos.', side: 'right' } },
     ];
   }
 
   private _buildClientSteps(mobile: boolean): DriveStep[] {
     if (mobile) {
       return [
-        { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Reservá tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
-        { element: '#ctour-brand',          popover: { title: 'AgendaCo', description: 'Desde acá siempre podés volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
-        { element: '#ctour-citas-mobile',   popover: { title: 'Mis citas',  description: 'Todas tus reservas activas e historial. Podés cancelar si necesitás.', side: 'top' } },
+        { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Reserva tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
+        { element: '#ctour-brand',          popover: { title: 'AgendaCo', description: 'Desde aquí siempre puedes volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
+        { element: '#ctour-citas-mobile',   popover: { title: 'Mis citas',  description: 'Todas tus reservas activas e historial. Puedes cancelar si necesitas.', side: 'top' } },
         { element: '#ctour-mensajes-mobile',popover: { title: 'Mensajes',   description: 'Comunicación directa con el negocio antes y después del turno.', side: 'top' } },
-        { element: '#ctour-perfil-mobile',  popover: { title: 'Tu perfil',  description: 'Actualizá tus datos de contacto y preferencias.', side: 'top' } },
-        { element: '#ctour-notif',          popover: { title: 'Notificaciones', description: 'Te avisamos cuando tu turno es confirmado, recordatorios y más.', side: 'bottom' } },
+        { element: '#ctour-perfil-mobile',  popover: { title: 'Tu perfil',  description: 'Actualiza tus datos de contacto y preferencias.', side: 'top' } },
+        { element: '#ctour-notif',          popover: { title: 'Notificaciones', description: 'Te avisamos cuando tu turno es confirmado o cancelado, y cuando el negocio te escribe.', side: 'bottom' } },
       ];
     }
     return [
-      { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Reservá tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
-      { element: '#ctour-brand',           popover: { title: 'AgendaCo',  description: 'Desde acá siempre podés volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
-      { element: '#ctour-search-desktop',  popover: { title: 'Buscar',     description: 'Encontrá negocios con turnos: belleza, salud, bienestar y más. Podés buscar por nombre o rubro.', side: 'bottom' } },
-      { element: '#ctour-citas-desktop',   popover: { title: 'Mis citas',  description: 'Todas tus reservas activas e historial. Podés cancelar si necesitás.', side: 'bottom' } },
+      { popover: { title: '👋 Bienvenido a AgendaCo', description: 'Reserva tus turnos en segundos. Te mostramos cómo.', side: 'over' } },
+      { element: '#ctour-brand',           popover: { title: 'AgendaCo',  description: 'Desde aquí siempre puedes volver al inicio y buscar nuevos negocios.', side: 'bottom' } },
+      { element: '#ctour-search-desktop',  popover: { title: 'Buscar',     description: 'Encuentra negocios con turnos: belleza, salud, bienestar y más. Puedes buscar por nombre o rubro.', side: 'bottom' } },
+      { element: '#ctour-citas-desktop',   popover: { title: 'Mis citas',  description: 'Todas tus reservas activas e historial. Puedes cancelar si necesitas.', side: 'bottom' } },
       { element: '#ctour-mensajes-desktop',popover: { title: 'Mensajes',   description: 'Comunicación directa con el negocio antes y después del turno.', side: 'bottom' } },
-      { element: '#ctour-notif',           popover: { title: 'Notificaciones', description: 'Te avisamos cuando tu turno es confirmado, recordatorios y más.', side: 'bottom' } },
-      { element: '#ctour-avatar',          popover: { title: 'Tu perfil',  description: 'Actualizá tus datos de contacto y preferencias.', side: 'bottom' } },
+      { element: '#ctour-notif',           popover: { title: 'Notificaciones', description: 'Te avisamos cuando tu turno es confirmado o cancelado, y cuando el negocio te escribe.', side: 'bottom' } },
+      { element: '#ctour-avatar',          popover: { title: 'Tu perfil',  description: 'Actualiza tus datos de contacto y preferencias.', side: 'bottom' } },
     ];
   }
 }

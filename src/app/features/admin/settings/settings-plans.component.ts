@@ -69,7 +69,7 @@ type PlansForm = AppConfig['plans'];
       <div class="warn">
         <strong>Importante:</strong> Wompi cobra el monto <strong>FIJO</strong> que tiene cada link, y la app reconoce
         qué plan pagó la empresa <strong>por el monto cobrado</strong>. Por eso el precio y el link van juntos:
-        si cambiás un precio, primero creá en Wompi un link <strong>NUEVO</strong> con exactamente ese monto y pegalo acá.
+        si cambias un precio, primero crea en Wompi un link <strong>NUEVO</strong> con exactamente ese monto y pégalo aquí.
         Los pagos con el precio anterior ya no se reconocen solos (hay que revisarlos a mano).
       </div>
 
@@ -94,12 +94,12 @@ type PlansForm = AppConfig['plans'];
                 </div>
               </div>
               <div class="form-group">
-                <label>Link real (producción) @if (production) { <span class="tag">en uso acá</span> }</label>
+                <label>Link real (producción) @if (production) { <span class="tag">en uso aquí</span> }</label>
                 <input type="url" placeholder="https://checkout.wompi.co/l/…" [value]="form()[key].links.prod"
                   (input)="setLink(key, 'prod', $any($event.target).value)" />
               </div>
               <div class="form-group">
-                <label>Link de pruebas (sandbox, usado en ng serve) @if (!production) { <span class="tag">en uso acá</span> }</label>
+                <label>Link de pruebas (sandbox, usado en ng serve) @if (!production) { <span class="tag">en uso aquí</span> }</label>
                 <input type="url" placeholder="https://checkout.wompi.co/l/test_…" [value]="form()[key].links.test"
                   (input)="setLink(key, 'test', $any($event.target).value)" />
                 <span class="hint">Vacío = el botón "Pagar" avisa que no hay link (nunca usa el de la otra modalidad).</span>

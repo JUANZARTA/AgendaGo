@@ -77,7 +77,7 @@ interface Verification {
                   @if (!c.plan) {
                     <!-- Se reporta igual aunque el monto no sea de un plan (la plata ya se cobró) -->
                     <div class="meta" style="color:#b45309;font-weight:700">
-                      ⚠ El monto no corresponde a ningún plan: revisalo (devolución, ajuste o registro manual).
+                      ⚠ El monto no corresponde a ningún plan: revísalo (devolución, ajuste o registro manual).
                     </div>
                   }
                 }
@@ -101,7 +101,7 @@ interface Verification {
                   <div>Pagó <b>{{ v.tx.customerName || '—' }}</b></div>
                   <div>Correo
                     <b [class.warn]="!v.emailMatches">{{ v.tx.customerEmail || '—' }}</b>
-                    @if (!v.emailMatches) { <span class="warn">Distinto a {{ v.accountEmail || 'la cuenta' }}: confirmá con la empresa</span> }
+                    @if (!v.emailMatches) { <span class="warn">Distinto a {{ v.accountEmail || 'la cuenta' }}: confirma con la empresa</span> }
                   </div>
                   @if (v.claimEmailMismatch) {
                     <div><b class="bad">⚠ El reporte dice {{ c.ownerEmail || '—' }}, pero la cuenta es {{ v.accountEmail }}. Posible reporte manipulado.</b></div>
@@ -191,7 +191,7 @@ export class PaymentClaimsComponent {
       }));
     } catch (err) {
       console.error('[PaymentClaims] Error consultando Wompi:', err);
-      this.setError(c.transactionId, 'No se pudo consultar Wompi. Intentá de nuevo.');
+      this.setError(c.transactionId, 'No se pudo consultar Wompi. Intenta de nuevo.');
     } finally {
       this.busy.set(null);
     }
@@ -232,9 +232,9 @@ export class PaymentClaimsComponent {
         // Ya estaba registrado (ej. a mano desde el modal): cerrar el reporte
         await this.claimSvc.close(c.transactionId, 'registered', 'Ya estaba registrado').catch(() => {});
       } else if (err?.message === 'SANDBOX_BUILD') {
-        this.setError(c.transactionId, 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usá la app publicada.');
+        this.setError(c.transactionId, 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usa la app publicada.');
       } else {
-        this.setError(c.transactionId, 'No se pudo activar el plan. Intentá de nuevo.');
+        this.setError(c.transactionId, 'No se pudo activar el plan. Intenta de nuevo.');
       }
     } finally {
       this.busy.set(null);

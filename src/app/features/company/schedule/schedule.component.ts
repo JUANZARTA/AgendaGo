@@ -72,7 +72,7 @@ import { RangeChange } from './components/schedule-day-row.component';
       <!-- Header -->
       <div>
         <div class="sch-title">Horarios de atención</div>
-        <div class="sch-desc">Configurá los días, horarios y bloqueos especiales de tu empresa.</div>
+        <div class="sch-desc">Configura los días, horarios y bloqueos especiales de tu empresa.</div>
       </div>
 
       <app-schedule-interval [durations]="durations" [(slotInterval)]="slotInterval" />
@@ -239,7 +239,7 @@ export class ScheduleComponent {
     const cid = this.companyStore.companyId();
     if (!cid) return;
     if (Object.keys(this.dayErrors()).length > 0) {
-      this.saveError.set('Revisá los horarios marcados en rojo antes de guardar.');
+      this.saveError.set('Revisa los horarios marcados en rojo antes de guardar.');
       return;
     }
     this.saveError.set('');
@@ -256,7 +256,7 @@ export class ScheduleComponent {
       setTimeout(() => this.saved.set(false), 2000);
     } catch (e) {
       console.error('[Schedule] Error al guardar', e);
-      this.saveError.set('No se pudieron guardar los cambios. Intentá de nuevo.');
+      this.saveError.set('No se pudieron guardar los cambios. Intenta de nuevo.');
     } finally {
       this.saving.set(false);
     }

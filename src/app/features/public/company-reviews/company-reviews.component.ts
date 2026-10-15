@@ -64,7 +64,7 @@ import { DeleteReviewModalComponent } from './components/delete-review-modal.com
         <!-- Estado del formulario -->
         @if (!authSvc.isLoggedIn()) {
           <div style="background:white;border-radius:14px;padding:18px 20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.05);text-align:center">
-            <p style="color:#888;font-size:14px;margin:0 0 12px">Iniciá sesión para dejar una reseña.</p>
+            <p style="color:#888;font-size:14px;margin:0 0 12px">Inicia sesión para dejar una reseña.</p>
             <a routerLink="/auth/login" class="btn btn-primary btn-sm">Iniciar sesión</a>
           </div>
         } @else if (reviewSent()) {
@@ -77,7 +77,7 @@ import { DeleteReviewModalComponent } from './components/delete-review-modal.com
           </div>
         } @else if (reviewableApts().length === 0 && myReviews().length === 0) {
           <div style="background:white;border-radius:14px;padding:18px 20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.05)">
-            <p style="color:#888;font-size:14px;margin:0">Necesitás tener al menos una cita completada en este negocio para dejar una reseña.</p>
+            <p style="color:#888;font-size:14px;margin:0">Necesitas tener al menos una cita completada en este negocio para dejar una reseña.</p>
           </div>
         } @else if (reviewableApts().length === 0 && myReviews().length > 0) {
           <div style="background:#f8f7ff;border-radius:14px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#888">
@@ -246,8 +246,8 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
   ngOnDestroy() { this.reviewSub?.unsubscribe(); }
 
   askConfirm() {
-    if (this.reviewRating() === 0) { this.reviewError.set('Seleccioná al menos una estrella.'); return; }
-    if (this.reviewableApts().length > 1 && !this.selectedAptId()) { this.reviewError.set('Seleccioná el turno a reseñar.'); return; }
+    if (this.reviewRating() === 0) { this.reviewError.set('Selecciona al menos una estrella.'); return; }
+    if (this.reviewableApts().length > 1 && !this.selectedAptId()) { this.reviewError.set('Selecciona el turno a reseñar.'); return; }
     this.reviewError.set('');
     this.showConfirm.set(true);
   }
@@ -285,7 +285,7 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
         }).catch(() => {});
       }
     } catch {
-      this.reviewError.set('Error al publicar. Intentá de nuevo.');
+      this.reviewError.set('Error al publicar. Intenta de nuevo.');
     } finally {
       this.submittingReview.set(false);
     }
@@ -301,13 +301,13 @@ export class CompanyReviewsComponent implements OnInit, OnDestroy {
   async submitEdit() {
     const review = this.editingReview();
     if (!review?.id) return;
-    if (this.editRating() === 0) { this.editError.set('Seleccioná al menos una estrella.'); return; }
+    if (this.editRating() === 0) { this.editError.set('Selecciona al menos una estrella.'); return; }
     this.updatingReview.set(true);
     try {
       await this.reviewSvc.updateReview(review.id, this.editRating(), this.editComment());
       this.editingReview.set(null);
     } catch {
-      this.editError.set('Error al guardar. Intentá de nuevo.');
+      this.editError.set('Error al guardar. Intenta de nuevo.');
     } finally {
       this.updatingReview.set(false);
     }

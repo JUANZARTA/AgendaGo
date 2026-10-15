@@ -102,7 +102,7 @@ type Thread = SupportThread & { id: string };
                     {{ t.kind === 'urgente' ? 'Urgente' : 'Consulta' }}
                   </span>
                   @if (t.status === 'resolved') { <span class="tag resolved">Resuelto</span> }
-                  <span class="conv-preview">{{ t.lastSender === 'admin' ? 'Vos: ' : '' }}{{ t.lastMessage }}</span>
+                  <span class="conv-preview">{{ t.lastSender === 'admin' ? 'Tú: ' : '' }}{{ t.lastMessage }}</span>
                   @if (t.unreadByAdmin) { <span class="unread-dot" aria-label="Sin leer"></span> }
                 </div>
               </div>
@@ -132,13 +132,13 @@ type Thread = SupportThread & { id: string };
               me="admin"
               [theirLabel]="t.companyName"
               [sending]="sending()"
-              placeholder="Escribí tu respuesta..."
+              placeholder="Escribe tu respuesta..."
               (send)="send(t, $event)" />
             @if (error()) { <div class="err">{{ error() }}</div> }
           } @else {
             <div class="empty-state">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <p>Seleccioná una conversación</p>
+              <p>Selecciona una conversación</p>
             </div>
           }
         </div>
@@ -220,7 +220,7 @@ export class AdminSupportComponent {
       await this.support.sendFromAdmin(t, text);
     } catch (err) {
       console.error('[Soporte admin] envío:', err);
-      this.error.set('No se pudo enviar la respuesta. Probá de nuevo.');
+      this.error.set('No se pudo enviar la respuesta. Prueba de nuevo.');
       this.conv()?.restore(text);
     } finally {
       this.sending.set(false);

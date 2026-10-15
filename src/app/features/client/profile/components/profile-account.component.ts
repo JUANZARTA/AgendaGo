@@ -79,8 +79,8 @@ export class ProfileAccountComponent {
   readonly resetSub = computed(() => {
     switch (this.resetState()) {
       case 'sending': return 'Enviando…';
-      case 'sent':    return `Te enviamos un correo a ${this.auth.currentUser()?.email}. Revisá también spam.`;
-      case 'error':   return 'No se pudo enviar. Intentá de nuevo en unos minutos.';
+      case 'sent':    return `Te enviamos un correo a ${this.auth.currentUser()?.email}. Revisa también spam.`;
+      case 'error':   return 'No se pudo enviar. Intenta de nuevo en unos minutos.';
       default:        return this.hasPassword()
         ? 'Te mandamos un link a tu correo para crear una nueva'
         : 'Entraste con Google: tu contraseña se maneja desde tu cuenta de Google';

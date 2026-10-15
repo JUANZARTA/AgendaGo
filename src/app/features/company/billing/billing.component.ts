@@ -61,7 +61,7 @@ import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
     <div class="page">
 
       <p class="page-title">Facturación</p>
-      <p class="page-sub">Gestioná tu plan y revisá el historial de pagos</p>
+      <p class="page-sub">Gestiona tu plan y revisa el historial de pagos</p>
 
       <app-billing-status-card
         [loading]="loading()"
@@ -74,8 +74,8 @@ import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
         <div style="border-radius:16px;padding:28px 32px;background:linear-gradient(135deg,#f5f3ff,#fdf4ff);border:2px solid #e9d5ff;display:flex;align-items:center;gap:20px;margin-bottom:8px">
           <div style="font-size:40px;flex-shrink:0">⭐</div>
           <div>
-            <div style="font-size:1rem;font-weight:800;color:#6d28d9;margin-bottom:4px">¡Sos beneficiario de AgendaCo!</div>
-            <div style="font-size:13px;color:#7c3aed;line-height:1.6">Tenés acceso <strong>gratuito e ilimitado</strong> a todas las funciones de la plataforma. No necesitás pagar ni renovar ningún plan.</div>
+            <div style="font-size:1rem;font-weight:800;color:#6d28d9;margin-bottom:4px">¡Eres beneficiario de AgendaCo!</div>
+            <div style="font-size:13px;color:#7c3aed;line-height:1.6">Tienes acceso <strong>gratuito e ilimitado</strong> a todas las funciones de la plataforma. No necesitas pagar ni renovar ningún plan.</div>
           </div>
         </div>
       }
@@ -126,14 +126,14 @@ import { isWompiCheckoutUrl } from '../../../core/domain/safe-links';
           @if (r.isTrial) {
             <p class="rn-text">
               Tu prueba gratis sigue activa hasta el <strong>{{ day(r.current) }}</strong>.
-              Si pagás ahora, el plan <strong>{{ r.plan.label }}</strong> arranca hoy y queda activo hasta el
+              Si pagas ahora, el plan <strong>{{ r.plan.label }}</strong> arranca hoy y queda activo hasta el
               <strong>{{ day(r.newEnd) }}</strong>.
             </p>
           } @else {
             <p class="rn-text">
-              Ya tenés el plan activo hasta el <strong>{{ day(r.current) }}</strong>.
-              Si pagás el plan <strong>{{ r.plan.label }}</strong> ({{ fmtCop(r.plan.amount) }}) ahora, se <strong>suma</strong>:
-              quedaría activo hasta el <strong>{{ day(r.newEnd) }}</strong>. No perdés ningún día.
+              Ya tienes el plan activo hasta el <strong>{{ day(r.current) }}</strong>.
+              Si pagas el plan <strong>{{ r.plan.label }}</strong> ({{ fmtCop(r.plan.amount) }}) ahora, se <strong>suma</strong>:
+              quedaría activo hasta el <strong>{{ day(r.newEnd) }}</strong>. No pierdes ningún día.
             </p>
           }
           <p class="rn-note">Vas a pagar en Wompi; el cobro aparece a nombre de {{ brandOwner }} (empresa dueña de AgendaCo).</p>
@@ -329,7 +329,7 @@ export class BillingComponent implements OnDestroy {
     const url  = this.appConfig.checkoutLink(planKey);
     if (!url || !isWompiCheckoutUrl(url)) {
       // Sin link (o uno que no es de Wompi: nunca redirigir a otro sitio) para este entorno: nunca caer al de la otra modalidad
-      alert('Este plan todavía no tiene link de pago configurado. Escribinos para pagarlo.');
+      alert('Este plan todavía no tiene link de pago configurado. Escríbenos para pagarlo.');
       return;
     }
     this.paying.set(true);

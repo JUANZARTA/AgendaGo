@@ -53,7 +53,7 @@ import { ChatWidgetComponent } from './components/chat-widget.component';
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        Ese horario no está disponible. Elegí otro.
+        Ese horario no está disponible. Elige otro.
       </div>
     }
 
@@ -455,8 +455,8 @@ ${this.clientNote() ? `\nNota: ${this.clientNote()}` : ''}
     } catch (e: any) {
       if (e.message === 'SLOT_TAKEN' || e.message === 'DATE_BLOCKED' || e.message === 'SLOT_DISABLED') {
         this.bookingError.set(e.message === 'SLOT_TAKEN'
-          ? 'Ese turno ya fue tomado. Por favor elegí otro horario.'
-          : 'Ese horario ya no está disponible. Por favor elegí otro.');
+          ? 'Ese turno ya fue tomado. Por favor elige otro horario.'
+          : 'Ese horario ya no está disponible. Por favor elige otro.');
         const day = this.selectedDay();
         if (day) {
           this.aptSvc.getDayOccupancy(cid, day.date).then(apts => this.existingApts.set(apts)).catch(() => {});
@@ -464,7 +464,7 @@ ${this.clientNote() ? `\nNota: ${this.clientNote()}` : ''}
         this.selectedSlot.set(null);
         this.currentStep.set(2);
       } else {
-        this.bookingError.set('Ocurrió un error. Intentá de nuevo.');
+        this.bookingError.set('Ocurrió un error. Intenta de nuevo.');
       }
       setTimeout(() => this.bookingError.set(''), 4000);
     } finally {

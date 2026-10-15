@@ -80,7 +80,7 @@ export function checkPaymentOrigin(f: PaymentOriginFacts, p: PaymentOriginPolicy
     return { ok: false, reason: 'La llave pública de Wompi de este build no está configurada: no se puede verificar el comercio.' };
   }
   if (p.production && expectedEnv !== 'production') {
-    return { ok: false, reason: 'El build de producción tiene una llave de pruebas: revisá environment.prod.ts.' };
+    return { ok: false, reason: 'El build de producción tiene una llave de pruebas: revisa environment.prod.ts.' };
   }
 
   // 1) Entorno: en producción sólo transacciones consultadas en la API real.
@@ -109,7 +109,7 @@ export function checkPaymentOrigin(f: PaymentOriginFacts, p: PaymentOriginPolicy
     return {
       ok: false,
       reason: f.paymentLinkId
-        ? 'No se pudo comprobar el comercio del link de pago. Intentá de nuevo.'
+        ? 'No se pudo comprobar el comercio del link de pago. Intenta de nuevo.'
         : 'La transacción no se hizo con un link de pago y Wompi no informa el comercio: no se puede comprobar que sea nuestra.',
     };
   }

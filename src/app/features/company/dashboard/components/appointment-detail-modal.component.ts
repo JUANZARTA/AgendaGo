@@ -97,7 +97,7 @@ import { BADGE_STYLES, MODAL_STYLES } from '../dashboard.styles';
         @if (apt().status === 'cancelled') {
           <p style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#aaa;margin:0 0 8px">Cancelación</p>
           <div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#991b1b;line-height:1.6;white-space:pre-line">
-            <strong>{{ apt().cancelledBy === 'client' ? 'La canceló el cliente' : 'La cancelaste vos' }}</strong>
+            <strong>{{ apt().cancelledBy === 'client' ? 'La canceló el cliente' : 'La cancelaste tú' }}</strong>
             @if (apt().cancelReason) {<br>Motivo: {{ apt().cancelReason }}}
           </div>
         }

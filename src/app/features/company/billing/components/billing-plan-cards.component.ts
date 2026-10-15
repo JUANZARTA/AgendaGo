@@ -77,7 +77,7 @@ import { SubViewModel } from '../billing.models';
     }
   `],
   template: `
-  <p class="plans-title">Elegí tu plan</p>
+  <p class="plans-title">Elige tu plan</p>
   <div class="plans-grid">
 
     <!-- Gratuito -->
@@ -150,7 +150,7 @@ import { SubViewModel } from '../billing.models';
       </div>
       @if (semestral(); as s) {
         <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-          @if (s.saving > 0) { <span class="plan-saving">Ahorrás {{ fmtCop(s.saving) }}</span> }
+          @if (s.saving > 0) { <span class="plan-saving">Ahorras {{ fmtCop(s.saving) }}</span> }
           <span class="plan-effective">{{ fmtCop(s.perMonth) }}/mes efectivo</span>
         </div>
       }

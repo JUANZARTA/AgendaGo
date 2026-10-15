@@ -26,12 +26,12 @@ import { REVIEW_TEXTAREA_CSS, STAR_BTN_CSS } from '../company-reviews.styles';
   template: `
     <!-- Formulario nueva reseña -->
     <div style="background:white;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,.05)">
-      <p style="font-size:13px;font-weight:700;color:var(--purple);margin:0 0 14px">Dejá tu reseña</p>
+      <p style="font-size:13px;font-weight:700;color:var(--purple);margin:0 0 14px">Deja tu reseña</p>
 
       <!-- Selector de turno si hay más de uno -->
       @if (reviewableApts().length > 1) {
         <select class="apt-select" [ngModel]="selectedAptId()" (ngModelChange)="selectedAptId.set($event)">
-          <option value="">Seleccioná el turno a reseñar</option>
+          <option value="">Selecciona el turno a reseñar</option>
           @for (a of reviewableApts(); track a.id) {
             <option [value]="a.id">{{ a.serviceName }} · {{ formatAptDate(a.date) }} {{ a.startTime }}</option>
           }
@@ -59,7 +59,7 @@ import { REVIEW_TEXTAREA_CSS, STAR_BTN_CSS } from '../company-reviews.styles';
       </div>
 
       <textarea class="review-textarea" [ngModel]="comment()" (ngModelChange)="comment.set($event)"
-                placeholder="Contá tu experiencia...">
+                placeholder="Cuenta tu experiencia...">
       </textarea>
 
       @if (error()) {

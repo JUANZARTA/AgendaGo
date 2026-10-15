@@ -126,7 +126,7 @@ interface AdminCompany {
             Vas a otorgarle acceso <strong>gratuito e ilimitado</strong> a <strong>{{ planTarget()?.name }}</strong>.
           </p>
           <p style="font-size:12px;color:#ef4444;margin-bottom:24px;font-weight:600">
-            Esta empresa no generará ingresos. Asegurate de que es un caso autorizado.
+            Esta empresa no generará ingresos. Asegúrate de que es un caso autorizado.
           </p>
           <div style="display:flex;gap:10px">
             <button (click)="confirmFreePlan.set(false)"
@@ -232,7 +232,7 @@ interface AdminCompany {
           </h3>
           <p style="text-align:center;font-size:13px;color:#666;line-height:1.6;margin-bottom:24px">
             {{ target.isActive
-              ? 'La empresa no podrá operar y verá un aviso de suspensión. Podés revertirlo en cualquier momento.'
+              ? 'La empresa no podrá operar y verá un aviso de suspensión. Puedes revertirlo en cualquier momento.'
               : 'La empresa podrá operar con normalidad nuevamente. Si su suscripción no está vigente te vamos a pedir que fijes el plan y la fecha.' }}
           </p>
           <div style="display:flex;gap:10px">
@@ -405,7 +405,7 @@ export class CompaniesComponent implements OnDestroy {
     this.confirmTarget.set(null);
     if (!target.isActive && !subscriptionAllowsEnabling(this.subsMap()[target.id])) {
       const company = this.companies().find(c => c.id === target.id);
-      alert('La suscripción de esta empresa no está vigente. Para habilitarla fijá el estado y la fecha de vencimiento en el modal de plan (o registrá el pago en Facturación).');
+      alert('La suscripción de esta empresa no está vigente. Para habilitarla fija el estado y la fecha de vencimiento en el modal de plan (o registra el pago en Facturación).');
       if (company) this.openPlanModal(company);
       return;
     }

@@ -35,8 +35,8 @@ import { ServiceItem } from '../../../../core/services/service-catalog.service';
   `],
   template: `
           <div class="card" style="animation:fadeInUp .3s ease">
-            <h2 style="font-size:1.05rem;font-weight:800;margin-bottom:4px">¿Qué servicio necesitás?</h2>
-            <p class="text-muted" style="margin-bottom:16px">Seleccioná uno para ver disponibilidad</p>
+            <h2 style="font-size:1.05rem;font-weight:800;margin-bottom:4px">¿Qué servicio necesitas?</h2>
+            <p class="text-muted" style="margin-bottom:16px">Selecciona uno para ver disponibilidad</p>
 
             @if (services().length === 0) {
               <div style="text-align:center;padding:24px;color:#aaa">Este negocio aún no publicó servicios.</div>

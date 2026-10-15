@@ -1,7 +1,8 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { Company } from '../../../../core/services/company.service';
 import { BookingStepperComponent } from './booking-stepper.component';
 import { FavoriteHeartComponent } from '../../../../shared/components/favorite-heart.component';
+import { companyLogo } from '../../../../core/domain/company-logo';
 
 /** Cabecera de la empresa (logo, nombre, descripción) + indicador de pasos. */
 @Component({
@@ -21,8 +22,7 @@ import { FavoriteHeartComponent } from '../../../../shared/components/favorite-h
                        style="width:100%;height:100%;object-fit:cover;border-radius:18px" />
                 } @else {
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="6" y1="3" x2="6" y2="15"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/>
-                    <line x1="18" y1="9" x2="18" y2="21"/><line x1="18" y1="3" x2="6" y2="15"/>
+                    <path [attr.d]="logoIconPath()"/>
                   </svg>
                 }
               </div>
@@ -47,4 +47,6 @@ export class CompanyHeaderComponent {
   companyColor = input.required<string>();
   companyCategory = input.required<string>();
   currentStep = input.required<number>();
+  /** Ícono elegido por el negocio (o el del rubro si no eligió nada). */
+  logoIconPath = computed(() => companyLogo(this.company()).iconPath);
 }

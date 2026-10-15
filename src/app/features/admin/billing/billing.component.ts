@@ -61,7 +61,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
 
       @if (pendingOverdueCount() > 0) {
         <div style="margin-bottom:16px;padding:12px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;font-weight:600">
-          Hay {{ pendingOverdueCount() }} suscripción(es) que vencieron y ya pasaron los {{ graceDays() }} días de gracia. Usá "Revisar vencimientos" para suspenderlas.
+          Hay {{ pendingOverdueCount() }} suscripción(es) que vencieron y ya pasaron los {{ graceDays() }} días de gracia. Usa "Revisar vencimientos" para suspenderlas.
         </div>
       }
 
@@ -195,7 +195,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
             Vas a otorgarle acceso <strong>gratuito e ilimitado</strong> a <strong>{{ selected()?.companyName }}</strong>.
           </p>
           <p style="font-size:12px;color:#ef4444;margin-bottom:24px;font-weight:600">
-            Esta empresa no generará ingresos. Asegurate de que es un caso autorizado.
+            Esta empresa no generará ingresos. Asegúrate de que es un caso autorizado.
           </p>
           <div style="display:flex;gap:10px">
             <button (click)="confirmFree.set(false)"
@@ -291,7 +291,7 @@ import { AdminSub, STATUS_CLASS, STATUS_LABEL } from './admin-billing.models';
                 </button>
                 @if (syncMsg()) { <span style="font-size:12px;color:#666">{{ syncMsg() }}</span> }
               </div>
-              <p style="font-size:11px;color:#aaa;margin:4px 0 0">Es el vencimiento actual; cambialo sólo si querés corregirlo</p>
+              <p style="font-size:11px;color:#aaa;margin:4px 0 0">Es el vencimiento actual; cámbialo sólo si quieres corregirlo</p>
             </div>
 
             <!-- Nota -->
@@ -530,7 +530,7 @@ export class AdminBillingComponent implements OnDestroy {
     const s = this.selected();
     if (!s || !this.payPlan || this.paying()) return;
     if (!this.payRef.trim()) {
-      this.payError.set('Ingresá la referencia del pago (n° de transacción de Wompi o una única para efectivo/transferencia).');
+      this.payError.set('Ingresa la referencia del pago (n° de transacción de Wompi o una única para efectivo/transferencia).');
       return;
     }
     const plan = this.appConfig.plans()[this.payPlan];
@@ -554,10 +554,10 @@ export class AdminBillingComponent implements OnDestroy {
       this.payError.set(err?.message === 'DUPLICATE_PAYMENT'
         ? 'Ese pago ya fue registrado (misma referencia).'
         : err?.message === 'REFERENCE_REQUIRED'
-        ? 'Ingresá la referencia del pago.'
+        ? 'Ingresa la referencia del pago.'
         : err?.message === 'SANDBOX_BUILD'
-        ? 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usá la app publicada.'
-        : 'No se pudo registrar el pago. Intentá de nuevo.');
+        ? 'Este build consulta el SANDBOX de Wompi: no puede activar planes contra la base real. Usa la app publicada.'
+        : 'No se pudo registrar el pago. Intenta de nuevo.');
     } finally {
       this.paying.set(false);
     }

@@ -59,9 +59,9 @@ const TITLES: Record<LegalKind, string> = {
       </article>
       <p class="legal-other">
         @if (kind() === 'terms') {
-          Mirá también la <a routerLink="/privacidad">Política de privacidad</a>.
+          Mira también la <a routerLink="/privacidad">Política de privacidad</a>.
         } @else {
-          Mirá también los <a routerLink="/terminos">Términos y condiciones</a>.
+          Mira también los <a routerLink="/terminos">Términos y condiciones</a>.
         }
       </p>
     </main>

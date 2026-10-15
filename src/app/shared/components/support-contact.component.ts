@@ -38,7 +38,7 @@ export class SupportContactComponent {
   private appConfig = inject(AppConfigService);
 
   /** Texto antes de los links (ej. "¿Dudas? Escribinos:"). */
-  readonly text  = input('¿Necesitás ayuda? Escribinos:');
+  readonly text  = input('¿Necesitas ayuda? Escríbenos:');
   readonly align = input<'center' | 'left'>('center');
 
   readonly email = computed(() => this.appConfig.config().support.email.trim());

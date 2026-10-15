@@ -35,7 +35,7 @@ type AnnouncementForm = AppConfig['announcement'];
   template: `
     <app-settings-section
       title="Anuncio general"
-      subtitle="Aparece arriba del panel de todas las empresas. Cada empresa lo puede cerrar; si cambiás el texto, vuelve a aparecer."
+      subtitle="Aparece arriba del panel de todas las empresas. Cada empresa lo puede cerrar; si cambias el texto, vuelve a aparecer."
       [state]="state()" [errors]="errors()" [dirty]="dirty()" [disabled]="!loaded()"
       (save)="save()">
       @if (!loaded()) {

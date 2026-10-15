@@ -9,6 +9,7 @@ import { Company, CompanyService } from '../../../core/services/company.service'
 import { ReviewService, RatingSummary } from '../../../core/services/review.service';
 import { FavoritesService } from '../../../core/services/favorites.service';
 import { categoryMeta } from '../../../core/domain/categories';
+import { companyLogo } from '../../../core/domain/company-logo';
 import {
   AptInteraction, MsgInteraction, RecentEntry, buildRecents, recentLabel,
 } from '../../../core/domain/my-businesses';
@@ -55,7 +56,7 @@ interface BizCard {
             <div class="mb-loading"><div class="spinner"></div></div>
           } @else if (favoriteCards().length === 0) {
             <div class="mb-empty">
-              <p>Todavía no tenés favoritos. Tocá el ❤️ en un negocio para guardarlo acá.</p>
+              <p>Todavía no tienes favoritos. Toca el ❤️ en un negocio para guardarlo aquí.</p>
               <a routerLink="/" class="btn btn-primary btn-sm">Buscar negocios</a>
             </div>
           } @else {
@@ -79,10 +80,10 @@ interface BizCard {
           @if (loadingActivity() || recentsPending()) {
             <div class="mb-loading"><div class="spinner"></div></div>
           } @else if (activityError()) {
-            <div class="mb-empty"><p>No pudimos cargar tu actividad. Verificá tu conexión.</p></div>
+            <div class="mb-empty"><p>No pudimos cargar tu actividad. Verifica tu conexión.</p></div>
           } @else if (recentCards().length === 0) {
             <div class="mb-empty">
-              <p>Acá vas a ver los negocios donde reservaste o con los que conversaste.</p>
+              <p>Aquí vas a ver los negocios donde reservaste o con los que conversaste.</p>
             </div>
           } @else {
             <div class="mb-grid">
@@ -104,7 +105,7 @@ interface BizCard {
             @if (card.company.logoUrl) {
               <img [src]="card.company.logoUrl" alt="" />
             } @else {
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="meta(card.company.category).icon"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="logoIcon(card.company)"/></svg>
             }
           </div>
           <div class="biz-info">
@@ -255,7 +256,9 @@ export class MyBusinessesComponent {
   }
 
   meta(cat: string) { return categoryMeta(cat); }
-  color(c: Company): string { return c.logoColor ?? categoryMeta(c.category).color; }
+  color(c: Company): string { return companyLogo(c).color; }
+  /** Ícono elegido por el negocio (o el del rubro si no eligió nada). */
+  logoIcon(c: Company): string { return companyLogo(c).iconPath; }
   rating(id: string | undefined): RatingSummary | null {
     const r = id ? this.ratings().get(id) : undefined;
     return r && r.count > 0 ? r : null;

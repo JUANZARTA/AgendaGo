@@ -88,7 +88,7 @@ const POLL_TRIES = 24;   // ~2 minutos
             <p class="title">Tu pago está en proceso…</p>
             <p class="text">
               Wompi todavía lo está procesando (puede pasar con PSE o transferencias).
-              @if (polling()) { Esta página se actualiza sola. } @else { Volvé a revisar en unos minutos desde Facturación. }
+              @if (polling()) { Esta página se actualiza sola. } @else { Vuelve a revisar en unos minutos desde Facturación. }
             </p>
           }
           @case ('declined') {
@@ -96,14 +96,14 @@ const POLL_TRIES = 24;   // ~2 minutos
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </div>
             <p class="title">El pago no se completó</p>
-            <p class="text">Wompi informa que la transacción fue {{ statusLabel() }}. No se te cobró este intento. Podés intentarlo de nuevo.</p>
+            <p class="text">Wompi informa que la transacción fue {{ statusLabel() }}. No se te cobró este intento. Puedes intentarlo de nuevo.</p>
           }
           @case ('notfound') {
             <div class="icon icon--bad">
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
             <p class="title">No encontramos esa transacción</p>
-            <p class="text">Si pagaste y ves este mensaje, escribinos con el comprobante de Wompi.</p>
+            <p class="text">Si pagaste y ves este mensaje, escríbenos con el comprobante de Wompi.</p>
             <app-support-contact text="" />
           }
           @case ('error') {
@@ -111,7 +111,7 @@ const POLL_TRIES = 24;   // ~2 minutos
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
             <p class="title">No pudimos verificar el pago</p>
-            <p class="text">Hubo un problema consultando a Wompi. Si el pago salió bien, se va a confirmar igual: revisá Facturación en unos minutos.</p>
+            <p class="text">Hubo un problema consultando a Wompi. Si el pago salió bien, se va a confirmar igual: revisa Facturación en unos minutos.</p>
           }
         }
 

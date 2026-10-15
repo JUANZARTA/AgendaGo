@@ -96,12 +96,12 @@ import { SupportContactComponent } from '../../../../shared/components/support-c
     <div class="status-banner disabled">
       <div class="status-body">
         <p class="status-label">
-          {{ loadError() ? 'No pudimos cargar tu suscripción' : 'Todavía no tenés una suscripción registrada' }}
+          {{ loadError() ? 'No pudimos cargar tu suscripción' : 'Todavía no tienes una suscripción registrada' }}
         </p>
         <p class="status-desc">
           {{ loadError()
-              ? 'Revisá tu conexión y recargá la página. Si el problema continúa, contactá a soporte.'
-              : 'Podés elegir un plan abajo para activar tu cuenta. Si creés que es un error, contactá a soporte.' }}
+              ? 'Revisa tu conexión y recarga la página. Si el problema continúa, contacta a soporte.'
+              : 'Puedes elegir un plan abajo para activar tu cuenta. Si crees que es un error, contacta a soporte.' }}
         </p>
         <div style="margin-top:8px"><app-support-contact align="left" text="Soporte:" /></div>
       </div>
@@ -138,8 +138,8 @@ import { SupportContactComponent } from '../../../../shared/components/support-c
           @switch (sub().status) {
             @case ('trial')   { Plan gratuito · Vence el {{ sub().trialEnd }} · Renovar antes de que expire para no perder tu agenda }
             @case ('active')  { {{ sub().plan }} · Próxima renovación el {{ sub().trialEnd }} }
-            @case ('expired') { Tu suscripción venció. Elegí un plan para reactivar tu cuenta }
-            @case ('free')    { Fuiste seleccionado como beneficiario de AgendaCo. Tenés acceso ilimitado y gratuito a todas las funciones de la plataforma. }
+            @case ('expired') { Tu suscripción venció. Elige un plan para reactivar tu cuenta }
+            @case ('free')    { Fuiste seleccionado como beneficiario de AgendaCo. Tienes acceso ilimitado y gratuito a todas las funciones de la plataforma. }
           }
         </p>
       </div>

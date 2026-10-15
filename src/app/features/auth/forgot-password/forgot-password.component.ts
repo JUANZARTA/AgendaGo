@@ -33,7 +33,7 @@ import { BrandLogoComponent } from '../../../shared/components/brand-logo.compon
           </div>
           <h2 style="font-weight:800;font-size:1.4rem;margin-bottom:8px;color:#1a1a2e">¡Email enviado!</h2>
           <p style="color:#a0a0b8;font-size:14px;line-height:1.6;margin-bottom:24px">
-            Revisá tu bandeja de entrada y seguí el link para restablecer tu contraseña.
+            Revisa tu bandeja de entrada y sigue el link para restablecer tu contraseña.
           </p>
           <a routerLink="/auth/login"
              style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:var(--gradient);color:white;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none">
@@ -77,7 +77,7 @@ import { BrandLogoComponent } from '../../../shared/components/brand-logo.compon
 
         <p style="text-align:center;margin-top:22px;font-size:14px;color:#a0a0b8">
           ¿Recordaste tu contraseña?
-          <a routerLink="/auth/login" style="color:#7c3aed;font-weight:800;margin-left:4px">Iniciá sesión</a>
+          <a routerLink="/auth/login" style="color:#7c3aed;font-weight:800;margin-left:4px">Inicia sesión</a>
         </p>
 
       }

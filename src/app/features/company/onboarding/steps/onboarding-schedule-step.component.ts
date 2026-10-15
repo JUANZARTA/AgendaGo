@@ -39,8 +39,8 @@ import { SLOT_OPTIONS, StepNavigation } from '../onboarding.constants';
           </button>
   
           <div class="ob-step-label">Paso 3 de 4 — Horarios</div>
-          <h1 class="ob-title">¿Configurás tus horarios ahora?</h1>
-          <p class="ob-subtitle">Si preferís, podés hacerlo después desde el panel de Horarios</p>
+          <h1 class="ob-title">¿Configuras tus horarios ahora?</h1>
+          <p class="ob-subtitle">Si prefieres, puedes hacerlo después desde el panel de Horarios</p>
   
           <div class="choice-grid">
             <!-- Configurar ahora -->
@@ -51,7 +51,7 @@ import { SLOT_OPTIONS, StepNavigation } from '../onboarding.constants';
                 </svg>
               </div>
               <div class="choice-title">Configurar ahora</div>
-              <div class="choice-desc">Definí días y horarios de atención</div>
+              <div class="choice-desc">Define días y horarios de atención</div>
             </button>
   
             <!-- Después -->
@@ -79,13 +79,13 @@ import { SLOT_OPTIONS, StepNavigation } from '../onboarding.constants';
           </button>
   
           <div class="ob-step-label">Paso 3 de 4 — Horarios</div>
-          <h1 class="ob-title">Configurá tus horarios</h1>
-          <p class="ob-subtitle">Podés ajustar esto en detalle desde el panel de Horarios</p>
+          <h1 class="ob-title">Configura tus horarios</h1>
+          <p class="ob-subtitle">Puedes ajustar esto en detalle desde el panel de Horarios</p>
   
           <!-- Intervalo y staff -->
           <div class="ob-form-group">
             <label>Intervalo entre turnos</label>
-            <p style="font-size:12px;color:#888;margin:0 0 6px">Cada cuánto mostrás opciones de hora. La duración real viene de cada servicio.</p>
+            <p style="font-size:12px;color:#888;margin:0 0 6px">Cada cuánto muestras opciones de hora. La duración real viene de cada servicio.</p>
             <select [(ngModel)]="slotInterval">
               @for (opt of slotOptions; track opt.value) {
                 <option [ngValue]="opt.value">{{ opt.label }}</option>

@@ -39,7 +39,7 @@ const MAX_AGE_MS = 45 * 24 * 3600_000;
     @if (pending().length > 0) {
       <div class="box">
         <p class="head">Intentos de pago sin reporte <span class="count">{{ pending().length }}</span></p>
-        <p class="sub">Abrieron el pago y no volvieron a la app. Buscalos en Wompi → Transacciones por monto y hora.</p>
+        <p class="sub">Abrieron el pago y no volvieron a la app. Búscalos en Wompi → Transacciones por monto y hora.</p>
 
         @for (a of pending(); track a.id) {
           <div class="item">
@@ -111,7 +111,7 @@ export class PaymentAttemptsComponent {
 
   async dismiss(a: PaymentAttempt): Promise<void> {
     if (!a.id) return;
-    if (!confirm(`¿Descartar el intento de ${a.companyName}? Hacelo sólo si confirmaste que no pagó.`)) return;
+    if (!confirm(`¿Descartar el intento de ${a.companyName}? Hazlo sólo si confirmaste que no pagó.`)) return;
     await this.claimSvc.dismissAttempt(a.id).catch(err => console.error('[PaymentAttempts] Error descartando:', err));
   }
 

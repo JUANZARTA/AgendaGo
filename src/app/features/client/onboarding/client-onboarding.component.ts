@@ -261,14 +261,14 @@ import { AuthService } from '../../../core/services/auth.service';
         <!-- Título -->
         <div class="ob-title">
           <h2>¡Hola, {{ firstName() }}!</h2>
-          <p>Completá tus datos para agendar citas más rápido.</p>
+          <p>Completa tus datos para agendar citas más rápido.</p>
         </div>
 
         <!-- Formulario -->
         <div class="field">
           <label>Nombre completo</label>
           <input type="text" [(ngModel)]="displayName"
-                 placeholder="Cómo querés que te llamen" />
+                 placeholder="Cómo quieres que te llamen" />
         </div>
 
         <div class="field">
@@ -364,7 +364,7 @@ export class ClientOnboardingComponent {
         profileComplete: true,
       });
     } catch {
-      this.error.set('Error al guardar. Intentá de nuevo.');
+      this.error.set('Error al guardar. Intenta de nuevo.');
       this.loading.set(false);
     }
   }

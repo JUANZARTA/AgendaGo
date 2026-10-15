@@ -26,7 +26,7 @@
       <div class="auth-feature-list">
         <div class="auth-feature-item">
           <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
-          <span>Agendá tu cita en segundos</span>
+          <span>Agenda tu cita en segundos</span>
         </div>
         <div class="auth-feature-item">
           <span style="display:inline-flex;align-items:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
@@ -38,18 +38,19 @@
         </div>
       </div>
 
+      <!-- Beneficios reales (sin cifras inventadas) -->
       <div class="auth-stats">
         <div class="auth-stat">
-          <strong>500+</strong>
-          <span>negocios</span>
+          <strong style="display:flex;justify-content:center;margin-bottom:4px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></strong>
+          <span>Reservas 24/7</span>
         </div>
         <div class="auth-stat">
-          <strong>10k+</strong>
-          <span>citas agendadas</span>
+          <strong style="display:flex;justify-content:center;margin-bottom:4px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></strong>
+          <span>Sin llamadas</span>
         </div>
         <div class="auth-stat">
-          <strong>4.9</strong>
-          <span>calificación</span>
+          <strong style="display:flex;justify-content:center;margin-bottom:4px"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></strong>
+          <span>Tu link propio</span>
         </div>
       </div>
 
@@ -87,7 +88,7 @@
 
       <div style="text-align:center;margin-bottom:28px">
         <h2 style="font-size:1.5rem;font-weight:800;color:#1a1a2e;margin-bottom:6px">Iniciar sesión</h2>
-        <p style="color:#a0a0b8;font-size:14px">Ingresá con tu cuenta de AgendaCo</p>
+        <p style="color:#a0a0b8;font-size:14px">Ingresa con tu cuenta de AgendaCo</p>
       </div>
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()">
@@ -164,8 +165,8 @@
       </button>
 
       <p style="text-align:center;margin-top:22px;font-size:14px;color:#a0a0b8">
-        ¿No tenés cuenta?
-        <a routerLink="/auth/register" style="color:#7c3aed;font-weight:800;margin-left:4px">Registrate gratis</a>
+        ¿No tienes cuenta?
+        <a routerLink="/auth/register" style="color:#7c3aed;font-weight:800;margin-left:4px">Regístrate gratis</a>
       </p>
 
       <a routerLink="/" class="guest-btn">

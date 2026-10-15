@@ -67,9 +67,17 @@ interface Conversation {
     .confirm-card h3 { margin: 0 0 8px; font-size: 1.1rem; }
     .confirm-card p { margin: 0 0 20px; font-size: 14px; color: #666; }
     .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-    @media (max-width: 640px) {
-      .msg-layout { flex-direction: column; height: auto; min-height: 400px; }
-      .conv-list { width: 100%; border-right: none; border-bottom: 1.5px solid #f0ebff; max-height: 180px; }
+    /* Botón "volver a la lista": sólo en móvil */
+    .chat-back { display: none; width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid #ede9fe; background: white; color: var(--purple); cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; }
+    /* Móvil: vista lista -> vista chat (una a la vez), ocupando el alto disponible */
+    @media (max-width: 768px) {
+      .msg-layout { height: calc(100dvh - 250px - env(safe-area-inset-bottom)); min-height: 340px; }
+      .conv-list { width: 100%; border-right: none; }
+      .msg-layout.chat-open .conv-list { display: none; }
+      .msg-layout:not(.chat-open) .chat-area { display: none; }
+      .chat-header { display: flex; align-items: center; gap: 10px; }
+      .chat-back { display: flex; }
+      .conv-delete-btn { opacity: 1; }
       .msg-wrapper { max-width: 85%; }
     }
   `],
@@ -78,7 +86,7 @@ interface Conversation {
       <p style="font-size:1.45rem;font-weight:800;margin:0 0 4px">Mensajes</p>
       <p style="font-size:13px;color:#888;margin:0 0 20px">Conversaciones con tus clientes</p>
 
-      <div class="msg-layout">
+      <div class="msg-layout" [class.chat-open]="!!selectedClientId()">
 
         <!-- Conversation list -->
         <div class="conv-list">
@@ -107,10 +115,13 @@ interface Conversation {
           @if (!selectedClientId()) {
             <div class="empty-state">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <p>Seleccioná una conversación</p>
+              <p>Selecciona una conversación</p>
             </div>
           } @else {
-            <div class="chat-header">{{ selectedClientName() }}</div>
+            <div class="chat-header">
+              <button class="chat-back" type="button" title="Volver a conversaciones" (click)="closeChat()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selectedClientName() }}</span>
+            </div>
             <div class="chat-messages" #chatBox>
               @for (m of currentMessages(); track m.id) {
                 <div class="msg-row" [class.company]="m.senderRole === 'company'" [class.client]="m.senderRole === 'client'"
@@ -155,7 +166,7 @@ interface Conversation {
               }
             </div>
             <div class="chat-input-row">
-              <input class="chat-input" [(ngModel)]="replyText" placeholder="Escribí tu respuesta..." (keydown.enter)="sendReply()" />
+              <input class="chat-input" [(ngModel)]="replyText" placeholder="Escribe tu respuesta..." (keydown.enter)="sendReply()" />
               <button class="btn btn-primary" (click)="sendReply()" [disabled]="!replyText.trim() || sending()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
@@ -224,15 +235,21 @@ export class MessagesComponent implements OnDestroy {
         const preview = m.deleted ? 'Mensaje eliminado' : (m.text || '');
         map.set(m.clientId, {
           clientId: m.clientId,
-          clientName: m.clientName,
+          clientName: m.clientName || '',
           lastMessage: preview,
           lastAt: m.createdAt,
           unread: 0,
         });
       }
+      // Si el último mensaje no trae nombre, se toma el primero disponible de la conversación
+      const conv = map.get(m.clientId)!;
+      if (!conv.clientName && m.clientName) conv.clientName = m.clientName;
       if (m.senderRole === 'client' && !m.read) {
         map.get(m.clientId)!.unread++;
       }
+    }
+    for (const conv of map.values()) {
+      if (!conv.clientName) conv.clientName = 'Cliente';
     }
     this.conversations.set(Array.from(map.values()));
     if (this.selectedClientId()) {
@@ -254,6 +271,15 @@ export class MessagesComponent implements OnDestroy {
     if (companyId) this.msgService.markRead(companyId, c.clientId, 'company').catch(() => {});
   }
 
+  /** Vuelve a la lista de conversaciones (en móvil, la lista y el chat se muestran de a uno). */
+  closeChat() {
+    this.selectedClientId.set(null);
+    this.selectedClientName.set('');
+    this.currentMessages.set([]);
+    this.closeMenu();
+    this.cancelEdit();
+  }
+
   async sendReply() {
     const text = this.replyText.trim();
     if (!text) return;
@@ -263,15 +289,18 @@ export class MessagesComponent implements OnDestroy {
     this.sending.set(true);
     this.replyText = '';
     const clientName = this.selectedClientName();
+    // Se guarda el nombre del negocio (igual que cuando escribe el cliente) para la lista del cliente
+    const storedName  = (this.companyStore.company()?.name ?? '').trim().slice(0, 200);
+    const companyName = storedName || 'Negocio';
     try {
       await this.msgService.sendMessage({
         companyId,
+        ...(storedName ? { companyName: storedName } : {}),
         clientId,
         clientName,
         senderRole: 'company',
         text,
       });
-      const companyName = this.companyStore.company()?.name ?? 'Empresa';
       this.notifSvc.create({
         recipientId: clientId,
         type: 'new_message',

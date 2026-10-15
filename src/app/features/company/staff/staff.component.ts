@@ -28,7 +28,7 @@ import { StaffEditModalComponent } from './components/staff-edit-modal.component
         <div class="card" style="text-align:center;padding:40px;color:#aaa">Cargando...</div>
       } @else if (!companyId()) {
         <div class="card" style="text-align:center;padding:40px;color:#aaa">
-          Iniciá sesión para gestionar tu equipo.
+          Inicia sesión para gestionar tu equipo.
         </div>
       } @else {
         <div class="card" style="margin-bottom:16px">
@@ -47,7 +47,7 @@ import { StaffEditModalComponent } from './components/staff-edit-modal.component
 
           @if (!loading() && staff().length === 0) {
             <div class="card" style="text-align:center;padding:40px;color:#aaa">
-              Sin integrantes aún. Agregá el primero.
+              Sin integrantes aún. Agrega el primero.
             </div>
           }
         </div>

@@ -33,7 +33,7 @@ import { DAY_LABELS, DAY_ORDER, STAFF_INPUT_MEDIA_STYLES, StaffDraft } from '../
           <div style="font-size:11px;color:#888;margin-top:2px">Este profesional tiene días y horarios distintos</div>
         } @else {
           <div style="font-size:13px;font-weight:700;color:#1a1a2e">Horario de la empresa</div>
-          <div style="font-size:11px;color:#888;margin-top:2px">Activá si tiene días u horas diferentes</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">Activa si tiene días u horas diferentes</div>
         }
       </div>
       <div class="toggle-track" [class.on]="draft.useCustomSchedule" (click)="draft.useCustomSchedule = !draft.useCustomSchedule">

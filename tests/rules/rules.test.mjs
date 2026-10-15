@@ -461,6 +461,8 @@ async function main() {
   await expectDeny('client sends as other client', () => addDoc(collection(c1, 'messages'), { companyId: 'c1', clientId: 'client2', clientName: 'Ana', senderRole: 'client', text: 'hola', createdAt: serverTimestamp(), read: false }));
   await expectDeny('client sends as company', () => addDoc(collection(c1, 'messages'), { companyId: 'c1', clientId: 'client1', clientName: 'Ana', senderRole: 'company', text: 'hola', createdAt: serverTimestamp(), read: false }));
   await expectOk('owner replies', async () => { m2 = (await addDoc(collection(o1, 'messages'), { companyId: 'c1', clientId: 'client1', clientName: 'Ana', senderRole: 'company', text: 'buenas', createdAt: serverTimestamp(), read: false })).id; });
+  await expectOk('owner replies with companyName', () => addDoc(collection(o1, 'messages'), { companyId: 'c1', companyName: 'Salon', clientId: 'client1', clientName: 'Ana', senderRole: 'company', text: 'te esperamos', createdAt: serverTimestamp(), read: false }));
+  await expectDeny('owner reply companyName > 200', () => addDoc(collection(o1, 'messages'), { companyId: 'c1', companyName: 'x'.repeat(201), clientId: 'client1', clientName: 'Ana', senderRole: 'company', text: 'hola', createdAt: serverTimestamp(), read: false }));
   await expectOk('client watches conversation', () => getDocs(query(collection(c1, 'messages'), where('companyId', '==', 'c1'), where('clientId', '==', 'client1'), orderBy('createdAt', 'asc'))));
   await expectOk('owner watches conversations', () => getDocs(query(collection(o1, 'messages'), where('companyId', '==', 'c1'), orderBy('createdAt', 'desc'))));
   await expectOk('client marks company msg read', () => updateDoc(doc(c1, 'messages', m2), { read: true }));
@@ -744,6 +746,7 @@ async function main() {
   await expectDeny('SQA BLOCKED owner writes services', () => setDoc(doc(o3, 'companies', 'c5', 'services', 'sx'), { name: 'x' }));
   await expectDeny('SQA BLOCKED owner creates manual apt', () => book(o3, aptData({ companyId: 'c5', source: 'manual', date: '2030-06-01' }), 'scheduled'));
   await expectDeny('SQA company A writes B services', () => setDoc(doc(o1, 'companies', 'c3', 'services', 'sx'), { name: 'x' }));
+  await expectOk('owner creates staff with all serviceIds (onboarding)', () => addDoc(collection(o1, 'companies', 'c1', 'staff'), { name: 'Pro', isActive: true, serviceIds: ['s1', 's2'] }));
   await expectDeny('SQA company A writes B staff', () => setDoc(doc(o1, 'companies', 'c3', 'staff', 'stx'), { name: 'x', isActive: true, serviceIds: ['s1'] }));
   await expectDeny('SQA company A deletes B blockedSlots', () => deleteDoc(doc(o1, 'companies', 'c3', 'blockedSlots', 'b1')));
   await expectDeny('SQA guest reads non-public company', () => getDoc(doc(guest, 'companies', 'c8')));

@@ -38,7 +38,7 @@ import { SCHEDULE_SECTION_STYLES } from '../schedule.styles';
           </svg>
           Intervalo entre turnos
         </div>
-        <p style="font-size:12px;color:#888;margin:0 0 12px">Cada cuánto mostrás opciones de hora al cliente. La duración real viene de cada servicio.</p>
+        <p style="font-size:12px;color:#888;margin:0 0 12px">Cada cuánto muestras opciones de hora al cliente. La duración real viene de cada servicio.</p>
         <div class="duration-row">
           @for (d of durations(); track d) {
             <button class="duration-btn" [class.active]="slotInterval() === d" (click)="slotInterval.set(d)">

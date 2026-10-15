@@ -21,8 +21,8 @@ import { StepNavigation } from '../onboarding.constants';
           </button>
   
           <div class="ob-step-label">Paso 4 de 4 — Servicios</div>
-          <h1 class="ob-title">¿Configurás tus servicios ahora?</h1>
-          <p class="ob-subtitle">Si preferís, podés hacerlo después desde el panel de Servicios</p>
+          <h1 class="ob-title">¿Configuras tus servicios ahora?</h1>
+          <p class="ob-subtitle">Si prefieres, puedes hacerlo después desde el panel de Servicios</p>
   
           <div class="choice-grid">
             <!-- Configurar ahora -->
@@ -33,7 +33,7 @@ import { StepNavigation } from '../onboarding.constants';
                 </svg>
               </div>
               <div class="choice-title">Configurar ahora</div>
-              <div class="choice-desc">Agregá tus servicios con precio y duración</div>
+              <div class="choice-desc">Agrega tus servicios con precio y duración</div>
             </button>
   
             <!-- Después -->
@@ -64,7 +64,7 @@ import { StepNavigation } from '../onboarding.constants';
   
           <div class="ob-step-label">Paso 4 de 4 — Servicios</div>
           <h1 class="ob-title">Tus servicios</h1>
-          <p class="ob-subtitle">Podés ajustar precios y detalles desde el panel de Servicios</p>
+          <p class="ob-subtitle">Puedes ajustar precios y detalles desde el panel de Servicios</p>
   
           <!-- Lista de servicios agregados -->
           @if (pendingServices().length > 0) {
@@ -137,6 +137,13 @@ import { StepNavigation } from '../onboarding.constants';
             </button>
           </div>
   
+          @if (staffCount() > 0 && pendingServices().length > 0) {
+            <div style="display:flex;gap:8px;align-items:flex-start;background:#f9f5ff;border:1.5px solid #ede9fe;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#5b21b6;line-height:1.5">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <span>{{ staffCount() === 1 ? 'Tu profesional atenderá' : 'Tus ' + staffCount() + ' profesionales atenderán' }} todos estos servicios. Puedes cambiarlo después desde Equipo.</span>
+            </div>
+          }
+
           @if (error()) { <div class="error-box">{{ error() }}</div> }
   
           <button class="ob-btn-primary" (click)="create.emit()" [disabled]="creating()">
@@ -161,6 +168,8 @@ export class OnboardingServicesStepComponent {
   readonly pendingServices = input.required<Omit<ServiceItem, 'id'>[]>();
   readonly error = input<string>('');
   readonly creating = input<boolean>(false);
+  /** Profesionales cargados en el paso de equipo (se les asignan todos los servicios). */
+  readonly staffCount = input<number>(0);
 
   readonly added = output<Omit<ServiceItem, 'id'>>();
   readonly removed = output<number>();

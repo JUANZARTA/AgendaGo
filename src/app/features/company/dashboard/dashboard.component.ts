@@ -198,7 +198,7 @@ import { DaySlot, buildDaySlots, calcEndTime } from './dashboard.utils';
         <div class="section-card" style="text-align:center;color:#aaa">Cargando empresa...</div>
       } @else if (!companyStore.companyId()) {
         <div class="section-card" style="text-align:center;color:#aaa">
-          Iniciá sesión para ver tu agenda.
+          Inicia sesión para ver tu agenda.
         </div>
       } @else {
         <!-- Stats -->
@@ -402,7 +402,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private showActionError(e: any, fallback: string) {
     const messages: Record<string, string> = {
       INVALID_TRANSITION:  'Esta cita ya cambió de estado y no admite esa acción.',
-      FUTURE_APPOINTMENT:  'No podés completar una cita de un día futuro.',
+      FUTURE_APPOINTMENT:  'No puedes completar una cita de un día futuro.',
       NOT_FOUND:           'La cita ya no existe.',
     };
     this.actionError.set(messages[e?.message] ?? fallback);
@@ -413,7 +413,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     try {
       await this.aptSvc.confirmAppointment(id);
     } catch (e) {
-      this.showActionError(e, 'No se pudo confirmar la cita. Intentá de nuevo.');
+      this.showActionError(e, 'No se pudo confirmar la cita. Intenta de nuevo.');
       return;
     }
     const apt = this.appointments().find(a => a.id === id);
@@ -432,7 +432,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     try {
       await this.aptSvc.completeAppointment(id);
     } catch (e) {
-      this.showActionError(e, 'No se pudo completar la cita. Intentá de nuevo.');
+      this.showActionError(e, 'No se pudo completar la cita. Intenta de nuevo.');
     }
   }
 
@@ -471,7 +471,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.cancelTarget.set(null);
     } catch (e) {
       this.cancelTarget.set(null);
-      this.showActionError(e, 'No se pudo cancelar la cita. Intentá de nuevo.');
+      this.showActionError(e, 'No se pudo cancelar la cita. Intenta de nuevo.');
     } finally {
       this.saving.set(false);
     }
@@ -510,8 +510,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.closeNewModal();
     } catch (e: any) {
       this.formError.set(e?.message === 'SLOT_TAKEN'
-        ? 'Ese horario ya está ocupado (sin cupo para el profesional/servicio). Elegí otro.'
-        : 'No se pudo guardar la cita. Intentá de nuevo.');
+        ? 'Ese horario ya está ocupado (sin cupo para el profesional/servicio). Elige otro.'
+        : 'No se pudo guardar la cita. Intenta de nuevo.');
     } finally {
       this.saving.set(false);
     }

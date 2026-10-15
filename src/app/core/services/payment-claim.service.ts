@@ -85,14 +85,14 @@ export class PaymentClaimService {
     if (r === 'created') {
       const planTxt = plan
         ? ` (plan ${PLANS[plan].label}, ${formatCop(t.amountInCents / 100)})`
-        : ` (⚠ ${formatCop(t.amountInCents / 100)}: el monto NO corresponde a ningún plan, revisalo)`;
+        : ` (⚠ ${formatCop(t.amountInCents / 100)}: el monto NO corresponde a ningún plan, revísalo)`;
       const payer   = t.customerName ? `. Pagó: ${t.customerName}` : '';
       const method  = t.paymentMethod ? ` con ${paymentMethodLabel(t.paymentMethod)}` : '';
       await this.notifSvc.create({
         recipientId: 'admin',
         type:        'payment_initiated',
         title:       `Pago reportado — ${company.name}`,
-        body:        `${company.name} reportó la transacción ${t.id}${planTxt}${payer}${method}. Verificala en Facturación.`,
+        body:        `${company.name} reportó la transacción ${t.id}${planTxt}${payer}${method}. Verifícala en Facturación.`,
         link:        '/admin/facturacion',
       }).catch(err => console.error('[PaymentClaims] No se pudo avisar al admin:', err));
     }

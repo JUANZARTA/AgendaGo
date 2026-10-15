@@ -36,7 +36,7 @@ import { MODAL_CSS, REVIEW_TEXTAREA_CSS, STAR_BTN_CSS } from '../company-reviews
         </div>
 
         <textarea class="review-textarea" [ngModel]="comment()" (ngModelChange)="comment.set($event)"
-                  placeholder="Contá tu experiencia...">
+                  placeholder="Cuenta tu experiencia...">
         </textarea>
 
         @if (error()) {

@@ -191,7 +191,7 @@ type OpenSection = 'none' | 'data' | 'photo';
           </div>
           <div class="row-text">
             <div class="row-label">Tour de la app</div>
-            <div class="row-sub">Volvé a ver el recorrido guiado</div>
+            <div class="row-sub">Vuelve a ver el recorrido guiado</div>
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
@@ -277,7 +277,7 @@ export class ClientProfileComponent {
       this.dataSuccess.set(true);
       setTimeout(() => { this.dataSuccess.set(false); this.openSection.set('none'); }, 1400);
     } catch {
-      this.dataError.set('Error al guardar. Intentá de nuevo.');
+      this.dataError.set('Error al guardar. Intenta de nuevo.');
     } finally {
       this.dataLoading.set(false);
     }

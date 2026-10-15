@@ -23,10 +23,10 @@ import { SupportConversationComponent } from '../../../shared/components/support
       me="company"
       theirLabel="Soporte AgendaCo"
       [sending]="sending()"
-      [placeholder]="kind() === 'urgente' ? 'Contanos qué está fallando...' : 'Escribí tu consulta...'"
+      [placeholder]="kind() === 'urgente' ? 'Cuéntanos qué está fallando...' : 'Escribe tu consulta...'"
       [emptyText]="kind() === 'urgente'
-        ? 'Contanos qué no funciona y lo revisamos cuanto antes.'
-        : 'Escribí tu duda y te respondemos en el día.'"
+        ? 'Cuéntanos qué no funciona y lo revisamos cuanto antes.'
+        : 'Escribe tu duda y te respondemos en el día.'"
       (send)="send($event)" />
     @if (error()) { <div class="err">{{ error() }}</div> }
   `,
@@ -73,7 +73,7 @@ export class SupportChatComponent {
       await this.support.sendFromCompany({ id: c.id, name: c.name ?? 'Empresa' }, this.kind(), text);
     } catch (err) {
       console.error('[Soporte empresa] envío:', err);
-      this.error.set('No se pudo enviar el mensaje. Probá de nuevo.');
+      this.error.set('No se pudo enviar el mensaje. Prueba de nuevo.');
       this.conv()?.restore(text);
     } finally {
       this.sending.set(false);

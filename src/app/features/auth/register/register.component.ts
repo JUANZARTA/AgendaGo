@@ -94,7 +94,7 @@ export class RegisterComponent {
   onSubmit() {
     if (this.form.invalid) return;
     if (!this.acceptedTerms()) {
-      this.error.set('Para crear la cuenta tenés que aceptar los Términos y la Política de privacidad.');
+      this.error.set('Para crear la cuenta tienes que aceptar los Términos y la Política de privacidad.');
       return;
     }
     this.loading.set(true);
@@ -129,7 +129,7 @@ export class RegisterComponent {
       error: (e) => {
         const msg = e.code === 'auth/email-already-in-use'
           ? 'El email ya está registrado.'
-          : 'Error al crear la cuenta. Intentá de nuevo.';
+          : 'Error al crear la cuenta. Intenta de nuevo.';
         this.error.set(msg);
         this.loading.set(false);
       },

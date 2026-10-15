@@ -72,7 +72,7 @@ const EMPTY: Omit<ServiceItem, 'id'> = { name: '', description: '', duration: 30
         <div class="card" style="text-align:center;padding:40px;color:#aaa">Cargando...</div>
       } @else if (!companyId()) {
         <div class="card" style="text-align:center;padding:40px;color:#aaa">
-          Iniciá sesión para gestionar tus servicios.
+          Inicia sesión para gestionar tus servicios.
         </div>
       } @else {
         <div class="card" style="margin-bottom:16px">
@@ -104,7 +104,7 @@ const EMPTY: Omit<ServiceItem, 'id'> = { name: '', description: '', duration: 30
 
           @if (!loading() && services().length === 0) {
             <div class="card" style="text-align:center;padding:40px;color:#aaa">
-              Sin servicios aún. Agregá el primero.
+              Sin servicios aún. Agrega el primero.
             </div>
           }
         </div>

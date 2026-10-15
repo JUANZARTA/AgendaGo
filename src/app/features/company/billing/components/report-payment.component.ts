@@ -53,7 +53,7 @@ import { planFromAmount } from '../../../../core/domain/plans';
 
       @if (open()) {
         <p class="text">
-          Ingresá el <strong>número de transacción</strong> del comprobante que Wompi te mandó por correo
+          Ingresa el <strong>número de transacción</strong> del comprobante que Wompi te mandó por correo
           (ej. 12103138-1791998438-62813). Lo verificamos y activamos tu plan.
         </p>
         <div class="row">
@@ -90,15 +90,15 @@ export class ReportPaymentComponent {
     this.message.set(null);
     if (!companyId) return;
     if (!this.wompi.isValidTransactionId(id)) {
-      this.message.set({ ok: false, text: 'Ese no parece un número de transacción de Wompi. Copialo tal cual del comprobante.' });
+      this.message.set({ ok: false, text: 'Ese no parece un número de transacción de Wompi. Cópialo tal cual del comprobante.' });
       return;
     }
     this.busy.set(true);
     try {
       const t = await this.wompi.getTransaction(id);
-      if (!t) { this.message.set({ ok: false, text: 'Wompi no encontró esa transacción. Revisá el número.' }); return; }
+      if (!t) { this.message.set({ ok: false, text: 'Wompi no encontró esa transacción. Revisa el número.' }); return; }
       if (t.status !== 'APPROVED' && t.status !== 'PENDING') {
-        this.message.set({ ok: false, text: 'Wompi informa que ese pago no se completó, así que no se te cobró. Podés intentarlo de nuevo.' });
+        this.message.set({ ok: false, text: 'Wompi informa que ese pago no se completó, así que no se te cobró. Puedes intentarlo de nuevo.' });
         return;
       }
       // Mismo criterio que la página de gracias: un monto que no es de ningún plan se reporta IGUAL

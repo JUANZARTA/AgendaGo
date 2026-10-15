@@ -127,6 +127,7 @@ import { OnboardingServicesStepComponent } from './steps/onboarding-services-ste
             [step]="step()"
             [prevStep]="_prevStep"
             [pendingServices]="pendingServices"
+            [staffCount]="pendingStaff.length"
             [(newSvc)]="newSvc"
             [(newSvcPriceDisplay)]="newSvcPriceDisplay"
             [error]="error()"
@@ -218,7 +219,8 @@ export class CompanyOnboardingComponent {
   private createdCompanyId: string | null = null;
   private pendingCompanyId: string | null = null;
   private staffCreatedCount = 0;
-  private servicesCreatedCount = 0;
+  /** Ids de los servicios ya creados (se asignan a cada profesional del onboarding). */
+  private createdServiceIds: string[] = [];
 
   async doCreate() {
     if (!this.form.name.trim() || !this.selectedCat()) return;
@@ -264,22 +266,25 @@ export class CompanyOnboardingComponent {
 
       this.createdCompanyId = companyId;
 
-      // Los contadores evitan duplicar staff/servicios ya creados en un intento previo
+      // Los contadores evitan duplicar servicios/staff ya creados en un intento previo.
+      // Primero los servicios: sus ids se asignan a cada profesional (si no, el staff queda
+      // con serviceIds vacío y las reglas rechazan cualquier reserva con ese profesional).
+      while (this.createdServiceIds.length < this.pendingServices.length) {
+        const id = await this.serviceCatalogSvc.createService(companyId, this.pendingServices[this.createdServiceIds.length]);
+        this.createdServiceIds.push(id);
+      }
+
       while (this.staffCreatedCount < this.pendingStaff.length) {
         const m = this.pendingStaff[this.staffCreatedCount];
         await this.staffSvc.createStaff(companyId, {
           name:       m.name,
           phone:      m.phone || undefined,
           photoURL:   m.photoURL,
-          serviceIds: [],
+          // Por defecto atiende TODOS los servicios cargados; se ajusta luego en Equipo
+          serviceIds: [...this.createdServiceIds],
           isActive:   true,
         });
         this.staffCreatedCount++;
-      }
-
-      while (this.servicesCreatedCount < this.pendingServices.length) {
-        await this.serviceCatalogSvc.createService(companyId, this.pendingServices[this.servicesCreatedCount]);
-        this.servicesCreatedCount++;
       }
 
       await this.companyStore.refresh();
@@ -287,9 +292,9 @@ export class CompanyOnboardingComponent {
       console.error('[Onboarding] createCompany error:', err);
       const code = err?.code ?? '';
       this.error.set(
-        code === 'permission-denied' ? 'Sin permisos en Firestore. Configurá las reglas de seguridad.' :
-        code === 'unauthenticated'   ? 'Sesión expirada. Cerrá sesión e iniciá de nuevo.' :
-        err?.message ? `Error: ${err.message}` : 'Error de conexión. Intentá de nuevo.'
+        code === 'permission-denied' ? 'Sin permisos en Firestore. Configura las reglas de seguridad.' :
+        code === 'unauthenticated'   ? 'Sesión expirada. Cierra sesión e inicia de nuevo.' :
+        err?.message ? `Error: ${err.message}` : 'Error de conexión. Intenta de nuevo.'
       );
     } finally {
       this.creating.set(false);
