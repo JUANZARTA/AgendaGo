@@ -1,7 +1,7 @@
 {
   "name": "AgendaCo",
   "short_name": "AgendaCo",
-  "description": "Reservá tu turno online en salones, barberías y spas",
+  "description": "Reserva tu turno online en salones, barberías y spas",
   "display": "standalone",
   "orientation": "portrait",
   "lang": "es",
