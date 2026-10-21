@@ -9,6 +9,8 @@ import { SettingsAnnouncementComponent } from './settings-announcement.component
 import { SettingsSectionComponent } from './settings-section.component';
 import { SettingsLegalComponent } from './settings-legal.component';
 import { InstallAppCardComponent } from '../../../shared/components/install-app-card.component';
+import { TutorialCardComponent } from '../../../shared/components/tutorial-card.component';
+import { SettingsTutorialComponent } from './settings-tutorial.component';
 import { LogoutCardComponent } from '../../../shared/components/logout-card.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
@@ -21,7 +23,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
   standalone: true,
   imports: [
     ThemeSwitcherComponent, SettingsSectionComponent, SettingsPlansComponent, SettingsTimesComponent,
-    SettingsSupportComponent, SettingsAnnouncementComponent, SettingsLegalComponent, LegalLinksComponent, InstallAppCardComponent, LogoutCardComponent,
+    SettingsSupportComponent, SettingsAnnouncementComponent, SettingsLegalComponent, LegalLinksComponent, InstallAppCardComponent, TutorialCardComponent, SettingsTutorialComponent, LogoutCardComponent,
   ],
   template: `
     <div class="page">
@@ -34,6 +36,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
       <app-settings-times />
       <app-settings-support />
       <app-settings-announcement />
+      <app-settings-tutorial />
 
       <app-settings-section title="Colores de la interfaz" subtitle="Se guarda en este navegador (no cambia los colores de las empresas)." [saveable]="false">
         <app-theme-switcher />
@@ -41,6 +44,7 @@ import { LegalLinksComponent } from '../../../shared/components/legal-links.comp
 
       <app-settings-legal />
 
+      <app-tutorial-card />
       <app-install-app-card />
       <app-legal-links />
       <app-logout-card />

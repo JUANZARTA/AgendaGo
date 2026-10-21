@@ -8,6 +8,7 @@ import { TourService } from '../../../core/services/tour.service';
 import { CATEGORY_GROUPS, categoriesOfGroup } from '../../../core/domain/categories';
 import { PRESET_LOGO_ICONS } from '../../../core/domain/company-logo';
 import { InstallAppCardComponent } from '../../../shared/components/install-app-card.component';
+import { TutorialCardComponent } from '../../../shared/components/tutorial-card.component';
 import { LogoutCardComponent } from '../../../shared/components/logout-card.component';
 import { LegalLinksComponent } from '../../../shared/components/legal-links.component';
 
@@ -18,7 +19,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
 @Component({
   selector: 'app-company-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, ThemeSwitcherComponent, LegalLinksComponent, InstallAppCardComponent, LogoutCardComponent],
+  imports: [CommonModule, FormsModule, ThemeSwitcherComponent, LegalLinksComponent, InstallAppCardComponent, TutorialCardComponent, LogoutCardComponent],
   styles: [`
     .profile-page { max-width: 1120px; margin: 0 auto; padding-bottom: 40px; animation: fadeInUp .3s ease; }
     @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -426,6 +427,7 @@ const PRESET_COLORS = ['#7c3aed','#f43f5e','#10b981','#f59e0b','#3b82f6','#ec489
     </div>
 
     <!-- ── Legal ── -->
+    <app-tutorial-card class="full" />
     <app-install-app-card class="full" />
     <app-legal-links class="full" />
     <app-logout-card class="full" />

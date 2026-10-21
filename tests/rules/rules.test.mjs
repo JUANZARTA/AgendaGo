@@ -402,6 +402,16 @@ async function main() {
   }, { merge: true }));
   await expectDeny('admin writes trialMonths out of range', () => setDoc(doc(admin, 'config', 'app'), { trialMonths: 13 }, { merge: true }));
   await expectDeny('admin writes graceDays as string', () => setDoc(doc(admin, 'config', 'app'), { graceDays: '5' }, { merge: true }));
+  await expectOk('admin saves tutorialUrl (watch)', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30s' }, { merge: true }));
+  await expectOk('admin saves tutorialUrl (youtu.be)', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 'https://youtu.be/dQw4w9WgXcQ?si=abc' }, { merge: true }));
+  await expectOk('admin saves tutorialUrl (shorts)', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 'https://www.youtube.com/shorts/abc_DEF-123' }, { merge: true }));
+  await expectOk('admin clears tutorialUrl', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: '' }, { merge: true }));
+  await expectDeny('admin tutorialUrl other domain', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 'https://vimeo.com/123456789' }, { merge: true }));
+  await expectDeny('admin tutorialUrl http', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 'http://youtu.be/dQw4w9WgXcQ' }, { merge: true }));
+  await expectDeny('admin tutorialUrl lookalike host', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 'https://youtube.com.evil.com/watch?v=dQw4w9WgXcQ' }, { merge: true }));
+  await expectDeny('admin tutorialUrl too long', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 'https://youtu.be/dQw4w9WgXcQ?x=' + 'a'.repeat(300) }, { merge: true }));
+  await expectDeny('admin tutorialUrl not a string', () => setDoc(doc(admin, 'config', 'app'), { tutorialUrl: 123 }, { merge: true }));
+  await expectDeny('company writes tutorialUrl', () => setDoc(doc(o1, 'config', 'app'), { tutorialUrl: 'https://youtu.be/dQw4w9WgXcQ' }, { merge: true }));
   await expectDeny('company writes config/app', () => setDoc(doc(o1, 'config', 'app'), { trialMonths: 12 }, { merge: true }));
   await expectDeny('client writes config/app', () => setDoc(doc(c1, 'config', 'app'), { announcement: { active: true, text: 'x', level: 'info' } }, { merge: true }));
   await expectDeny('guest writes config/app', () => setDoc(doc(guest, 'config', 'app'), { trialMonths: 12 }, { merge: true }));

@@ -413,6 +413,12 @@ service cloud.firestore {
       return s is string
         && (s == '' || s.matches('^https://checkout[.]wompi[.]co/l/[A-Za-z0-9_-]{1,64}$'));
     }
+    // Link del tutorial: '' (sin tutorial) o un link de YouTube (watch?v=, youtu.be/ o shorts/), máx. 300.
+    // MISMA definición que YOUTUBE_URL_RE (src/app/core/domain/youtube-url.ts).
+    function validTutorialUrl(s) {
+      return s is string && s.size() <= 300
+        && (s == '' || s.matches('^https://((www[.])?youtube[.]com/watch[?]([^ #]*&)?v=[A-Za-z0-9_-]{6,20}(&[^ #]*)?|youtu[.]be/[A-Za-z0-9_-]{6,20}([?][^ #]*)?|(www[.])?youtube[.]com/shorts/[A-Za-z0-9_-]{6,20}([?][^ #]*)?)$'));
+    }
     function validPlan(p) {
       return p is map
         && (!('amount' in p) || (p.amount is int && p.amount > 0 && p.amount <= 100000000))
@@ -436,7 +442,8 @@ service cloud.firestore {
         && optIntIn(d, 'warningDays', 0, 30)
         && optIntIn(d, 'graceDays', 0, 30)
         && validPlans(d) && optMap(d, 'support') && optMap(d, 'announcement')
-        && validLegal(d);
+        && validLegal(d)
+        && (!('tutorialUrl' in d) || validTutorialUrl(d.tutorialUrl));
     }
     // Tope del trial que crea el dueño: trialMonths*31+1 días (2 meses = 63, el valor histórico).
     // exists() antes de get(): get() de un doc inexistente hace fallar la regla.

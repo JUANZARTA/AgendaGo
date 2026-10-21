@@ -8,6 +8,7 @@
 import { PLANS, PlanCatalog, PlanKey } from './plans';
 import { GRACE_DAYS, RENEWAL_WARNING_DAYS, TimelineOptions } from './subscription-timeline';
 import { DEFAULT_PRIVACY, DEFAULT_TERMS } from './legal';
+import { normalizeYoutubeUrl, youtubeUrlValid } from './youtube-url';
 
 /** Titular del comercio en Wompi (definido en brand.ts; re-exportado acá por comodidad). */
 export { BRAND_OWNER } from './brand';
@@ -48,6 +49,8 @@ export interface AppConfig {
   support: { whatsapp: string; email: string };
   announcement: { active: boolean; text: string; level: AnnouncementLevel };
   legal: LegalConfig;
+  /** Video tutorial en YouTube ('' = sin tutorial: no se muestra el botón). Ver youtube-url.ts. */
+  tutorialUrl: string;
 }
 
 export const PLAN_KEYS: PlanKey[] = ['mensual', 'semestral'];
@@ -96,6 +99,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   support: { whatsapp: '', email: '' },
   announcement: { active: false, text: '', level: 'info' },
   legal: { terms: DEFAULT_TERMS, privacy: DEFAULT_PRIVACY, updatedAt: null },
+  tutorialUrl: '',
 };
 
 // ── helpers de tipo ──
@@ -161,6 +165,8 @@ export function mergeAppConfig(raw: unknown): AppConfig {
       privacy:   nonEmpty(legal['privacy'], d.legal.privacy),
       updatedAt: toDate(legal['updatedAt']),
     },
+    // Un link que no sea de YouTube se ignora (sin tutorial)
+    tutorialUrl: normalizeYoutubeUrl(str(r['tutorialUrl'], '')) ?? d.tutorialUrl,
   };
 }
 
@@ -240,6 +246,14 @@ export function validateLegal(l: Pick<LegalConfig, 'terms' | 'privacy'>): string
   return errors;
 }
 
+export function validateTutorialUrl(url: string): string[] {
+  const u = url.trim();
+  if (u && !youtubeUrlValid(u)) {
+    return ['El link del tutorial tiene que ser de YouTube (https://www.youtube.com/watch?v=…, https://youtu.be/… o https://www.youtube.com/shorts/…).'];
+  }
+  return [];
+}
+
 export function validateAppConfig(cfg: AppConfig): string[] {
   return [
     ...validatePlans(cfg.plans),
@@ -247,6 +261,7 @@ export function validateAppConfig(cfg: AppConfig): string[] {
     ...validateSupport(cfg.support),
     ...validateAnnouncement(cfg.announcement),
     ...validateLegal(cfg.legal),
+    ...validateTutorialUrl(cfg.tutorialUrl),
   ];
 }
 
